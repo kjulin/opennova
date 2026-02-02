@@ -14,7 +14,8 @@ export interface AuthInfo {
  */
 export function hasClaudeCode(): boolean {
   try {
-    execFileSync("which", ["claude"], { stdio: "ignore" });
+    const cmd = process.platform === "win32" ? "where" : "which";
+    execFileSync(cmd, ["claude"], { stdio: "ignore" });
     return true;
   } catch {
     return false;

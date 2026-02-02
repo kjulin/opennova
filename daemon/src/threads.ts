@@ -1,6 +1,7 @@
 import fs from "fs";
 import path from "path";
 import { randomBytes } from "crypto";
+import { ThreadManifestSchema } from "./schemas.js";
 
 export type ChannelType = "telegram" | "api";
 
@@ -10,6 +11,7 @@ export interface ThreadManifest {
   sessionId?: string;
   createdAt: string;
   updatedAt: string;
+  [key: string]: unknown;
 }
 
 export interface ThreadMessage {
@@ -30,7 +32,12 @@ export function threadPath(agentDir: string, threadId: string): string {
 
 export function loadManifest(filePath: string): ThreadManifest {
   const firstLine = fs.readFileSync(filePath, "utf-8").split("\n")[0]!;
-  return JSON.parse(firstLine);
+  const raw = JSON.parse(firstLine);
+  const result = ThreadManifestSchema.safeParse(raw);
+  if (!result.success) {
+    throw new Error(`Invalid thread manifest in ${path.basename(filePath)}: ${result.error.message}`);
+  }
+  return result.data as ThreadManifest;
 }
 
 export function saveManifest(filePath: string, manifest: ThreadManifest): void {

@@ -7,18 +7,19 @@ import { loadAgents } from "../agents.js";
 import { runThread } from "../runner.js";
 import { listThreads, createThread } from "../threads.js";
 import { createTriggerMcpServer } from "../triggers.js";
-
-interface TelegramConfig {
-  token: string;
-  chatId: string;
-  activeAgentId: string;
-  activeThreadId?: string;
-}
+import { TelegramConfigSchema, safeParseJsonFile, type TelegramConfig } from "../schemas.js";
 
 function loadTelegramConfig(): TelegramConfig | null {
   const filePath = path.join(Config.workspaceDir, "telegram.json");
   if (!fs.existsSync(filePath)) return null;
-  return JSON.parse(fs.readFileSync(filePath, "utf-8"));
+  const raw = safeParseJsonFile(filePath, "telegram.json");
+  if (raw === null) return null;
+  const result = TelegramConfigSchema.safeParse(raw);
+  if (!result.success) {
+    console.warn(`[telegram] invalid telegram.json: ${result.error.message}`);
+    return null;
+  }
+  return result.data;
 }
 
 function saveTelegramConfig(config: TelegramConfig): void {

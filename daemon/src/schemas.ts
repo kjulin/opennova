@@ -1,0 +1,55 @@
+import fs from "fs";
+import { z } from "zod/v4";
+
+export const TelegramConfigSchema = z.object({
+  token: z.string(),
+  chatId: z.string(),
+  activeAgentId: z.string(),
+  activeThreadId: z.string().optional(),
+}).passthrough();
+
+export type TelegramConfig = z.infer<typeof TelegramConfigSchema>;
+
+export const ApiConfigSchema = z.object({
+  port: z.number(),
+  secret: z.string().optional(),
+}).passthrough();
+
+export type ApiConfig = z.infer<typeof ApiConfigSchema>;
+
+export const TriggerSchema = z.object({
+  id: z.string(),
+  channel: z.enum(["telegram", "api"]),
+  cron: z.string(),
+  prompt: z.string(),
+  enabled: z.boolean(),
+  lastRun: z.string().nullable(),
+});
+
+export type Trigger = z.infer<typeof TriggerSchema>;
+
+export const ThreadManifestSchema = z.object({
+  title: z.string().optional(),
+  channel: z.enum(["telegram", "api"]),
+  sessionId: z.string().optional(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+}).passthrough();
+
+export const ThreadMessageSchema = z.object({
+  role: z.enum(["user", "assistant"]),
+  text: z.string(),
+  timestamp: z.string(),
+});
+
+/**
+ * Safely parse JSON from a file, returning null on failure.
+ */
+export function safeParseJsonFile(filePath: string, label: string): unknown | null {
+  try {
+    return JSON.parse(fs.readFileSync(filePath, "utf-8"));
+  } catch (err) {
+    console.warn(`[config] failed to parse ${label} (${filePath}): ${(err as Error).message}`);
+    return null;
+  }
+}

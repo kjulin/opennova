@@ -17,7 +17,12 @@ export function resolveWorkspace(): string {
 function readConfigFile(workspaceDir: string, name: string): Record<string, unknown> | null {
   const filePath = path.join(workspaceDir, `${name}.json`);
   if (!fs.existsSync(filePath)) return null;
-  return JSON.parse(fs.readFileSync(filePath, "utf-8"));
+  try {
+    return JSON.parse(fs.readFileSync(filePath, "utf-8"));
+  } catch (err) {
+    console.warn(`[config] failed to parse ${name}.json: ${(err as Error).message}`);
+    return null;
+  }
 }
 
 function writeConfigFile(workspaceDir: string, name: string, data: Record<string, unknown>): void {

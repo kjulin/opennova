@@ -14,16 +14,19 @@ import {
   deleteThread,
   threadPath,
 } from "../threads.js";
-
-interface ApiConfig {
-  port: number;
-  secret?: string;
-}
+import { ApiConfigSchema, safeParseJsonFile, type ApiConfig } from "../schemas.js";
 
 function loadApiConfig(): ApiConfig | null {
   const filePath = path.join(Config.workspaceDir, "api.json");
   if (!fs.existsSync(filePath)) return null;
-  return JSON.parse(fs.readFileSync(filePath, "utf-8"));
+  const raw = safeParseJsonFile(filePath, "api.json");
+  if (raw === null) return null;
+  const result = ApiConfigSchema.safeParse(raw);
+  if (!result.success) {
+    console.warn(`[api] invalid api.json: ${result.error.message}`);
+    return null;
+  }
+  return result.data;
 }
 
 export function startApi() {

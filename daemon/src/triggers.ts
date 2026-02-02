@@ -11,25 +11,31 @@ import {
 import { Config } from "./config.js";
 import { runThread } from "./runner.js";
 import { createThread, type ChannelType } from "./threads.js";
-
-export interface Trigger {
-  id: string;
-  channel: ChannelType;
-  cron: string;
-  prompt: string;
-  enabled: boolean;
-  lastRun: string | null;
-}
+import { TriggerSchema, safeParseJsonFile } from "./schemas.js";
+export type { Trigger } from "./schemas.js";
+import type { Trigger } from "./schemas.js";
 
 export function loadTriggers(agentDir: string): Trigger[] {
   const filePath = path.join(agentDir, "triggers.json");
   if (!fs.existsSync(filePath)) return [];
-  const raw = JSON.parse(fs.readFileSync(filePath, "utf-8")) as Trigger[];
-  // Backfill channel for triggers created before channel ownership was enforced
-  for (const t of raw) {
-    if (!t.channel) t.channel = "telegram";
+  const raw = safeParseJsonFile(filePath, `triggers.json (${path.basename(agentDir)})`);
+  if (raw === null) return [];
+  if (!Array.isArray(raw)) {
+    console.warn(`[triggers] triggers.json is not an array for agent ${path.basename(agentDir)}`);
+    return [];
   }
-  return raw;
+  const triggers: Trigger[] = [];
+  for (const item of raw) {
+    // Backfill channel for triggers created before channel ownership was enforced
+    if (item && typeof item === "object" && !item.channel) item.channel = "telegram";
+    const result = TriggerSchema.safeParse(item);
+    if (result.success) {
+      triggers.push(result.data);
+    } else {
+      console.warn(`[triggers] skipping invalid trigger in ${path.basename(agentDir)}: ${result.error.message}`);
+    }
+  }
+  return triggers;
 }
 
 export function saveTriggers(agentDir: string, triggers: Trigger[]) {

@@ -34,4 +34,7 @@ export function start() {
 
   process.on("SIGINT", () => handleSignal("SIGINT"));
   process.on("SIGTERM", () => handleSignal("SIGTERM"));
+  process.on("unhandledRejection", (err) => {
+    console.error("[daemon] unhandled rejection:", err);
+  });
 }
