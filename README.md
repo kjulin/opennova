@@ -1,6 +1,6 @@
 # OpenNova
 
-An open-source AI agent daemon powered by Claude. Run persistent AI agents that you can talk to over Telegram, HTTP API, and cron-triggered schedules — with built-in memory and multi-agent delegation.
+An open-source AI agent daemon powered by Claude Agent SDK. Run persistent AI agents that you can talk to over Telegram, HTTP API, and cron-triggered schedules — with built-in memory and multi-agent delegation.
 
 ## Features
 
@@ -15,6 +15,7 @@ An open-source AI agent daemon powered by Claude. Run persistent AI agents that 
 
 - Node.js 20+
 - [Claude Code](https://docs.anthropic.com/en/docs/claude-code) installed and authenticated (recommended), or an Anthropic API key
+- Device that can run your daemon 24/7 (desktop)
 
 ## Quick Start
 
