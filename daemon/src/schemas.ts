@@ -42,6 +42,15 @@ export const ThreadMessageSchema = z.object({
   timestamp: z.string(),
 });
 
+export const SecurityLevel = z.enum(["sandbox", "standard", "unrestricted"]);
+export type SecurityLevel = z.infer<typeof SecurityLevel>;
+
+export const SettingsSchema = z.object({
+  defaultSecurity: SecurityLevel,
+}).passthrough();
+
+export type Settings = z.infer<typeof SettingsSchema>;
+
 /**
  * Safely parse JSON from a file, returning null on failure.
  */

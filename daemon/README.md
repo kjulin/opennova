@@ -56,6 +56,46 @@ nova daemon
 nova init
 ```
 
+## Security Levels
+
+Nova has three security levels that control what tools agents can use. Set a global default during `nova init` or override per-agent in `agent.json`.
+
+| Level | What the agent can do |
+|-------|----------------------|
+| `sandbox` | Chat and web search only. No file or shell access. |
+| `standard` | Read/write files within working directory and search the web. No shell commands. |
+| `unrestricted` | Full access including shell commands. |
+
+### Global default
+
+Set during `nova init` and stored in `~/.nova/settings.json`:
+
+```json
+{
+  "defaultSecurity": "standard"
+}
+```
+
+Or change it with:
+
+```bash
+nova config set defaultSecurity standard
+```
+
+### Per-agent override
+
+Add a `security` field to any agent's `agent.json`:
+
+```json
+{
+  "name": "Deploy Bot",
+  "role": "...",
+  "security": "unrestricted"
+}
+```
+
+Agents without a `security` field use the global default.
+
 ## CLI Reference
 
 ### `nova init`
@@ -72,7 +112,7 @@ Show current configuration values.
 
 ### `nova config get <key>`
 
-Get a specific config value. Keys use dot notation: `api.port`, `api.secret`, `telegram.token`, `telegram.chatId`.
+Get a specific config value. Keys use dot notation: `api.port`, `api.secret`, `telegram.token`, `telegram.chatId`, `settings.defaultSecurity`.
 
 ### `nova config set <key> <value>`
 
@@ -81,6 +121,27 @@ Set a config value. Numbers and booleans are coerced automatically.
 ```bash
 nova config set api.port 8080
 nova config set telegram.token "123:ABC..."
+nova config set settings.defaultSecurity standard
+```
+
+### `nova agent`
+
+List all agents:
+
+```bash
+nova agent
+```
+
+Show details for a specific agent:
+
+```bash
+nova agent nova
+```
+
+Set an agent's security level (overrides the global default):
+
+```bash
+nova agent nova security unrestricted
 ```
 
 ### `nova status`
@@ -107,6 +168,7 @@ Show the installed version.
 
 ```
 ~/.nova/
+├── settings.json             # Global settings (security level)
 ├── api.json                  # API channel config (optional)
 ├── telegram.json             # Telegram channel config (optional)
 ├── env.json                  # Stored API key (optional)

@@ -1,11 +1,23 @@
+import fs from "fs";
+import path from "path";
 import { init } from "./init.js";
 import { loadChannels } from "./channels.js";
 import { startTriggerScheduler } from "./triggers.js";
 import { ensureAuth } from "./auth.js";
+import { loadSettings } from "./agents.js";
 import { Config } from "./config.js";
 
 export function start() {
   init();
+
+  const settingsPath = path.join(Config.workspaceDir, "settings.json");
+  if (!fs.existsSync(settingsPath)) {
+    console.warn("[security] no settings.json found — defaulting to \"standard\"");
+    console.warn("[security] run 'nova init' to configure your security level");
+  }
+
+  const settings = loadSettings();
+  console.log(`security: ${settings.defaultSecurity} (default)`);
 
   // Verify authentication before starting
   const auth = ensureAuth(Config.workspaceDir);

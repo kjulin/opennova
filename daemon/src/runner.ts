@@ -1,7 +1,7 @@
 import path from "path";
 import type { McpServerConfig } from "@anthropic-ai/claude-agent-sdk";
 import { runClaude, type ClaudeCallbacks } from "./claude.js";
-import { loadAgents, buildSystemPrompt, getAgentCwd } from "./agents.js";
+import { loadAgents, buildSystemPrompt, getAgentCwd, resolveSecurityLevel } from "./agents.js";
 import { createMemoryMcpServer } from "./memory.js";
 import { bus } from "./events.js";
 import {
@@ -34,11 +34,14 @@ export async function runThread(
       timestamp: new Date().toISOString(),
     });
 
+    const security = resolveSecurityLevel(agent);
+
     const result = await runClaude(
       message,
       {
         cwd: getAgentCwd(agent),
-        systemPrompt: buildSystemPrompt(agent, agentDir, manifest.channel),
+        systemPrompt: buildSystemPrompt(agent, agentDir, manifest.channel, security),
+        security,
         ...(agent.subagents ? { agents: agent.subagents } : {}),
         mcpServers: {
           memory: createMemoryMcpServer(agentDir),

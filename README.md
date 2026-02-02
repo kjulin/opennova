@@ -39,12 +39,38 @@ nova daemon
 nova init                          Set up workspace (interactive)
 nova daemon                        Start the daemon
 nova config list|get|set           Manage configuration
+nova agent [<id>]                  List agents or show agent details
+nova agent <id> security <level>   Set agent security level
 nova status                        Show workspace and configuration status
 nova backup                        Back up workspace
 nova restore                       Restore workspace from backup
 nova uninstall                     Remove workspace and data
 nova --version                     Show version
 ```
+
+## Security
+
+Agent security is an area of active experimentation. Running AI agents as a persistent daemon with access to your computer is inherently risky — there is no established best practice for this yet. OpenNova takes a pragmatic approach: give the user explicit control over what each agent is allowed to do.
+
+During `nova init`, you choose a default security level that applies to all agents. You can then override it per agent for more granular control.
+
+| Level | Access |
+|-------|--------|
+| `sandbox` | Chat and web search only. No file or shell access. |
+| `standard` | Read/write files within the agent's working directory. No shell commands. |
+| `unrestricted` | Full access to the filesystem and shell. |
+
+```bash
+# Change the global default
+nova config set settings.defaultSecurity standard
+
+# Override for a specific agent
+nova agent my-agent security unrestricted
+```
+
+These levels control which tools the Claude Agent SDK makes available to the agent. They are not a sandbox in the traditional security sense — they rely on the SDK's permission system and the agent following its system prompt. Treat this as a practical safety layer, not a security boundary.
+
+See [daemon/README.md](./daemon/README.md) for full details.
 
 ## Documentation
 

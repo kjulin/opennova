@@ -2,7 +2,7 @@ import fs from "fs";
 import path from "path";
 import os from "os";
 
-const KNOWN_FILES = ["api", "telegram"] as const;
+const KNOWN_FILES = ["api", "telegram", "settings"] as const;
 
 const SENSITIVE_KEYS = new Set(["telegram.token", "api.secret"]);
 

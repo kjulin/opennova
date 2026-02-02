@@ -25,6 +25,19 @@ export function run() {
     console.log("Auth:       Not configured");
   }
 
+  // Security
+  const settingsPath = path.join(workspaceDir, "settings.json");
+  let defaultSecurity = "not configured";
+  if (fs.existsSync(settingsPath)) {
+    try {
+      const settings = JSON.parse(fs.readFileSync(settingsPath, "utf-8"));
+      if (settings.defaultSecurity) defaultSecurity = settings.defaultSecurity;
+    } catch {
+      // ignore
+    }
+  }
+  console.log(`Security:   ${defaultSecurity} (default)`);
+
   // Channels
   const hasTelegram = fs.existsSync(path.join(workspaceDir, "telegram.json"));
   const hasApi = fs.existsSync(path.join(workspaceDir, "api.json"));
@@ -54,7 +67,9 @@ export function run() {
 
       try {
         const config = JSON.parse(fs.readFileSync(configPath, "utf-8"));
-        agentNames.push(config.name || dir.name);
+        const label = config.name || dir.name;
+        const secOverride = config.security ? ` [${config.security}]` : "";
+        agentNames.push(label + secOverride);
       } catch {
         agentNames.push(dir.name);
       }

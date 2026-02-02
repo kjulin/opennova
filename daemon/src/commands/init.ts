@@ -123,6 +123,17 @@ export async function run() {
     }
   }
 
+  // --- Security level ---
+  console.log("\n-- Security Level --");
+  console.log("This controls what tools agents can use by default.");
+  console.log("You can override this per agent later with: nova agent <id> security <level>\n");
+  const securityChoice = await askChoice(rl, "Default security level:", [
+    "sandbox       — Chat and web search only, no local file access",
+    "standard      — File access and web, no shell commands",
+    "unrestricted  — Full access including shell commands",
+  ]);
+  const securityLevel = (["sandbox", "standard", "unrestricted"] as const)[securityChoice];
+
   rl.close();
 
   // Write workspace
@@ -154,6 +165,13 @@ export async function run() {
     }
   }
 
+  // Always write settings.json (security level is always chosen)
+  fs.writeFileSync(
+    path.join(workspace, "settings.json"),
+    JSON.stringify({ defaultSecurity: securityLevel }, null, 2) + "\n",
+  );
+  console.log("  Saved settings.json");
+
   // --- Summary ---
   console.log("\n-- Setup Complete --\n");
   console.log(`  Workspace:  ${workspace}`);
@@ -165,6 +183,8 @@ export async function run() {
   } else {
     console.log("  Auth:       Not configured");
   }
+
+  console.log(`  Security:   ${securityLevel}`);
 
   const channels: string[] = [];
   if (enableTelegram || (!configureChannels && fs.existsSync(path.join(workspace, "telegram.json")))) {

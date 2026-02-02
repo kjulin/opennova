@@ -1,8 +1,10 @@
 import { query, type McpServerConfig } from "@anthropic-ai/claude-agent-sdk";
+import type { SecurityLevel } from "./schemas.js";
 
 export interface ClaudeOptions {
   cwd?: string;
   systemPrompt?: string;
+  security?: SecurityLevel;
   agents?: Record<string, { description: string; prompt: string; tools?: string[]; disallowedTools?: string[]; model?: "sonnet" | "opus" | "haiku"; maxTurns?: number }>;
   mcpServers?: Record<string, McpServerConfig>;
 }
@@ -45,6 +47,26 @@ function friendlyToolStatus(toolName: string, input: Record<string, unknown>): s
   }
 }
 
+function securityOptions(level: SecurityLevel = "standard"): Record<string, unknown> {
+  switch (level) {
+    case "sandbox":
+      return {
+        permissionMode: "dontAsk",
+        allowedTools: ["WebSearch", "WebFetch", "Task"],
+      };
+    case "standard":
+      return {
+        permissionMode: "dontAsk",
+        disallowedTools: ["Bash"],
+      };
+    case "unrestricted":
+      return {
+        allowDangerouslySkipPermissions: true,
+        permissionMode: "bypassPermissions",
+      };
+  }
+}
+
 export async function runClaude(
   prompt: string,
   options: ClaudeOptions = {},
@@ -68,7 +90,8 @@ async function execClaude(
   sessionId: string | undefined,
   callbacks: ClaudeCallbacks | undefined,
 ): Promise<ClaudeResult> {
-  console.log(`[claude] running with prompt: "${prompt}"${sessionId ? ` (session: ${sessionId})` : ""}`);
+  const security = options.security ?? "standard";
+  console.log(`[claude] running (security: ${security}) with prompt: "${prompt}"${sessionId ? ` (session: ${sessionId})` : ""}`);
 
   const result = query({
     prompt,
@@ -77,8 +100,7 @@ async function execClaude(
       ...(options.systemPrompt ? { systemPrompt: options.systemPrompt } : {}),
       ...(options.agents ? { agents: options.agents } : {}),
       ...(options.mcpServers ? { mcpServers: options.mcpServers } : {}),
-      allowDangerouslySkipPermissions: true,
-      permissionMode: "bypassPermissions",
+      ...securityOptions(security),
       ...(sessionId ? { resume: sessionId } : {}),
     },
   });

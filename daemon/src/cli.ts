@@ -50,6 +50,11 @@ switch (command) {
     await run();
     break;
   }
+  case "agent": {
+    const { run } = await import("./commands/agent.js");
+    run();
+    break;
+  }
   default:
     console.log("Usage: nova <command>\n");
     console.log("Commands:");
@@ -58,6 +63,9 @@ switch (command) {
     console.log("  config list                   Show all configuration");
     console.log("  config get <key>              Get a config value");
     console.log("  config set <key> <value>      Set a config value");
+    console.log("  agent                         List agents");
+    console.log("  agent <id>                    Show agent details");
+    console.log("  agent <id> security <level>   Set agent security level");
     console.log("  status                        Show workspace and configuration status");
     console.log("  backup                        Back up workspace");
     console.log("  restore                       Restore workspace from backup");

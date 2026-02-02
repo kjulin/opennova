@@ -2,6 +2,7 @@ import fs from "fs";
 import os from "os";
 import path from "path";
 import { Config } from "./config.js";
+import { SettingsSchema, type SecurityLevel, type Settings } from "./schemas.js";
 
 export interface SubagentConfig {
   description: string;
@@ -17,17 +18,50 @@ export interface AgentConfig {
   name: string;
   role: string;
   cwd?: string;
+  security?: SecurityLevel;
   subagents?: Record<string, SubagentConfig>;
 }
 
 import type { ChannelType } from "./threads.js";
 
-const GENERAL_INSTRUCTIONS = `
+const SECURITY_INSTRUCTIONS: Record<SecurityLevel, string> = {
+  sandbox: `
+<Security>
+Your security level is "sandbox". You can chat and search the web, but you have NO access to the local file system or shell. Do not attempt to read, write, or edit files, and do not try to run commands.
+
+If the user asks you to do something that requires file access or running commands, explain that your current security level does not allow it. They can change it with:
+  nova agent <agent-id> security standard    (for file access)
+  nova agent <agent-id> security unrestricted (for full access including shell)
+Or change the global default:
+  nova config set settings.defaultSecurity <level>
+</Security>`,
+  standard: `
+<Security>
+Your security level is "standard". You can read and write files within your working directory and search the web, but you CANNOT run shell commands or access files outside your working directory.
+
+If the user asks you to run a command, build a project, or access files outside your working directory, explain that your current security level does not allow it. They can change it with:
+  nova agent <agent-id> security unrestricted
+Or change the global default:
+  nova config set settings.defaultSecurity unrestricted
+</Security>
+
+<FileSystem>
+You have a working directory on the local file system. Only read and write files within this directory.
+There may already be existing files — check before creating new ones.
+Do NOT access files outside your working directory.
+</FileSystem>`,
+  unrestricted: `
+<Security>
+Your security level is "unrestricted". You have full access to the file system and can run shell commands.
+</Security>
+
 <FileSystem>
 You have a working directory on the local file system. Use it to read and write files as needed.
 There may already be existing files — check before creating new ones.
-</FileSystem>
+</FileSystem>`,
+};
 
+const GENERAL_INSTRUCTIONS = `
 <StatusNarration>
 Before using tools, write a brief one-sentence message telling the user what you are about to do.
 For example: "Let me check your calendar for tomorrow." or "I'll look that up for you."
@@ -109,9 +143,9 @@ export function buildMemoryPrompt(agentDir: string): string {
   return `\n<Memories>\n${sections.join("\n\n")}\n</Memories>`;
 }
 
-export function buildSystemPrompt(agent: AgentConfig, agentDir: string, channel: ChannelType): string {
+export function buildSystemPrompt(agent: AgentConfig, agentDir: string, channel: ChannelType, security: SecurityLevel): string {
   const memories = buildMemoryPrompt(agentDir);
-  return `<Role>\n${agent.role}\n</Role>\n${GENERAL_INSTRUCTIONS}\n${FORMATTING_INSTRUCTIONS[channel]}${memories}`;
+  return `<Role>\n${agent.role}\n</Role>\n${SECURITY_INSTRUCTIONS[security]}\n${GENERAL_INSTRUCTIONS}\n${FORMATTING_INSTRUCTIONS[channel]}${memories}`;
 }
 
 export function getAgentCwd(agent: AgentConfig): string {
@@ -119,5 +153,24 @@ export function getAgentCwd(agent: AgentConfig): string {
   if (agent.cwd.startsWith("~")) return path.join(os.homedir(), agent.cwd.slice(1));
   if (path.isAbsolute(agent.cwd)) return agent.cwd;
   return path.join(Config.workspaceDir, agent.cwd);
+}
+
+export function loadSettings(): Settings {
+  const settingsPath = path.join(Config.workspaceDir, "settings.json");
+  if (!fs.existsSync(settingsPath)) return { defaultSecurity: "standard" };
+  try {
+    const raw = JSON.parse(fs.readFileSync(settingsPath, "utf-8"));
+    const result = SettingsSchema.safeParse(raw);
+    if (result.success) return result.data;
+    console.warn(`[settings] invalid settings.json: ${result.error.message}`);
+    return { defaultSecurity: "standard" };
+  } catch {
+    return { defaultSecurity: "standard" };
+  }
+}
+
+export function resolveSecurityLevel(agent: AgentConfig): SecurityLevel {
+  if (agent.security) return agent.security;
+  return loadSettings().defaultSecurity;
 }
 
