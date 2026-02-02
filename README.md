@@ -33,6 +33,8 @@ nova init                          Set up workspace (interactive)
 nova daemon                        Start the daemon
 nova config list|get|set           Manage configuration
 nova status                        Show workspace and configuration status
+nova backup                        Back up workspace
+nova restore                       Restore workspace from backup
 nova uninstall                     Remove workspace and data
 nova --version                     Show version
 ```

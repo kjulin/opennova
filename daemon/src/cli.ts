@@ -35,6 +35,16 @@ switch (command) {
     run();
     break;
   }
+  case "backup": {
+    const { run } = await import("./commands/backup.js");
+    run();
+    break;
+  }
+  case "restore": {
+    const { run } = await import("./commands/restore.js");
+    await run();
+    break;
+  }
   case "uninstall": {
     const { run } = await import("./commands/uninstall.js");
     await run();
@@ -49,6 +59,8 @@ switch (command) {
     console.log("  config get <key>              Get a config value");
     console.log("  config set <key> <value>      Set a config value");
     console.log("  status                        Show workspace and configuration status");
+    console.log("  backup                        Back up workspace");
+    console.log("  restore                       Restore workspace from backup");
     console.log("  uninstall                     Remove workspace and data");
     console.log();
     console.log("Flags:");

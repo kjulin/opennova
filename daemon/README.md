@@ -87,9 +87,17 @@ nova config set telegram.token "123:ABC..."
 
 Show workspace path, authentication method, configured channels, agents, and trigger/thread counts.
 
+### `nova backup`
+
+Back up the workspace to `~/.nova_backup`. Only one backup is kept — each run replaces the previous one.
+
+### `nova restore`
+
+Restore the workspace from `~/.nova_backup`. Asks for confirmation before replacing the current workspace.
+
 ### `nova uninstall`
 
-Remove the Nova workspace and all data (agents, threads, memories, triggers, channel configs). Asks for confirmation before deleting. Prints instructions to also remove the CLI package.
+Remove the Nova workspace and all data (agents, threads, memories, triggers, channel configs). Asks for confirmation before deleting. Also offers to remove the backup if one exists. Prints instructions to remove the CLI package.
 
 ### `nova --version`
 

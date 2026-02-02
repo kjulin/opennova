@@ -14,6 +14,28 @@ export function resolveWorkspace(): string {
   return path.join(os.homedir(), ".nova");
 }
 
+export function resolveBackupDir(): string {
+  return resolveWorkspace() + "_backup";
+}
+
+export function workspaceSummary(dir: string): { agents: number; threads: number } {
+  let agents = 0;
+  let threads = 0;
+  const agentsDir = path.join(dir, "agents");
+  if (fs.existsSync(agentsDir)) {
+    for (const entry of fs.readdirSync(agentsDir, { withFileTypes: true })) {
+      if (!entry.isDirectory()) continue;
+      if (!fs.existsSync(path.join(agentsDir, entry.name, "agent.json"))) continue;
+      agents++;
+      const threadsDir = path.join(agentsDir, entry.name, "threads");
+      if (fs.existsSync(threadsDir)) {
+        threads += fs.readdirSync(threadsDir).filter((f) => f.endsWith(".jsonl")).length;
+      }
+    }
+  }
+  return { agents, threads };
+}
+
 function readConfigFile(workspaceDir: string, name: string): Record<string, unknown> | null {
   const filePath = path.join(workspaceDir, `${name}.json`);
   if (!fs.existsSync(filePath)) return null;
