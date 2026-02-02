@@ -1,6 +1,6 @@
 import fs from "fs";
 import path from "path";
-import TelegramBot from "node-telegram-bot-api";
+import { Bot } from "grammy";
 import { Config } from "../config.js";
 import { bus } from "../events.js";
 import { loadAgents } from "../agents.js";
@@ -54,27 +54,26 @@ export function startTelegram() {
     return null;
   }
 
-  const bot = new TelegramBot(config.token, { polling: true });
+  const bot = new Bot(config.token);
   console.log("telegram channel started");
 
   bus.on("thread:response", (payload) => {
     if (payload.channel !== "telegram") return;
-    bot.sendMessage(config.chatId, payload.text, { parse_mode: "Markdown" }).catch((err) => {
+    bot.api.sendMessage(Number(config.chatId), payload.text, { parse_mode: "Markdown" }).catch((err) => {
       console.error("[telegram] failed to deliver thread:response:", err);
     });
   });
 
-  bot.on("message", async (msg) => {
-    const chatId = msg.chat.id;
-    let text = msg.text;
+  bot.on("message:text", async (ctx) => {
+    const chatId = ctx.chat.id;
+    let text = ctx.message.text;
     const agents = loadAgents();
 
-    if (!text) return;
     if (String(chatId) !== config.chatId) return;
 
     // Handle /help command
     if (text === "/help" || text === "/start") {
-      await bot.sendMessage(chatId, TELEGRAM_HELP_MESSAGE, { parse_mode: "Markdown" });
+      await ctx.reply(TELEGRAM_HELP_MESSAGE, { parse_mode: "Markdown" });
       return;
     }
 
@@ -84,7 +83,7 @@ export function startTelegram() {
       const id = createThread(agentDir, "telegram");
       config.activeThreadId = id;
       saveTelegramConfig(config);
-      await bot.sendMessage(chatId, "New thread started");
+      await ctx.reply("New thread started");
       return;
     }
 
@@ -97,12 +96,12 @@ export function startTelegram() {
         const list = [...agents.values()]
           .map((a) => (a.id === config.activeAgentId ? `• *${a.name}* (active)` : `• ${a.name}`))
           .join("\n");
-        await bot.sendMessage(chatId, `*Agents:*\n${list}\n\nSwitch with /agent <name>`, { parse_mode: "Markdown" });
+        await ctx.reply(`*Agents:*\n${list}\n\nSwitch with /agent <name>`, { parse_mode: "Markdown" });
         return;
       }
 
       if (!agents.has(agentName)) {
-        await bot.sendMessage(chatId, `Unknown agent: ${agentName}`);
+        await ctx.reply(`Unknown agent: ${agentName}`);
         return;
       }
 
@@ -110,7 +109,7 @@ export function startTelegram() {
       delete config.activeThreadId;
       saveTelegramConfig(config);
       const switched = agents.get(agentName)!;
-      await bot.sendMessage(chatId, `Switched to *${switched.name}*`, { parse_mode: "Markdown" });
+      await ctx.reply(`Switched to *${switched.name}*`, { parse_mode: "Markdown" });
 
       // Let the new agent greet the user
       text = "greet the user";
@@ -120,7 +119,7 @@ export function startTelegram() {
     const agentId = config.activeAgentId;
     const agent = agents.get(agentId);
     if (!agent) {
-      await bot.sendMessage(chatId, `Agent "${agentId}" not found. Use /agent to switch.`);
+      await ctx.reply(`Agent "${agentId}" not found. Use /agent to switch.`);
       return;
     }
 
@@ -130,9 +129,9 @@ export function startTelegram() {
     console.log(`[telegram:${chatId}] [${agent.id}] ${text}`);
 
     const typingInterval = setInterval(() => {
-      bot.sendChatAction(chatId, "typing");
+      bot.api.sendChatAction(chatId, "typing").catch(() => {});
     }, 4000);
-    bot.sendChatAction(chatId, "typing");
+    bot.api.sendChatAction(chatId, "typing").catch(() => {});
 
     let statusMessageId: number | undefined;
 
@@ -140,16 +139,16 @@ export function startTelegram() {
       const truncated = status.length > 100 ? status.slice(0, 100) + "…" : status;
       const formatted = `_${truncated}_`;
       if (statusMessageId) {
-        await bot.editMessageText(formatted, { chat_id: chatId, message_id: statusMessageId, parse_mode: "Markdown" }).catch(() => {});
+        await bot.api.editMessageText(chatId, statusMessageId, formatted, { parse_mode: "Markdown" }).catch(() => {});
       } else {
-        const sent = await bot.sendMessage(chatId, formatted, { parse_mode: "Markdown" }).catch(() => undefined);
+        const sent = await bot.api.sendMessage(chatId, formatted, { parse_mode: "Markdown" }).catch(() => undefined);
         if (sent) statusMessageId = sent.message_id;
       }
     }
 
     async function deleteStatus() {
       if (statusMessageId) {
-        await bot.deleteMessage(chatId, statusMessageId).catch(() => {});
+        await bot.api.deleteMessage(chatId, statusMessageId).catch(() => {});
         statusMessageId = undefined;
       }
     }
@@ -172,17 +171,19 @@ export function startTelegram() {
       );
     } catch (err) {
       console.error("claude error:", err);
-      await bot.sendMessage(chatId, `Error: ${(err as Error).message}`);
+      await ctx.reply(`Error: ${(err as Error).message}`);
     } finally {
       clearInterval(typingInterval);
       await deleteStatus();
     }
   });
 
+  bot.start();
+
   return {
     bot,
     shutdown() {
-      bot.stopPolling();
+      bot.stop();
     },
   };
 }
