@@ -3,7 +3,7 @@ import path from "path";
 import { randomBytes } from "crypto";
 import { ThreadManifestSchema } from "./schemas.js";
 
-export type ChannelType = "telegram" | "api";
+export type ChannelType = "telegram";
 
 export interface ThreadManifest {
   title?: string;

@@ -1,6 +1,6 @@
 # Nova
 
-An AI agent daemon powered by Claude. Run persistent AI agents with Telegram, HTTP API, cron triggers, and memory.
+An AI agent daemon powered by Claude. Run persistent AI agents with Telegram, cron triggers, and memory.
 
 ## Prerequisites
 
@@ -27,7 +27,7 @@ npx opennova init
 nova init
 ```
 
-This walks you through authentication, channels (Telegram and/or HTTP API), and creates the default agents.
+This walks you through authentication, Telegram, and creates the default agents.
 
 2. Start the daemon:
 
@@ -100,7 +100,7 @@ Agents without a `security` field use the global default.
 
 ### `nova init`
 
-Interactive setup wizard. Detects authentication, configures channels, and creates your workspace with default agents. Can be re-run to reconfigure channels.
+Interactive setup wizard. Detects authentication, configures Telegram, and creates your workspace with default agents. Can be re-run to reconfigure.
 
 ### `nova daemon`
 
@@ -112,14 +112,13 @@ Show current configuration values.
 
 ### `nova config get <key>`
 
-Get a specific config value. Keys use dot notation: `api.port`, `api.secret`, `telegram.token`, `telegram.chatId`, `settings.defaultSecurity`.
+Get a specific config value. Keys use dot notation: `telegram.token`, `telegram.chatId`, `settings.defaultSecurity`.
 
 ### `nova config set <key> <value>`
 
 Set a config value. Numbers and booleans are coerced automatically.
 
 ```bash
-nova config set api.port 8080
 nova config set telegram.token "123:ABC..."
 nova config set settings.defaultSecurity standard
 ```
@@ -169,7 +168,6 @@ Show the installed version.
 ```
 ~/.nova/
 ├── settings.json             # Global settings (security level)
-├── api.json                  # API channel config (optional)
 ├── telegram.json             # Telegram channel config (optional)
 ├── env.json                  # Stored API key (optional)
 ├── memories.json             # Global memories
@@ -219,56 +217,6 @@ Bot commands:
 - `/agent` — List agents or switch to a different one (`/agent <name>`)
 - `/new` — Start a new conversation thread
 
-### HTTP API
-
-Exposes a REST API for programmatic access. Configure during `nova init` or manually:
-
-```bash
-nova config set api.port 3000
-nova config set api.secret "my-bearer-token"  # optional
-```
-
-When `secret` is set, all requests require `Authorization: Bearer <secret>`.
-
-#### Endpoints
-
-| Method | Path | Description |
-|--------|------|-------------|
-| `GET` | `/health` | Health check |
-| `GET` | `/agents` | List all agents |
-| `GET` | `/agents/:id/threads` | List API threads for an agent |
-| `POST` | `/agents/:id/threads` | Create a new thread (returns 201) |
-| `GET` | `/threads/:id` | Get thread details |
-| `GET` | `/threads/:id/messages` | Get thread messages |
-| `DELETE` | `/threads/:id` | Delete a thread |
-| `POST` | `/threads/:id/messages` | Send message (SSE stream) |
-
-#### Sending Messages (SSE)
-
-```bash
-curl -N -X POST http://localhost:3000/threads/<id>/messages \
-  -H 'Content-Type: application/json' \
-  -d '{"message":"Hello"}'
-```
-
-Response is `text/event-stream`:
-
-```
-event: status
-data: {"text":"Searching the web..."}
-
-event: done
-data: {"text":"Here is the final response."}
-```
-
-- `status` — Intermediate progress (tool use, narration)
-- `done` — Final assistant response
-- `error` — Failure
-
-#### Channel Ownership
-
-Threads are scoped to the channel that created them. The API can read any thread but can only write to threads with `channel: "api"`. Posting to a thread owned by another channel returns `403`.
-
 ## Triggers
 
 Agents can have cron-based triggers that run on a schedule. Triggers are managed through the agent's MCP tools during conversation:
@@ -306,7 +254,7 @@ Nova needs either Claude Code or an Anthropic API key. Run `nova status` to chec
 
 ### "No channels configured"
 
-The daemon starts but can't receive messages without at least one channel. Run `nova init` to configure Telegram or HTTP API.
+The daemon starts but can't receive messages without at least one channel. Run `nova init` to configure Telegram.
 
 ### Daemon starts but agent doesn't respond
 

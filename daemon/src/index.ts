@@ -26,7 +26,7 @@ export function start() {
   const { channels, shutdown } = loadChannels();
 
   if (channels.length === 0) {
-    console.warn("warning: no channels configured — run 'nova init' to set up Telegram or HTTP API");
+    console.warn("warning: no channels configured — run 'nova init' to set up Telegram");
   } else {
     for (const ch of channels) {
       console.log(`channel: ${ch.name} (${ch.detail})`);

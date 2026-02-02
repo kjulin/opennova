@@ -10,16 +10,9 @@ export const TelegramConfigSchema = z.object({
 
 export type TelegramConfig = z.infer<typeof TelegramConfigSchema>;
 
-export const ApiConfigSchema = z.object({
-  port: z.number(),
-  secret: z.string().optional(),
-}).passthrough();
-
-export type ApiConfig = z.infer<typeof ApiConfigSchema>;
-
 export const TriggerSchema = z.object({
   id: z.string(),
-  channel: z.enum(["telegram", "api"]),
+  channel: z.enum(["telegram"]),
   cron: z.string(),
   prompt: z.string(),
   enabled: z.boolean(),
@@ -30,7 +23,7 @@ export type Trigger = z.infer<typeof TriggerSchema>;
 
 export const ThreadManifestSchema = z.object({
   title: z.string().optional(),
-  channel: z.enum(["telegram", "api"]),
+  channel: z.enum(["telegram"]),
   sessionId: z.string().optional(),
   createdAt: z.string(),
   updatedAt: z.string(),

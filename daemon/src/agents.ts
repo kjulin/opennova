@@ -83,17 +83,6 @@ code block
 Do NOT escape special characters. Just write naturally.
 Keep messages concise. Use bullet points and short paragraphs. Avoid walls of text.
 </Formatting>`,
-  api: `
-<Formatting>
-Format your responses using standard Markdown syntax:
-
-- **bold** for emphasis
-- *italic* for subtle emphasis
-- \`inline code\` for code references
-- Fenced code blocks with language tags
-
-Keep messages concise. Use bullet points and short paragraphs.
-</Formatting>`,
 };
 
 export function loadAgents(): Map<string, AgentConfig> {
