@@ -14,7 +14,7 @@ export async function run() {
   // Create workspace from template if it doesn't exist
   const workspaceExists = fs.existsSync(workspace);
   if (!workspaceExists) {
-    const templateDir = path.resolve(import.meta.dirname, "..", "workspace-template");
+    const templateDir = path.resolve(import.meta.dirname, "..", "..", "workspace-template");
     fs.cpSync(templateDir, workspace, { recursive: true });
   }
 
