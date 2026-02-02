@@ -66,38 +66,30 @@ export async function run() {
     }
   }
 
-  // --- Channel configuration ---
-  const reconfigure = workspaceExists && (
-    fs.existsSync(path.join(workspace, "telegram.json")) ||
-    fs.existsSync(path.join(workspace, "api.json"))
-  );
+  // --- Telegram configuration ---
+  const reconfigure = workspaceExists && fs.existsSync(path.join(workspace, "telegram.json"));
 
-  let configureChannels = true;
+  let configureTelegram = true;
   if (reconfigure) {
-    console.log("\nExisting channel configuration found.");
+    console.log("\nExisting Telegram configuration found.");
     const reconfChoice = await askChoice(rl, "What would you like to do?", [
-      "Reconfigure channels",
+      "Reconfigure Telegram",
       "Keep existing configuration",
     ]);
-    configureChannels = reconfChoice === 0;
+    configureTelegram = reconfChoice === 0;
   }
 
   let enableTelegram = false;
-  let enableApi = false;
   let telegramToken = "";
   let telegramChatId = "";
-  let apiPort = 3000;
-  let apiSecret = "";
 
-  if (configureChannels) {
-    const channelChoice = await askChoice(rl, "\nWhich channels would you like to enable?", [
-      "Telegram",
-      "HTTP API",
-      "Both",
+  if (configureTelegram) {
+    const channelChoice = await askChoice(rl, "\nEnable Telegram?", [
+      "Yes",
+      "No, skip for now",
     ]);
 
-    enableTelegram = channelChoice === 0 || channelChoice === 2;
-    enableApi = channelChoice === 1 || channelChoice === 2;
+    enableTelegram = channelChoice === 0;
 
     if (enableTelegram) {
       console.log("\n-- Telegram Setup --");
@@ -115,12 +107,6 @@ export async function run() {
         console.log("  nova config set telegram.chatId <your-chat-id>");
       }
     }
-
-    if (enableApi) {
-      console.log("\n-- HTTP API Setup --");
-      apiPort = await askPort(rl);
-      apiSecret = (await rl.question("API secret (optional, press enter to skip): ")).trim();
-    }
   }
 
   // --- Security level ---
@@ -137,7 +123,7 @@ export async function run() {
   rl.close();
 
   // Write workspace
-  if (workspaceExists && !configureChannels) {
+  if (workspaceExists && !configureTelegram) {
     console.log(`\nWorkspace at ${workspace} — keeping existing configuration.`);
   } else {
     if (workspaceExists) {
@@ -155,13 +141,6 @@ export async function run() {
       };
       fs.writeFileSync(path.join(workspace, "telegram.json"), JSON.stringify(config, null, 2) + "\n");
       console.log("  Created telegram.json");
-    }
-
-    if (enableApi) {
-      const config: Record<string, unknown> = { port: apiPort };
-      if (apiSecret) config.secret = apiSecret;
-      fs.writeFileSync(path.join(workspace, "api.json"), JSON.stringify(config, null, 2) + "\n");
-      console.log("  Created api.json");
     }
   }
 
@@ -186,14 +165,8 @@ export async function run() {
 
   console.log(`  Security:   ${securityLevel}`);
 
-  const channels: string[] = [];
-  if (enableTelegram || (!configureChannels && fs.existsSync(path.join(workspace, "telegram.json")))) {
-    channels.push("Telegram");
-  }
-  if (enableApi || (!configureChannels && fs.existsSync(path.join(workspace, "api.json")))) {
-    channels.push("HTTP API");
-  }
-  console.log(`  Channels:   ${channels.length > 0 ? channels.join(", ") : "None"}`);
+  const hasTelegram = enableTelegram || (!configureTelegram && fs.existsSync(path.join(workspace, "telegram.json")));
+  console.log(`  Telegram:   ${hasTelegram ? "Configured" : "Not configured"}`);
 
   if (authMethod === "none") {
     console.log("\nNext: Install Claude Code or run 'nova init' again to configure authentication.");
@@ -223,16 +196,6 @@ async function askRequired(rl: readline.Interface, prompt: string): Promise<stri
     const value = (await rl.question(prompt)).trim();
     if (value) return value;
     console.log("This field is required.");
-  }
-}
-
-async function askPort(rl: readline.Interface): Promise<number> {
-  while (true) {
-    const portStr = (await rl.question("Port [3000]: ")).trim();
-    if (!portStr) return 3000;
-    const port = parseInt(portStr, 10);
-    if (!isNaN(port) && port >= 1 && port <= 65535) return port;
-    console.log("Please enter a valid port number (1-65535).");
   }
 }
 

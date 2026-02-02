@@ -38,20 +38,9 @@ export function run() {
   }
   console.log(`Security:   ${defaultSecurity} (default)`);
 
-  // Channels
+  // Telegram
   const hasTelegram = fs.existsSync(path.join(workspaceDir, "telegram.json"));
-  const hasApi = fs.existsSync(path.join(workspaceDir, "api.json"));
-  const channels: string[] = [];
-  if (hasTelegram) channels.push("Telegram");
-  if (hasApi) {
-    try {
-      const apiConfig = JSON.parse(fs.readFileSync(path.join(workspaceDir, "api.json"), "utf-8"));
-      channels.push(`HTTP API (port ${apiConfig.port})`);
-    } catch {
-      channels.push("HTTP API");
-    }
-  }
-  console.log(`Channels:   ${channels.length > 0 ? channels.join(", ") : "None"}`);
+  console.log(`Telegram:   ${hasTelegram ? "Configured" : "Not configured"}`);
 
   // Agents
   const agentsDir = path.join(workspaceDir, "agents");
