@@ -139,7 +139,7 @@ export async function run() {
         chatId: telegramChatId,
         activeAgentId: "nova",
       };
-      fs.writeFileSync(path.join(workspace, "telegram.json"), JSON.stringify(config, null, 2) + "\n");
+      fs.writeFileSync(path.join(workspace, "telegram.json"), JSON.stringify(config, null, 2) + "\n", { mode: 0o600 });
       console.log("  Created telegram.json");
     }
   }

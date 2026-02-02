@@ -72,6 +72,8 @@ nova agent my-agent security unrestricted
 
 These levels control which tools the Claude Agent SDK makes available to the agent. They are not a sandbox in the traditional security sense — they rely on the SDK's permission system and the agent following its system prompt. Treat this as a practical safety layer, not a security boundary.
 
+Changing an agent's security level always requires terminal access — agents cannot escalate their own permissions or those of other agents. The built-in agent-builder runs in sandbox mode and manages agents through controlled tools that enforce this boundary.
+
 See [daemon/README.md](./daemon/README.md) for full details.
 
 ## Documentation

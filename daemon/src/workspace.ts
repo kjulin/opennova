@@ -4,7 +4,7 @@ import os from "os";
 
 const KNOWN_FILES = ["telegram", "settings"] as const;
 
-const SENSITIVE_KEYS = new Set(["telegram.token"]);
+export const SENSITIVE_KEYS = new Set(["telegram.token"]);
 
 export function resolveWorkspace(): string {
   const ws = process.env.NOVA_WORKSPACE;

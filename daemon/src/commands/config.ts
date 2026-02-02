@@ -1,5 +1,5 @@
 import fs from "fs";
-import { resolveWorkspace, getConfigValue, setConfigValue, listConfig } from "../workspace.js";
+import { resolveWorkspace, getConfigValue, setConfigValue, listConfig, SENSITIVE_KEYS } from "../workspace.js";
 
 export function run() {
   const subcommand = process.argv[3];
@@ -34,7 +34,12 @@ export function run() {
         console.error(`Key not found: ${key}`);
         process.exit(1);
       }
-      console.log(value);
+      if (SENSITIVE_KEYS.has(key)) {
+        const str = String(value);
+        console.log(str.length <= 8 ? "****" : str.slice(0, 4) + "****" + str.slice(-4));
+      } else {
+        console.log(value);
+      }
       break;
     }
     case "set": {

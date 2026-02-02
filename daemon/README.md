@@ -96,6 +96,10 @@ Add a `security` field to any agent's `agent.json`:
 
 Agents without a `security` field use the global default.
 
+### Security principle
+
+Changing an agent's security level always requires terminal access — agents cannot escalate their own permissions or those of other agents. The built-in agent-builder runs in sandbox mode and manages agents through controlled MCP tools that cannot set the `security` field. Only the `nova agent <id> security <level>` CLI command can change security levels.
+
 ## CLI Reference
 
 ### `nova init`

@@ -91,7 +91,7 @@ async function execClaude(
   callbacks: ClaudeCallbacks | undefined,
 ): Promise<ClaudeResult> {
   const security = options.security ?? "standard";
-  console.log(`[claude] running (security: ${security}) with prompt: "${prompt}"${sessionId ? ` (session: ${sessionId})` : ""}`);
+  console.log(`[claude] running (security: ${security})${sessionId ? ` (session: ${sessionId})` : ""}`);
 
   const result = query({
     prompt,
@@ -136,7 +136,7 @@ async function execClaude(
       console.log(`[claude] summary: ${message.summary}`);
       callbacks?.onToolUseSummary?.(message.summary);
     } else if (message.type === "result" && message.subtype === "error_during_execution") {
-      console.error(`[claude] error during execution:`, JSON.stringify(message, null, 2));
+      console.error(`[claude] error during execution:`, "error" in message ? (message as { error: string }).error : "unknown error");
     }
   }
 

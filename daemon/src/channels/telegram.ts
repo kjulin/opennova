@@ -24,7 +24,7 @@ function loadTelegramConfig(): TelegramConfig | null {
 }
 
 function saveTelegramConfig(config: TelegramConfig): void {
-  fs.writeFileSync(path.join(Config.workspaceDir, "telegram.json"), JSON.stringify(config, null, 2));
+  fs.writeFileSync(path.join(Config.workspaceDir, "telegram.json"), JSON.stringify(config, null, 2), { mode: 0o600 });
 }
 
 function resolveThreadId(config: TelegramConfig, agentDir: string): string {
@@ -170,7 +170,7 @@ export function startTelegram() {
         { triggers: createTriggerMcpServer(agentDir, "telegram") },
       );
     } catch (err) {
-      console.error("claude error:", err);
+      console.error("claude error:", (err as Error).message);
       await ctx.reply(`Error: ${(err as Error).message}`);
     } finally {
       clearInterval(typingInterval);

@@ -3,6 +3,7 @@ import type { McpServerConfig } from "@anthropic-ai/claude-agent-sdk";
 import { runClaude, type ClaudeCallbacks } from "./claude.js";
 import { loadAgents, buildSystemPrompt, getAgentCwd, resolveSecurityLevel } from "./agents.js";
 import { createMemoryMcpServer } from "./memory.js";
+import { createAgentManagementMcpServer } from "./agent-management.js";
 import { bus } from "./events.js";
 import {
   threadPath,
@@ -46,6 +47,7 @@ export async function runThread(
         mcpServers: {
           memory: createMemoryMcpServer(agentDir),
           ...extraMcpServers,
+          ...(agentId === "agent-builder" ? { agents: createAgentManagementMcpServer() } : {}),
         },
       },
       manifest.sessionId,
