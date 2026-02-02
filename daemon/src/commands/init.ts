@@ -1,8 +1,10 @@
 import fs from "fs";
 import path from "path";
 import readline from "readline/promises";
+import TelegramBot from "node-telegram-bot-api";
 import { resolveWorkspace } from "../workspace.js";
 import { detectAuth, hasClaudeCode, storeApiKey } from "../auth.js";
+import { TELEGRAM_HELP_MESSAGE } from "../channels/telegram-help.js";
 
 export async function run() {
   const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
@@ -99,8 +101,19 @@ export async function run() {
 
     if (enableTelegram) {
       console.log("\n-- Telegram Setup --");
-      telegramToken = await askRequired(rl, "Bot token (from @BotFather): ");
-      telegramChatId = (await rl.question("Chat ID (your Telegram chat ID): ")).trim();
+      console.log("You'll need a bot token from @BotFather in Telegram.");
+      console.log("Create a bot or use an existing one, then paste the token here.\n");
+      telegramToken = await askRequired(rl, "Bot token: ");
+
+      console.log("\nConnecting to Telegram...");
+      const paired = await pairTelegramChat(telegramToken);
+      if (paired) {
+        telegramChatId = paired.chatId;
+        console.log(`Paired with chat: ${paired.name} (${paired.chatId})`);
+      } else {
+        console.log("Pairing timed out. You can set the chat ID later with:");
+        console.log("  nova config set telegram.chatId <your-chat-id>");
+      }
     }
 
     if (enableApi) {
@@ -201,4 +214,48 @@ async function askPort(rl: readline.Interface): Promise<number> {
     if (!isNaN(port) && port >= 1 && port <= 65535) return port;
     console.log("Please enter a valid port number (1-65535).");
   }
+}
+
+async function pairTelegramChat(
+  token: string,
+  timeoutMs = 120_000,
+): Promise<{ chatId: string; name: string } | null> {
+  let bot: TelegramBot;
+  try {
+    bot = new TelegramBot(token, { polling: true });
+  } catch {
+    console.log("Failed to connect — check your bot token.");
+    return null;
+  }
+
+  console.log("Waiting for a message from you in Telegram...");
+  console.log("Open your bot and send any message (e.g. /start).\n");
+
+  return new Promise<{ chatId: string; name: string } | null>((resolve) => {
+    const timer = setTimeout(() => {
+      bot.stopPolling();
+      resolve(null);
+    }, timeoutMs);
+
+    bot.once("message", async (msg) => {
+      clearTimeout(timer);
+      const chatId = String(msg.chat.id);
+      const name =
+        msg.chat.title ||
+        [msg.chat.first_name, msg.chat.last_name].filter(Boolean).join(" ") ||
+        chatId;
+
+      await bot.sendMessage(chatId, "*Nova is connected!* 🎉", { parse_mode: "Markdown" }).catch(() => {});
+      await bot.sendMessage(chatId, TELEGRAM_HELP_MESSAGE, { parse_mode: "Markdown" }).catch(() => {});
+      bot.stopPolling();
+      resolve({ chatId, name });
+    });
+
+    bot.on("polling_error", (err) => {
+      clearTimeout(timer);
+      bot.stopPolling();
+      console.log(`Telegram error: ${err.message}`);
+      resolve(null);
+    });
+  });
 }

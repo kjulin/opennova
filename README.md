@@ -1,6 +1,12 @@
 # OpenNova
 
+> **⚠️ Experimental software.** OpenNova gives AI agents access to your computer — including the filesystem, shell, and network. It is intended for developers and power users who understand the risks. Use at your own risk, review the agent configurations, and do not run on machines with sensitive data you aren't prepared to expose.
+
 An open-source AI agent daemon powered by Claude Agent SDK. Run persistent AI agents that you can talk to over Telegram, HTTP API, and cron-triggered schedules — with built-in memory and multi-agent delegation.
+
+## Motivation
+
+OpenNova is inspired by [OpenClaw](https://github.com/openclaw/openclaw) and borrows many of its ideas — persistent agents, Telegram integration, memory, and cron triggers. The main difference is a focus on simplicity and leveraging the user's existing Claude Code installation. Instead of requiring separate API key management, OpenNova uses your existing Claude Code subscription through the Agent SDK, keeping setup minimal and costs predictable.
 
 ## Features
 

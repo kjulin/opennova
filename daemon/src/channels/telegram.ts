@@ -8,6 +8,7 @@ import { runThread } from "../runner.js";
 import { listThreads, createThread } from "../threads.js";
 import { createTriggerMcpServer } from "../triggers.js";
 import { TelegramConfigSchema, safeParseJsonFile, type TelegramConfig } from "../schemas.js";
+import { TELEGRAM_HELP_MESSAGE } from "./telegram-help.js";
 
 function loadTelegramConfig(): TelegramConfig | null {
   const filePath = path.join(Config.workspaceDir, "telegram.json");
@@ -71,6 +72,12 @@ export function startTelegram() {
     if (!text) return;
     if (String(chatId) !== config.chatId) return;
 
+    // Handle /help command
+    if (text === "/help" || text === "/start") {
+      await bot.sendMessage(chatId, TELEGRAM_HELP_MESSAGE, { parse_mode: "Markdown" });
+      return;
+    }
+
     // Handle /new command
     if (text === "/new") {
       const agentDir = path.join(Config.workspaceDir, "agents", config.activeAgentId);
@@ -88,9 +95,9 @@ export function startTelegram() {
 
       if (!agentName) {
         const list = [...agents.values()]
-          .map((a) => (a.id === config.activeAgentId ? `*${a.name}* (active)` : a.name))
+          .map((a) => (a.id === config.activeAgentId ? `• *${a.name}* (active)` : `• ${a.name}`))
           .join("\n");
-        await bot.sendMessage(chatId, `*Agents:*\n${list}`, { parse_mode: "Markdown" });
+        await bot.sendMessage(chatId, `*Agents:*\n${list}\n\nSwitch with /agent <name>`, { parse_mode: "Markdown" });
         return;
       }
 
