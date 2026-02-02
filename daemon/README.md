@@ -100,6 +100,13 @@ Agents without a `security` field use the global default.
 
 Changing an agent's security level always requires terminal access — agents cannot escalate their own permissions or those of other agents. The built-in agent-builder runs in sandbox mode and manages agents through controlled MCP tools that cannot set the `security` field. Only the `nova agent <id> security <level>` CLI command can change security levels.
 
+### What you should know
+
+- **Data flows through third parties.** All conversations go through Anthropic's API (via Claude Agent SDK). Telegram bot messages are not end-to-end encrypted — Telegram's E2E encryption only applies to "secret chats," which bots cannot use. If an agent reads sensitive files, that content is sent to these services.
+- **Unrestricted agents can do anything you can.** An agent with `unrestricted` security has full shell access running as your OS user. There is no confirmation step or undo for destructive actions.
+- **Cron triggers run autonomously.** Scheduled triggers execute prompts without human approval. Combined with `unrestricted` security, an agent can run shell commands on a timer with no one watching.
+- **Local processes can influence agent behavior.** Any software running as your OS user can modify files in the workspace (`~/.nova/`), including agent configurations, triggers, and memories. OpenNova amplifies the impact of local compromise — a modified trigger on an unrestricted agent becomes an intelligent, persistent executor.
+
 ## CLI Reference
 
 ### `nova init`

@@ -74,6 +74,12 @@ These levels control which tools the Claude Agent SDK makes available to the age
 
 Changing an agent's security level always requires terminal access — agents cannot escalate their own permissions or those of other agents. The built-in agent-builder runs in sandbox mode and manages agents through controlled tools that enforce this boundary.
 
+### What you should know
+
+- **Data flows through third parties.** All conversations go through Anthropic's API. Telegram bot messages are not end-to-end encrypted. If an agent reads sensitive files, that content is sent to these services.
+- **Unrestricted agents can do anything you can.** An agent with `unrestricted` security has full shell access as your OS user. There is no confirmation step for destructive actions.
+- **Cron triggers run autonomously.** Scheduled triggers execute without human approval. Combined with `unrestricted` security, this means an agent can run shell commands on a timer with no one watching.
+
 See [daemon/README.md](./daemon/README.md) for full details.
 
 ## Documentation
