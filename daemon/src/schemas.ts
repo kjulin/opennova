@@ -15,6 +15,7 @@ export const TriggerSchema = z.object({
   id: z.string(),
   channel: z.enum(["telegram"]),
   cron: z.string(),
+  tz: z.string().optional(),
   prompt: z.string(),
   enabled: z.boolean(),
   lastRun: z.string().nullable(),

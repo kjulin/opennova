@@ -55,7 +55,7 @@ export function createTriggerMcpServer(
     tools: [
       tool(
         "list_triggers",
-        "List all triggers for this agent",
+        "List this agent's own cron triggers. You can only see and manage your own triggers, not those of other agents.",
         {},
         async () => {
           const triggers = loadTriggers(agentDir);
@@ -68,9 +68,10 @@ export function createTriggerMcpServer(
       ),
       tool(
         "create_trigger",
-        "Create a new cron trigger. Uses standard 5-field cron syntax (minute hour day-of-month month day-of-week).",
+        "Create a new cron trigger for this agent. Uses standard 5-field cron syntax (minute hour day-of-month month day-of-week). Write cron times in the user's local timezone and pass their IANA timezone. When the user says \"9am\" and they are in Europe/Helsinki, use cron \"0 9 * * *\" and tz \"Europe/Helsinki\". Never convert to UTC yourself.",
         {
-          cron: z.string().describe("Cron expression (5-field)"),
+          cron: z.string().describe("Cron expression (5-field, in the timezone specified by tz)"),
+          tz: z.string().describe("IANA timezone for the cron expression, e.g. Europe/Helsinki, America/New_York"),
           prompt: z.string().describe("Prompt to send when trigger fires"),
           enabled: z.boolean().optional().default(true).describe("Whether the trigger is enabled"),
         },
@@ -89,6 +90,7 @@ export function createTriggerMcpServer(
             id: randomBytes(6).toString("hex"),
             channel,
             cron: args.cron,
+            tz: args.tz,
             prompt: args.prompt,
             enabled: args.enabled,
             lastRun: null,
@@ -104,10 +106,11 @@ export function createTriggerMcpServer(
       ),
       tool(
         "update_trigger",
-        "Update an existing trigger by ID",
+        "Update one of this agent's triggers by ID. Write cron times in the user's local timezone and pass their IANA timezone. Never convert to UTC yourself.",
         {
           id: z.string().describe("Trigger ID"),
-          cron: z.string().optional().describe("New cron expression"),
+          cron: z.string().optional().describe("New cron expression (5-field, in the timezone specified by tz)"),
+          tz: z.string().optional().describe("IANA timezone for the cron expression, e.g. Europe/Helsinki"),
           prompt: z.string().optional().describe("New prompt"),
           enabled: z.boolean().optional().describe("Enable or disable"),
         },
@@ -132,6 +135,7 @@ export function createTriggerMcpServer(
             }
             trigger.cron = args.cron;
           }
+          if (args.tz !== undefined) trigger.tz = args.tz;
           if (args.prompt !== undefined) trigger.prompt = args.prompt;
           if (args.enabled !== undefined) trigger.enabled = args.enabled;
 
@@ -145,7 +149,7 @@ export function createTriggerMcpServer(
       ),
       tool(
         "remove_trigger",
-        "Remove a trigger by ID",
+        "Remove one of this agent's triggers by ID.",
         {
           id: z.string().describe("Trigger ID to remove"),
         },
@@ -174,6 +178,9 @@ export function startTriggerScheduler() {
 
   function tick() {
     if (!fs.existsSync(agentsDir)) return;
+    log.debug("trigger", "scheduler tick");
+
+    const systemTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
     for (const entry of fs.readdirSync(agentsDir, { withFileTypes: true })) {
       if (!entry.isDirectory()) continue;
@@ -193,8 +200,10 @@ export function startTriggerScheduler() {
         if (!trigger.enabled) continue;
 
         try {
+          const tz = trigger.tz ?? systemTz;
           const expr = CronExpressionParser.parse(trigger.cron, {
             currentDate: new Date(),
+            tz,
           });
           const prev = expr.prev();
           const prevTime = prev.getTime();
@@ -203,6 +212,7 @@ export function startTriggerScheduler() {
             : 0;
 
           if (prevTime > lastRunTime) {
+            log.debug("trigger", `${agentId}/${trigger.id} cron="${trigger.cron}" tz=${tz} prev=${new Date(prevTime).toISOString()} lastRun=${trigger.lastRun ?? "never"}`);
             trigger.lastRun = new Date().toISOString();
             changed = true;
 
@@ -231,7 +241,7 @@ export function startTriggerScheduler() {
     }
   }
 
-  // Run immediately, then every 60 seconds
+  log.info("trigger", "scheduler started (60s interval)");
   tick();
   return setInterval(tick, 60_000);
 }
