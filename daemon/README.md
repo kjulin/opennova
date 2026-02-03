@@ -58,13 +58,20 @@ nova init
 
 ## Security Levels
 
-Nova has three security levels that control what tools agents can use. Set a global default during `nova init` or override per-agent in `agent.json`.
+Nova has three security levels that control what tools agents can use. Each level maps to specific [Claude Agent SDK](https://github.com/anthropics/claude-agent-sdk) permission options. Set a global default during `nova init` or override per-agent in `agent.json`.
 
-| Level | What the agent can do |
-|-------|----------------------|
-| `sandbox` | Chat and web search only. No file or shell access. |
-| `standard` | Read/write files within working directory and search the web. No shell commands. |
-| `unrestricted` | Full access including shell commands. |
+| Level | SDK Permission Mode | Allowed Tools | Blocked Tools |
+|-------|-------------------|---------------|---------------|
+| `sandbox` | `dontAsk` | WebSearch, WebFetch, Task | Everything else (file access, shell, MCP tools) |
+| `standard` | `dontAsk` | **File:** Read, Write, Edit, Glob, Grep · **Web:** WebSearch, WebFetch · **Other:** Task, NotebookEdit · **MCP:** memory, triggers, agents (via `mcp__*__*` wildcards) | Bash |
+| `unrestricted` | `bypassPermissions` | All tools including Bash | None |
+
+How the SDK permission modes work:
+
+- **`dontAsk`** — tools not listed in `allowedTools` are silently denied. The agent is never prompted for confirmation. This is used by both `sandbox` and `standard` to enforce a strict allowlist.
+- **`bypassPermissions`** — all tools are available without confirmation. Used by `unrestricted` together with `allowDangerouslySkipPermissions`.
+
+The exact configuration is in [`src/security.ts`](src/security.ts).
 
 ### Global default
 

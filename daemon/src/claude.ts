@@ -1,5 +1,5 @@
 import { query, type McpServerConfig } from "@anthropic-ai/claude-agent-sdk";
-import type { SecurityLevel } from "./schemas.js";
+import { securityOptions, type SecurityLevel } from "./security.js";
 import { log } from "./logger.js";
 
 export interface ClaudeOptions {
@@ -48,35 +48,6 @@ function friendlyToolStatus(toolName: string, input: Record<string, unknown>): s
   }
 }
 
-// Built-in tools available in standard mode (everything except Bash).
-const STANDARD_ALLOWED_TOOLS = [
-  "Read", "Write", "Edit", "Glob", "Grep",
-  "WebSearch", "WebFetch", "Task", "NotebookEdit",
-  // MCP servers — wildcard allows all tools per server
-  "mcp__memory__*", "mcp__triggers__*", "mcp__agents__*",
-];
-
-function securityOptions(level: SecurityLevel = "standard"): Record<string, unknown> {
-  switch (level) {
-    case "sandbox":
-      return {
-        permissionMode: "dontAsk",
-        allowedTools: ["WebSearch", "WebFetch", "Task"],
-      };
-    case "standard":
-      return {
-        permissionMode: "dontAsk",
-        disallowedTools: ["Bash"],
-        allowedTools: STANDARD_ALLOWED_TOOLS,
-      };
-    case "unrestricted":
-      return {
-        allowDangerouslySkipPermissions: true,
-        permissionMode: "bypassPermissions",
-      };
-  }
-}
-
 export async function runClaude(
   prompt: string,
   options: ClaudeOptions = {},
@@ -101,7 +72,7 @@ async function execClaude(
   callbacks: ClaudeCallbacks | undefined,
 ): Promise<ClaudeResult> {
   const security = options.security ?? "standard";
-  log.info("claude", `running (security: ${security})${sessionId ? ` (session: ${sessionId})` : ""}`);
+  log.info("claude", `running${sessionId ? ` (session: ${sessionId})` : ""}`);
 
   const result = query({
     prompt,

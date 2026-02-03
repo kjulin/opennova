@@ -1,0 +1,45 @@
+import type { SecurityLevel } from "./schemas.js";
+export type { SecurityLevel } from "./schemas.js";
+import { log } from "./logger.js";
+
+// Tools available in standard mode — everything except Bash.
+// MCP wildcards pre-approve all tools exposed by each server.
+const STANDARD_ALLOWED_TOOLS = [
+  "Read", "Write", "Edit", "Glob", "Grep",
+  "WebSearch", "WebFetch", "Task", "NotebookEdit",
+  "mcp__memory__*", "mcp__triggers__*", "mcp__agents__*",
+];
+
+/**
+ * Map a security level to Claude Agent SDK query options.
+ *
+ * - sandbox:      dontAsk — only web search and subtasks allowed.
+ * - standard:     dontAsk — file tools, web, MCP tools; Bash blocked.
+ * - unrestricted: bypassPermissions — all tools, no restrictions.
+ */
+export function securityOptions(level: SecurityLevel = "standard"): Record<string, unknown> {
+  const opts = buildOptions(level);
+  log.info("security", `level=${level} permissionMode=${opts.permissionMode} allowedTools=${(opts.allowedTools as string[])?.join(",") ?? "all"} disallowedTools=${(opts.disallowedTools as string[])?.join(",") ?? "none"}`);
+  return opts;
+}
+
+function buildOptions(level: SecurityLevel): Record<string, unknown> {
+  switch (level) {
+    case "sandbox":
+      return {
+        permissionMode: "dontAsk",
+        allowedTools: ["WebSearch", "WebFetch", "Task"],
+      };
+    case "standard":
+      return {
+        permissionMode: "dontAsk",
+        disallowedTools: ["Bash"],
+        allowedTools: STANDARD_ALLOWED_TOOLS,
+      };
+    case "unrestricted":
+      return {
+        allowDangerouslySkipPermissions: true,
+        permissionMode: "bypassPermissions",
+      };
+  }
+}
