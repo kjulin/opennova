@@ -74,8 +74,11 @@ export function startTelegram() {
       await bot.api.sendMessage(chatId, `_Switched to ${name}_`, { parse_mode: "Markdown" }).catch(() => {});
     }
 
-    bot.api.sendMessage(chatId, payload.text, { parse_mode: "Markdown" }).catch((err) => {
-      log.error("telegram", "failed to deliver thread:response:", err);
+    bot.api.sendMessage(chatId, payload.text, { parse_mode: "Markdown" }).catch(() => {
+      // Markdown parse failed (unmatched entities) — retry as plain text
+      bot.api.sendMessage(chatId, payload.text).catch((err) => {
+        log.error("telegram", "failed to deliver thread:response:", err);
+      });
     });
   });
 
