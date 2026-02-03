@@ -1,6 +1,7 @@
 import fs from "fs";
 import path from "path";
 import os from "os";
+import { log } from "./logger.js";
 
 const KNOWN_FILES = ["telegram", "settings"] as const;
 
@@ -42,7 +43,7 @@ function readConfigFile(workspaceDir: string, name: string): Record<string, unkn
   try {
     return JSON.parse(fs.readFileSync(filePath, "utf-8"));
   } catch (err) {
-    console.warn(`[config] failed to parse ${name}.json: ${(err as Error).message}`);
+    log.warn("config", `failed to parse ${name}.json: ${(err as Error).message}`);
     return null;
   }
 }

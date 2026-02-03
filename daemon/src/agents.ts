@@ -3,6 +3,7 @@ import os from "os";
 import path from "path";
 import { Config } from "./config.js";
 import { SettingsSchema, type SecurityLevel, type Settings } from "./schemas.js";
+import { log } from "./logger.js";
 
 export interface SubagentConfig {
   description: string;
@@ -101,7 +102,7 @@ export function loadAgents(): Map<string, AgentConfig> {
       const config: AgentConfig = { ...JSON.parse(fs.readFileSync(configPath, "utf-8")), id: entry.name };
       agents.set(config.id, config);
     } catch (err) {
-      console.error(`[agents] failed to load agent ${entry.name}:`, err);
+      log.error("agents", `failed to load agent ${entry.name}:`, err);
     }
   }
 
@@ -151,7 +152,7 @@ export function loadSettings(): Settings {
     const raw = JSON.parse(fs.readFileSync(settingsPath, "utf-8"));
     const result = SettingsSchema.safeParse(raw);
     if (result.success) return result.data;
-    console.warn(`[settings] invalid settings.json: ${result.error.message}`);
+    log.warn("agents", `invalid settings.json: ${result.error.message}`);
     return { defaultSecurity: "standard" };
   } catch {
     return { defaultSecurity: "standard" };

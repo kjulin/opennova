@@ -6,47 +6,52 @@ import { startTriggerScheduler } from "./triggers.js";
 import { ensureAuth } from "./auth.js";
 import { loadSettings } from "./agents.js";
 import { Config } from "./config.js";
+import { log } from "./logger.js";
 
 export function start() {
   init();
 
+  log.info("daemon", `workspace: ${Config.workspaceDir}`);
+  log.info("daemon", `node: ${process.version}, platform: ${process.platform}`);
+
   const settingsPath = path.join(Config.workspaceDir, "settings.json");
   if (!fs.existsSync(settingsPath)) {
-    console.warn("[security] no settings.json found — defaulting to \"standard\"");
-    console.warn("[security] run 'nova init' to configure your security level");
+    log.warn("security", "no settings.json found — defaulting to \"standard\"");
+    log.warn("security", "run 'nova init' to configure your security level");
   }
 
   const settings = loadSettings();
-  console.log(`security: ${settings.defaultSecurity} (default)`);
+  log.info("daemon", `security: ${settings.defaultSecurity} (default)`);
 
   // Verify authentication before starting
   const auth = ensureAuth(Config.workspaceDir);
-  console.log(`auth: ${auth.detail}`);
+  log.info("daemon", `auth: ${auth.detail}`);
 
   const { channels, shutdown } = loadChannels();
 
   if (channels.length === 0) {
-    console.warn("warning: no channels configured — run 'nova init' to set up Telegram");
+    log.warn("daemon", "no channels configured — run 'nova init' to set up Telegram");
   } else {
     for (const ch of channels) {
-      console.log(`channel: ${ch.name} (${ch.detail})`);
+      log.info("daemon", `channel: ${ch.name} (${ch.detail})`);
     }
   }
 
   const triggerInterval = startTriggerScheduler();
-  console.log("nova daemon started — press Ctrl+C to stop");
+  log.info("daemon", "nova daemon started");
 
   function handleSignal(signal: string) {
-    console.log(`received ${signal}, shutting down…`);
+    log.info("daemon", `received ${signal}, shutting down…`);
     clearInterval(triggerInterval);
     shutdown();
-    console.log("nova daemon stopped");
+    log.info("daemon", "nova daemon stopped");
+    log.close();
     process.exit(0);
   }
 
   process.on("SIGINT", () => handleSignal("SIGINT"));
   process.on("SIGTERM", () => handleSignal("SIGTERM"));
   process.on("unhandledRejection", (err) => {
-    console.error("[daemon] unhandled rejection:", err);
+    log.error("daemon", "unhandled rejection:", err);
   });
 }

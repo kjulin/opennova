@@ -1,5 +1,6 @@
 import { query, type McpServerConfig } from "@anthropic-ai/claude-agent-sdk";
 import type { SecurityLevel } from "./schemas.js";
+import { log } from "./logger.js";
 
 export interface ClaudeOptions {
   cwd?: string;
@@ -77,7 +78,7 @@ export async function runClaude(
     return await execClaude(prompt, options, sessionId, callbacks);
   } catch (err) {
     if (sessionId) {
-      console.log("[claude] session resume failed, retrying as new conversation");
+      log.warn("claude", "session resume failed, retrying as new conversation");
       return await execClaude(prompt, options, undefined, callbacks);
     }
     throw err;
@@ -91,7 +92,7 @@ async function execClaude(
   callbacks: ClaudeCallbacks | undefined,
 ): Promise<ClaudeResult> {
   const security = options.security ?? "standard";
-  console.log(`[claude] running (security: ${security})${sessionId ? ` (session: ${sessionId})` : ""}`);
+  log.info("claude", `running (security: ${security})${sessionId ? ` (session: ${sessionId})` : ""}`);
 
   const result = query({
     prompt,
@@ -109,13 +110,13 @@ async function execClaude(
   let resultSessionId: string | undefined;
 
   for await (const message of result) {
-    console.log(`[claude] event: ${message.type}${("subtype" in message && message.subtype) ? `:${message.subtype}` : ""}`);
+    log.debug("claude", `event: ${message.type}${("subtype" in message && message.subtype) ? `:${message.subtype}` : ""}`);
 
     if (message.type === "assistant") {
       resultSessionId = message.message.session_id;
       const hasToolUse = message.message.content.some((b: { type: string }) => b.type === "tool_use");
       for (const block of message.message.content) {
-        console.log(`[claude]   block: ${block.type}`);
+        log.debug("claude", `block: ${block.type}${"name" in block ? ` (${block.name})` : ""}`);
         if (block.type === "text" && block.text.trim()) {
           // Only show as status if this message also contains tool calls (i.e. narration before tools).
           // Pure text messages are the final response — skip status to avoid duplication.
@@ -131,12 +132,22 @@ async function execClaude(
     } else if (message.type === "result" && message.subtype === "success") {
       responseText = message.result;
       resultSessionId = message.session_id;
-      console.log(`[claude] done — session: ${resultSessionId}, cost: $${message.total_cost_usd}, duration: ${message.duration_ms}ms`);
+      const denials = (message as { permission_denials?: { tool_name: string }[] }).permission_denials ?? [];
+      if (denials.length > 0) {
+        for (const d of denials) {
+          log.warn("claude", `permission denied: ${d.tool_name}`);
+        }
+      }
+      log.info("claude", `done — session: ${resultSessionId}, cost: $${message.total_cost_usd}, duration: ${message.duration_ms}ms, turns: ${message.num_turns}${denials.length > 0 ? `, denials: ${denials.length}` : ""}`);
     } else if (message.type === "tool_use_summary") {
-      console.log(`[claude] summary: ${message.summary}`);
+      log.debug("claude", `summary: ${message.summary}`);
       callbacks?.onToolUseSummary?.(message.summary);
-    } else if (message.type === "result" && message.subtype === "error_during_execution") {
-      console.error(`[claude] error during execution:`, "error" in message ? (message as { error: string }).error : "unknown error");
+    } else if (message.type === "result" && (message.subtype === "error_during_execution" || message.subtype === "error_max_turns")) {
+      const denials = (message as { permission_denials?: { tool_name: string }[] }).permission_denials ?? [];
+      for (const d of denials) {
+        log.warn("claude", `permission denied: ${d.tool_name}`);
+      }
+      log.error("claude", `${message.subtype}:`, "error" in message ? (message as { error: string }).error : "unknown error");
     }
   }
 

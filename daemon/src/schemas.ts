@@ -1,5 +1,6 @@
 import fs from "fs";
 import { z } from "zod/v4";
+import { log } from "./logger.js";
 
 export const TelegramConfigSchema = z.object({
   token: z.string(),
@@ -51,7 +52,7 @@ export function safeParseJsonFile(filePath: string, label: string): unknown | nu
   try {
     return JSON.parse(fs.readFileSync(filePath, "utf-8"));
   } catch (err) {
-    console.warn(`[config] failed to parse ${label} (${filePath}): ${(err as Error).message}`);
+    log.warn("config", `failed to parse ${label} (${filePath}): ${(err as Error).message}`);
     return null;
   }
 }

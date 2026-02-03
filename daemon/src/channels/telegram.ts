@@ -9,6 +9,7 @@ import { listThreads, createThread } from "../threads.js";
 import { createTriggerMcpServer } from "../triggers.js";
 import { TelegramConfigSchema, safeParseJsonFile, type TelegramConfig } from "../schemas.js";
 import { TELEGRAM_HELP_MESSAGE } from "./telegram-help.js";
+import { log } from "../logger.js";
 
 function loadTelegramConfig(): TelegramConfig | null {
   const filePath = path.join(Config.workspaceDir, "telegram.json");
@@ -17,7 +18,7 @@ function loadTelegramConfig(): TelegramConfig | null {
   if (raw === null) return null;
   const result = TelegramConfigSchema.safeParse(raw);
   if (!result.success) {
-    console.warn(`[telegram] invalid telegram.json: ${result.error.message}`);
+    log.warn("telegram", `invalid telegram.json: ${result.error.message}`);
     return null;
   }
   return result.data;
@@ -46,21 +47,21 @@ function resolveThreadId(config: TelegramConfig, agentDir: string): string {
 export function startTelegram() {
   const config = loadTelegramConfig();
   if (!config) {
-    console.log("telegram channel skipped (no telegram.json)");
+    log.info("telegram", "channel skipped (no telegram.json)");
     return null;
   }
   if (!config.chatId) {
-    console.log("telegram channel skipped (chatId not configured)");
+    log.info("telegram", "channel skipped (chatId not configured)");
     return null;
   }
 
   const bot = new Bot(config.token);
-  console.log("telegram channel started");
+  log.info("telegram", "channel started");
 
   bus.on("thread:response", (payload) => {
     if (payload.channel !== "telegram") return;
     bot.api.sendMessage(Number(config.chatId), payload.text, { parse_mode: "Markdown" }).catch((err) => {
-      console.error("[telegram] failed to deliver thread:response:", err);
+      log.error("telegram", "failed to deliver thread:response:", err);
     });
   });
 
@@ -126,7 +127,8 @@ export function startTelegram() {
     const agentDir = path.join(Config.workspaceDir, "agents", agent.id);
     const threadId = resolveThreadId(config, agentDir);
 
-    console.log(`[telegram:${chatId}] [${agent.id}] ${text}`);
+    const truncated = text.length > 200 ? text.slice(0, 200) + "…" : text;
+    log.info("telegram", `[${chatId}] [${agent.id}] ${truncated}`);
 
     const typingInterval = setInterval(() => {
       bot.api.sendChatAction(chatId, "typing").catch(() => {});
@@ -170,7 +172,7 @@ export function startTelegram() {
         { triggers: createTriggerMcpServer(agentDir, "telegram") },
       );
     } catch (err) {
-      console.error("claude error:", (err as Error).message);
+      log.error("telegram", `claude error for ${agent.id}:`, (err as Error).message);
       await ctx.reply(`Error: ${(err as Error).message}`);
     } finally {
       clearInterval(typingInterval);

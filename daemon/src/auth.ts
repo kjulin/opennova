@@ -1,6 +1,7 @@
 import { execFileSync } from "child_process";
 import fs from "fs";
 import path from "path";
+import { log } from "./logger.js";
 
 export type AuthMethod = "claude-code" | "api-key" | "none";
 
@@ -98,10 +99,10 @@ export function ensureAuth(workspaceDir: string): AuthInfo {
     return { method: "claude-code", detail: "Claude Code installation" };
   }
 
-  console.error("\nNo authentication found. Nova needs one of:");
-  console.error("  1. Claude Code installed and authenticated (recommended)");
-  console.error("     Install: https://docs.anthropic.com/en/docs/claude-code");
-  console.error("  2. ANTHROPIC_API_KEY environment variable");
-  console.error("  3. API key configured via 'nova init'\n");
+  log.error("auth", "no authentication found. Nova needs one of:");
+  log.error("auth", "  1. Claude Code installed and authenticated (recommended)");
+  log.error("auth", "     Install: https://docs.anthropic.com/en/docs/claude-code");
+  log.error("auth", "  2. ANTHROPIC_API_KEY environment variable");
+  log.error("auth", "  3. API key configured via 'nova init'");
   process.exit(1);
 }

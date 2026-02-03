@@ -12,6 +12,7 @@ import {
   appendMessage,
   withThreadLock,
 } from "./threads.js";
+import { log } from "./logger.js";
 
 export async function runThread(
   agentDir: string,
@@ -29,6 +30,8 @@ export async function runThread(
     const agent = agents.get(agentId);
     if (!agent) throw new Error(`Agent not found: ${agentId}`);
 
+    log.info("runner", `starting thread ${threadId} for agent ${agentId}`);
+
     appendMessage(filePath, {
       role: "user",
       text: message,
@@ -37,22 +40,28 @@ export async function runThread(
 
     const security = resolveSecurityLevel(agent);
 
-    const result = await runClaude(
-      message,
-      {
-        cwd: getAgentCwd(agent),
-        systemPrompt: buildSystemPrompt(agent, agentDir, manifest.channel, security),
-        security,
-        ...(agent.subagents ? { agents: agent.subagents } : {}),
-        mcpServers: {
-          memory: createMemoryMcpServer(agentDir),
-          ...extraMcpServers,
-          ...(agentId === "agent-builder" ? { agents: createAgentManagementMcpServer() } : {}),
+    let result;
+    try {
+      result = await runClaude(
+        message,
+        {
+          cwd: getAgentCwd(agent),
+          systemPrompt: buildSystemPrompt(agent, agentDir, manifest.channel, security),
+          security,
+          ...(agent.subagents ? { agents: agent.subagents } : {}),
+          mcpServers: {
+            memory: createMemoryMcpServer(agentDir),
+            ...extraMcpServers,
+            ...(agentId === "agent-builder" ? { agents: createAgentManagementMcpServer() } : {}),
+          },
         },
-      },
-      manifest.sessionId,
-      callbacks,
-    );
+        manifest.sessionId,
+        callbacks,
+      );
+    } catch (err) {
+      log.error("runner", `thread ${threadId} for agent ${agentId} failed:`, err);
+      throw err;
+    }
 
     const responseText = result.text || "(empty response)";
 
@@ -74,6 +83,8 @@ export async function runThread(
       channel: manifest.channel,
       text: responseText,
     });
+
+    log.info("runner", `thread ${threadId} for agent ${agentId} completed (${responseText.length} chars)`);
 
     return { text: responseText };
   });

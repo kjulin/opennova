@@ -12,6 +12,7 @@ import { Config } from "./config.js";
 import { runThread } from "./runner.js";
 import { createThread, type ChannelType } from "./threads.js";
 import { TriggerSchema, safeParseJsonFile } from "./schemas.js";
+import { log } from "./logger.js";
 export type { Trigger } from "./schemas.js";
 import type { Trigger } from "./schemas.js";
 
@@ -21,7 +22,7 @@ export function loadTriggers(agentDir: string): Trigger[] {
   const raw = safeParseJsonFile(filePath, `triggers.json (${path.basename(agentDir)})`);
   if (raw === null) return [];
   if (!Array.isArray(raw)) {
-    console.warn(`[triggers] triggers.json is not an array for agent ${path.basename(agentDir)}`);
+    log.warn("trigger", `triggers.json is not an array for agent ${path.basename(agentDir)}`);
     return [];
   }
   const triggers: Trigger[] = [];
@@ -32,7 +33,7 @@ export function loadTriggers(agentDir: string): Trigger[] {
     if (result.success) {
       triggers.push(result.data);
     } else {
-      console.warn(`[triggers] skipping invalid trigger in ${path.basename(agentDir)}: ${result.error.message}`);
+      log.warn("trigger", `skipping invalid trigger in ${path.basename(agentDir)}: ${result.error.message}`);
     }
   }
   return triggers;
@@ -183,7 +184,7 @@ export function startTriggerScheduler() {
       try {
         triggers = loadTriggers(agentDir);
       } catch (err) {
-        console.error(`[trigger] failed to load triggers for agent ${agentId}:`, err);
+        log.error("trigger", `failed to load triggers for agent ${agentId}:`, err);
         continue;
       }
 
@@ -207,20 +208,20 @@ export function startTriggerScheduler() {
 
             const threadId = createThread(agentDir, trigger.channel);
 
-            console.log(`[trigger] firing for agent ${agentId} thread ${threadId}: "${trigger.prompt}"`);
+            log.info("trigger", `firing for agent ${agentId} thread ${threadId}: "${trigger.prompt}"`);
 
             runThread(agentDir, threadId, trigger.prompt, undefined, {
               triggers: createTriggerMcpServer(agentDir, trigger.channel),
             })
               .then(() => {
-                console.log(`[trigger] completed for agent ${agentId} thread ${threadId}`);
+                log.info("trigger", `completed for agent ${agentId} thread ${threadId}`);
               })
               .catch((err) => {
-                console.error(`[trigger] error for agent ${agentId}:`, err);
+                log.error("trigger", `error for agent ${agentId}:`, err);
               });
           }
         } catch (err) {
-          console.error(`[trigger] cron error for agent ${agentId} trigger ${trigger.id}:`, err);
+          log.error("trigger", `cron error for agent ${agentId} trigger ${trigger.id}:`, err);
         }
       }
 
