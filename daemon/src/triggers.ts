@@ -93,7 +93,7 @@ export function createTriggerMcpServer(
             tz: args.tz,
             prompt: args.prompt,
             enabled: args.enabled,
-            lastRun: null,
+            lastRun: new Date().toISOString(),
           };
           triggers.push(trigger);
           saveTriggers(agentDir, triggers);
