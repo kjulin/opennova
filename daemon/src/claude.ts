@@ -48,6 +48,14 @@ function friendlyToolStatus(toolName: string, input: Record<string, unknown>): s
   }
 }
 
+// Built-in tools available in standard mode (everything except Bash).
+const STANDARD_ALLOWED_TOOLS = [
+  "Read", "Write", "Edit", "Glob", "Grep",
+  "WebSearch", "WebFetch", "Task", "NotebookEdit",
+  // MCP servers — wildcard allows all tools per server
+  "mcp__memory__*", "mcp__triggers__*", "mcp__agents__*",
+];
+
 function securityOptions(level: SecurityLevel = "standard"): Record<string, unknown> {
   switch (level) {
     case "sandbox":
@@ -59,6 +67,7 @@ function securityOptions(level: SecurityLevel = "standard"): Record<string, unkn
       return {
         permissionMode: "dontAsk",
         disallowedTools: ["Bash"],
+        allowedTools: STANDARD_ALLOWED_TOOLS,
       };
     case "unrestricted":
       return {
