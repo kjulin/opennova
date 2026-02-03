@@ -58,9 +58,23 @@ export function startTelegram() {
   const bot = new Bot(config.token);
   log.info("telegram", "channel started");
 
-  bus.on("thread:response", (payload) => {
+  bus.on("thread:response", async (payload) => {
     if (payload.channel !== "telegram") return;
-    bot.api.sendMessage(Number(config.chatId), payload.text, { parse_mode: "Markdown" }).catch((err) => {
+    const chatId = Number(config.chatId);
+
+    // Track active context — notify user when it changes (e.g. trigger firing on a different agent/thread)
+    if (payload.agentId !== config.activeAgentId || payload.threadId !== config.activeThreadId) {
+      const agents = loadAgents();
+      const agent = agents.get(payload.agentId);
+      const name = agent?.name ?? payload.agentId;
+      config.activeAgentId = payload.agentId;
+      config.activeThreadId = payload.threadId;
+      saveTelegramConfig(config);
+      log.info("telegram", `context switched to agent=${payload.agentId} thread=${payload.threadId}`);
+      await bot.api.sendMessage(chatId, `_Switched to ${name}_`, { parse_mode: "Markdown" }).catch(() => {});
+    }
+
+    bot.api.sendMessage(chatId, payload.text, { parse_mode: "Markdown" }).catch((err) => {
       log.error("telegram", "failed to deliver thread:response:", err);
     });
   });
