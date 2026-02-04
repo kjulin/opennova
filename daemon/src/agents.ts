@@ -133,9 +133,16 @@ export function buildMemoryPrompt(agentDir: string): string {
   return `\n<Memories>\n${sections.join("\n\n")}\n</Memories>`;
 }
 
+function buildContextBlock(): string {
+  const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const now = new Date();
+  const local = now.toLocaleString("en-US", { timeZone: tz, dateStyle: "full", timeStyle: "short" });
+  return `\n<Context>\nCurrent time: ${local} (${tz})\n</Context>`;
+}
+
 export function buildSystemPrompt(agent: AgentConfig, agentDir: string, channel: ChannelType, security: SecurityLevel): string {
   const memories = buildMemoryPrompt(agentDir);
-  return `<Role>\n${agent.role}\n</Role>\n${SECURITY_INSTRUCTIONS[security]}\n${GENERAL_INSTRUCTIONS}\n${FORMATTING_INSTRUCTIONS[channel]}${memories}`;
+  return `<Role>\n${agent.role}\n</Role>\n${SECURITY_INSTRUCTIONS[security]}\n${GENERAL_INSTRUCTIONS}\n${FORMATTING_INSTRUCTIONS[channel]}${buildContextBlock()}${memories}`;
 }
 
 export function getAgentCwd(agent: AgentConfig): string {
