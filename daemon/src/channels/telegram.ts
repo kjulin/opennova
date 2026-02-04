@@ -85,7 +85,7 @@ export function startTelegram() {
 
   bus.on("thread:error", (payload) => {
     if (payload.channel !== "telegram") return;
-    bot.api.sendMessage(Number(config.chatId), `⚠ Error: ${payload.error}`).catch((err) => {
+    bot.api.sendMessage(Number(config.chatId), "Something went wrong. Check the logs for details.").catch((err) => {
       log.error("telegram", "failed to deliver thread:error:", err);
     });
   });
