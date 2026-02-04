@@ -60,6 +60,18 @@ export async function runThread(
       );
     } catch (err) {
       log.error("runner", `thread ${threadId} for agent ${agentId} failed:`, err);
+      const errorMsg = (err as Error).message ?? "unknown error";
+      appendMessage(filePath, {
+        role: "assistant",
+        text: `(error: ${errorMsg})`,
+        timestamp: new Date().toISOString(),
+      });
+      bus.emit("thread:error", {
+        agentId,
+        threadId,
+        channel: manifest.channel,
+        error: errorMsg,
+      });
       throw err;
     }
 

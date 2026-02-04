@@ -8,6 +8,12 @@ interface DaemonEvents {
     channel: ChannelType;
     text: string;
   }];
+  "thread:error": [payload: {
+    agentId: string;
+    threadId: string;
+    channel: ChannelType;
+    error: string;
+  }];
 }
 
 class TypedEmitter extends EventEmitter {
