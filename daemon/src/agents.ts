@@ -139,10 +139,13 @@ export function buildSystemPrompt(agent: AgentConfig, agentDir: string, channel:
 }
 
 export function getAgentCwd(agent: AgentConfig): string {
-  if (!agent.cwd) return path.join(Config.workspaceDir, "agents", agent.id);
-  if (agent.cwd.startsWith("~")) return path.join(os.homedir(), agent.cwd.slice(1));
-  if (path.isAbsolute(agent.cwd)) return agent.cwd;
-  return path.join(Config.workspaceDir, agent.cwd);
+  let cwd: string;
+  if (!agent.cwd) cwd = path.join(Config.workspaceDir, "agents", agent.id);
+  else if (agent.cwd.startsWith("~")) cwd = path.join(os.homedir(), agent.cwd.slice(1));
+  else if (path.isAbsolute(agent.cwd)) cwd = agent.cwd;
+  else cwd = path.join(Config.workspaceDir, agent.cwd);
+  fs.mkdirSync(cwd, { recursive: true });
+  return cwd;
 }
 
 export function loadSettings(): Settings {
