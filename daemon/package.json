@@ -1,6 +1,6 @@
 {
   "name": "opennova",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "AI agent daemon powered by Claude",
   "type": "module",
   "main": "dist/index.js",
