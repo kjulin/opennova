@@ -62,7 +62,8 @@ export function startTelegram() {
     if (payload.channel !== "telegram") return;
     const chatId = Number(config.chatId);
 
-    // Track active context — notify user when it changes (e.g. trigger firing on a different agent/thread)
+    // Track active context — prepend switch notice when it changes (e.g. trigger firing on a different agent/thread)
+    let text = payload.text;
     if (payload.agentId !== config.activeAgentId || payload.threadId !== config.activeThreadId) {
       const agents = loadAgents();
       const agent = agents.get(payload.agentId);
@@ -71,12 +72,12 @@ export function startTelegram() {
       config.activeThreadId = payload.threadId;
       saveTelegramConfig(config);
       log.info("telegram", `context switched to agent=${payload.agentId} thread=${payload.threadId}`);
-      await bot.api.sendMessage(chatId, `_Switched to ${name}_`, { parse_mode: "Markdown" }).catch(() => {});
+      text = `_Switched to ${name}_\n\n${text}`;
     }
 
-    bot.api.sendMessage(chatId, payload.text, { parse_mode: "Markdown" }).catch(() => {
+    bot.api.sendMessage(chatId, text, { parse_mode: "Markdown" }).catch(() => {
       // Markdown parse failed (unmatched entities) — retry as plain text
-      bot.api.sendMessage(chatId, payload.text).catch((err) => {
+      bot.api.sendMessage(chatId, text).catch((err) => {
         log.error("telegram", "failed to deliver thread:response:", err);
       });
     });
