@@ -217,34 +217,34 @@ export function startTelegram() {
       }
     }
 
-    try {
-      await runThread(
-        agentDir, threadId, text,
-        {
-          onAssistantMessage(text) {
-            updateStatus(text);
-          },
-          onToolUse(_toolName, _input, summary) {
-            updateStatus(summary);
-          },
-          onToolUseSummary(summary) {
-            updateStatus(summary);
-          },
+    // Don't await — let it run in the background so subsequent messages
+    // (like /stop) can be processed while the agent is working.
+    runThread(
+      agentDir, threadId, text,
+      {
+        onAssistantMessage(text) {
+          updateStatus(text);
         },
-        { triggers: createTriggerMcpServer(agentDir, "telegram") },
-        undefined,
-        abortController,
-      );
-    } catch (err) {
+        onToolUse(_toolName, _input, summary) {
+          updateStatus(summary);
+        },
+        onToolUseSummary(summary) {
+          updateStatus(summary);
+        },
+      },
+      { triggers: createTriggerMcpServer(agentDir, "telegram") },
+      undefined,
+      abortController,
+    ).catch((err) => {
       if (!abortController.signal.aborted) {
         log.error("telegram", `claude error for ${agent.id}:`, (err as Error).message);
-        await ctx.reply(`Error: ${(err as Error).message}`);
+        bot.api.sendMessage(chatId, "Something went wrong. Check the logs for details.").catch(() => {});
       }
-    } finally {
+    }).finally(() => {
       if (activeAbortController === abortController) activeAbortController = null;
       clearInterval(typingInterval);
-      await deleteStatus();
-    }
+      deleteStatus();
+    });
   });
 
   bot.on("callback_query:data", async (ctx) => {
