@@ -74,6 +74,14 @@ export function startTelegram() {
   const bot = new Bot(config.token);
   log.info("telegram", "channel started");
 
+  bot.api.setMyCommands([
+    { command: "agent", description: "Select an agent" },
+    { command: "new", description: "Start a fresh conversation thread" },
+    { command: "help", description: "Show help message" },
+  ]).catch((err) => {
+    log.warn("telegram", "failed to register commands:", err);
+  });
+
   bus.on("thread:response", async (payload) => {
     if (payload.channel !== "telegram") return;
     const chatId = Number(config.chatId);
