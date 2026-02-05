@@ -52,6 +52,7 @@ export function run() {
     const config = JSON.parse(fs.readFileSync(configPath, "utf-8"));
     console.log(`Name:       ${config.name || agentId}`);
     console.log(`ID:         ${agentId}`);
+    if (config.description) console.log(`Desc:       ${config.description}`);
     console.log(`Security:   ${config.security || "(global default)"}`);
     if (config.cwd) console.log(`Directory:  ${config.cwd}`);
     if (config.directories && config.directories.length > 0) {

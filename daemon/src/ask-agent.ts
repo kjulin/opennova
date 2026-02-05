@@ -20,6 +20,25 @@ export function createAskAgentMcpServer(
     name: "ask-agent",
     tools: [
       tool(
+        "list_available_agents",
+        "List the agents you can delegate tasks to, with their descriptions.",
+        {},
+        async () => {
+          const agents = loadAgents();
+          const wildcard = allowed.includes("*");
+          const entries: { id: string; name: string; description: string }[] = [];
+          for (const a of agents.values()) {
+            if (a.id === caller.id) continue;
+            if (!wildcard && !allowed.includes(a.id)) continue;
+            entries.push({ id: a.id, name: a.name, description: a.description ?? "" });
+          }
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify(entries, null, 2) }],
+          };
+        },
+      ),
+
+      tool(
         "ask_agent",
         "Send a message to another agent and get their response. Use this to delegate tasks or ask questions to specialist agents.",
         {

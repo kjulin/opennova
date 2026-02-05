@@ -17,6 +17,7 @@ export interface SubagentConfig {
 export interface AgentConfig {
   id: string;
   name: string;
+  description?: string;
   role: string;
   cwd?: string;
   directories?: string[];
