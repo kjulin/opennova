@@ -1,13 +1,14 @@
 import fs from "fs";
 import path from "path";
-import { Bot } from "grammy";
+import { Bot, InlineKeyboard } from "grammy";
 import { Config } from "../config.js";
 import { bus } from "../events.js";
 import { loadAgents } from "../agents.js";
 import { runThread } from "../runner.js";
-import { listThreads, createThread } from "../threads.js";
+import { listThreads, createThread, loadManifest, threadPath } from "../threads.js";
 import { createTriggerMcpServer } from "../triggers.js";
 import type { AgentBotConfig } from "../schemas.js";
+import { relativeTime } from "./telegram.js";
 import { log } from "../logger.js";
 
 function resolveThreadId(config: AgentBotConfig, agentDir: string, channel: string): string {
@@ -48,6 +49,7 @@ export function startAgentTelegram(
   log.info("telegram-agent", `agent ${agentId}: started`);
 
   bot.api.setMyCommands([
+    { command: "threads", description: "List conversation threads" },
     { command: "stop", description: "Stop the running agent" },
     { command: "new", description: "Start a fresh conversation thread" },
     { command: "help", description: "Show help message" },
@@ -80,7 +82,7 @@ export function startAgentTelegram(
     if (String(chatId) !== botConfig.chatId) return;
 
     if (text === "/help" || text === "/start") {
-      await ctx.reply(`This is *${agent.name}*'s dedicated bot.\n\n/new — start a fresh thread\n/stop — stop the running agent\n/help — show this message`, { parse_mode: "Markdown" });
+      await ctx.reply(`This is *${agent.name}*'s dedicated bot.\n\n/threads — list and switch threads\n/new — start a fresh thread\n/stop — stop the running agent\n/help — show this message`, { parse_mode: "Markdown" });
       return;
     }
 
@@ -91,6 +93,28 @@ export function startAgentTelegram(
       } else {
         await ctx.reply("Nothing to stop.");
       }
+      return;
+    }
+
+    if (text === "/threads") {
+      const threads = listThreads(agentDir)
+        .filter((t) => t.manifest.channel === channel)
+        .sort((a, b) => b.manifest.updatedAt.localeCompare(a.manifest.updatedAt))
+        .slice(0, 10);
+
+      if (threads.length === 0) {
+        await ctx.reply("No threads yet.");
+        return;
+      }
+
+      const keyboard = new InlineKeyboard();
+      for (const t of threads) {
+        const title = t.manifest.title || "Untitled";
+        const time = relativeTime(t.manifest.updatedAt);
+        const active = t.id === botConfig.activeThreadId ? "\u2713 " : "";
+        keyboard.text(`${active}${title} \u00b7 ${time}`, `thread:${t.id}`).row();
+      }
+      await ctx.reply("*Threads:*", { parse_mode: "Markdown", reply_markup: keyboard });
       return;
     }
 
@@ -162,6 +186,28 @@ export function startAgentTelegram(
       clearInterval(typingInterval);
       deleteStatus();
     });
+  });
+
+  bot.on("callback_query:data", async (ctx) => {
+    const chatId = ctx.callbackQuery.message?.chat.id;
+    if (!chatId || String(chatId) !== botConfig.chatId) return;
+
+    const data = ctx.callbackQuery.data;
+    if (!data.startsWith("thread:")) return;
+
+    const threadId = data.slice("thread:".length);
+    const filePath = threadPath(agentDir, threadId);
+    try {
+      const manifest = loadManifest(filePath);
+      botConfig.activeThreadId = threadId;
+      saveConfig();
+      const title = manifest.title || "Untitled";
+      await ctx.editMessageText(`Switched to: ${title}`);
+    } catch {
+      await ctx.answerCallbackQuery({ text: "Thread not found" });
+      return;
+    }
+    await ctx.answerCallbackQuery();
   });
 
   bot.start();

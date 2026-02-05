@@ -53,6 +53,33 @@ function friendlyToolStatus(toolName: string, input: Record<string, unknown>): s
   }
 }
 
+export async function generateThreadTitle(userMessage: string, assistantResponse: string): Promise<string | null> {
+  const userSnippet = userMessage.slice(0, 200);
+  const assistantSnippet = assistantResponse.slice(0, 200);
+  const prompt = `Generate a concise title (3-6 words, no quotes) for this conversation:\n\nUser: ${userSnippet}\nAssistant: ${assistantSnippet}`;
+
+  const result = query({
+    prompt,
+    options: {
+      model: "haiku",
+      tools: [],
+      maxTurns: 1,
+      persistSession: false,
+      permissionMode: "dontAsk",
+    },
+  });
+
+  let text = "";
+  for await (const msg of result) {
+    if (msg.type === "result" && msg.subtype === "success") {
+      text = msg.result;
+    }
+  }
+
+  const title = text.trim().replace(/^["']|["']$/g, "");
+  return title || null;
+}
+
 export async function runClaude(
   prompt: string,
   options: ClaudeOptions = {},

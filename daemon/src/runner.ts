@@ -1,6 +1,6 @@
 import path from "path";
 import type { McpServerConfig } from "@anthropic-ai/claude-agent-sdk";
-import { runClaude, type ClaudeCallbacks } from "./claude.js";
+import { runClaude, generateThreadTitle, type ClaudeCallbacks } from "./claude.js";
 import { loadAgents, buildSystemPrompt, getAgentCwd, getAgentDirectories, resolveSecurityLevel } from "./agents.js";
 import { createMemoryMcpServer } from "./memory.js";
 import { createAgentManagementMcpServer } from "./agent-management.js";
@@ -115,6 +115,18 @@ export async function runThread(
     });
 
     log.info("runner", `thread ${threadId} for agent ${agentId} completed (${responseText.length} chars)`);
+
+    if (!manifest.title) {
+      generateThreadTitle(message, responseText).then((title) => {
+        if (title) {
+          manifest.title = title;
+          saveManifest(filePath, manifest);
+          log.info("runner", `titled thread ${threadId}: "${title}"`);
+        }
+      }).catch((err) => {
+        log.warn("runner", `title generation failed for ${threadId}:`, (err as Error).message);
+      });
+    }
 
     return { text: responseText };
   });
