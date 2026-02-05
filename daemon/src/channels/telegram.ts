@@ -240,10 +240,16 @@ export function startTelegram() {
     // Greet the user from the new agent
     const agentDir = path.join(Config.workspaceDir, "agents", agentId);
     const threadId = resolveThreadId(config, agentDir);
+    const typingInterval = setInterval(() => {
+      bot.api.sendChatAction(chatId, "typing").catch(() => {});
+    }, 4000);
+    bot.api.sendChatAction(chatId, "typing").catch(() => {});
     runThread(agentDir, threadId, "greet the user", undefined, {
       triggers: createTriggerMcpServer(agentDir, "telegram"),
     }).catch((err) => {
       log.error("telegram", `greeting failed for ${agentId}:`, (err as Error).message);
+    }).finally(() => {
+      clearInterval(typingInterval);
     });
   });
 
