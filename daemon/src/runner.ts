@@ -22,6 +22,7 @@ export async function runThread(
   callbacks?: ClaudeCallbacks,
   extraMcpServers?: Record<string, McpServerConfig>,
   askAgentDepth?: number,
+  abortController?: AbortController,
 ): Promise<{ text: string }> {
   return withThreadLock(threadId, async () => {
     const filePath = threadPath(agentDir, threadId);
@@ -62,8 +63,20 @@ export async function runThread(
         },
         manifest.sessionId,
         callbacks,
+        abortController,
       );
     } catch (err) {
+      if (abortController?.signal.aborted) {
+        log.info("runner", `thread ${threadId} for agent ${agentId} stopped by user`);
+        appendMessage(filePath, {
+          role: "assistant",
+          text: "(stopped by user)",
+          timestamp: new Date().toISOString(),
+        });
+        manifest.updatedAt = new Date().toISOString();
+        saveManifest(filePath, manifest);
+        return { text: "" };
+      }
       log.error("runner", `thread ${threadId} for agent ${agentId} failed:`, err);
       const errorMsg = (err as Error).message ?? "unknown error";
       appendMessage(filePath, {

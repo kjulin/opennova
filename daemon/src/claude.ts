@@ -58,13 +58,14 @@ export async function runClaude(
   options: ClaudeOptions = {},
   sessionId?: string,
   callbacks?: ClaudeCallbacks,
+  abortController?: AbortController,
 ): Promise<ClaudeResult> {
   try {
-    return await execClaude(prompt, options, sessionId, callbacks);
+    return await execClaude(prompt, options, sessionId, callbacks, abortController);
   } catch (err) {
     if (sessionId) {
       log.warn("claude", "session resume failed, retrying as new conversation");
-      return await execClaude(prompt, options, undefined, callbacks);
+      return await execClaude(prompt, options, undefined, callbacks, abortController);
     }
     throw err;
   }
@@ -75,6 +76,7 @@ async function execClaude(
   options: ClaudeOptions,
   sessionId: string | undefined,
   callbacks: ClaudeCallbacks | undefined,
+  abortController: AbortController | undefined,
 ): Promise<ClaudeResult> {
   const security = options.security ?? "standard";
   log.info("claude", `running${sessionId ? ` (session: ${sessionId})` : ""}`);
@@ -89,6 +91,7 @@ async function execClaude(
       ...(options.mcpServers ? { mcpServers: options.mcpServers } : {}),
       ...securityOptions(security),
       ...(sessionId ? { resume: sessionId } : {}),
+      ...(abortController ? { abortController } : {}),
     },
   });
 
@@ -135,6 +138,11 @@ async function execClaude(
       }
       log.error("claude", `${message.subtype}:`, "error" in message ? (message as { error: string }).error : "unknown error");
     }
+  }
+
+  if (abortController?.signal.aborted) {
+    log.info("claude", "aborted by caller");
+    return { text: "", sessionId: resultSessionId };
   }
 
   return { text: responseText.trim(), sessionId: resultSessionId };
