@@ -234,8 +234,17 @@ export function startTelegram() {
     switchAgent(config, agentId);
     const agent = agents.get(agentId)!;
 
-    await ctx.editMessageReplyMarkup({ reply_markup: agentKeyboard(agents, agentId) });
-    await ctx.answerCallbackQuery({ text: `Switched to ${agent.name}` });
+    await ctx.editMessageText(`Switched to *${agent.name}*`, { parse_mode: "Markdown" });
+    await ctx.answerCallbackQuery();
+
+    // Greet the user from the new agent
+    const agentDir = path.join(Config.workspaceDir, "agents", agentId);
+    const threadId = resolveThreadId(config, agentDir);
+    runThread(agentDir, threadId, "greet the user", undefined, {
+      triggers: createTriggerMcpServer(agentDir, "telegram"),
+    }).catch((err) => {
+      log.error("telegram", `greeting failed for ${agentId}:`, (err as Error).message);
+    });
   });
 
   bot.start();
