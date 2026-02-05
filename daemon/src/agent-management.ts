@@ -172,6 +172,51 @@ export function createAgentManagementMcpServer(): McpSdkServerConfigWithInstance
       ),
 
       tool(
+        "rename_agent",
+        "Rename an agent's ID (directory name) and optionally its display name. Preserves all data (threads, memories, triggers). Cannot rename system agents.",
+        {
+          id: z.string().describe("Current agent identifier"),
+          newId: z.string().describe("New agent identifier (lowercase alphanumeric with hyphens)"),
+          newName: z.string().optional().describe("New display name (optional — if omitted, keeps current name)"),
+        },
+        async (args) => {
+          if (PROTECTED_AGENTS.has(args.id)) {
+            return err(`Cannot rename system agent: ${args.id}`);
+          }
+          if (!VALID_AGENT_ID.test(args.newId)) {
+            return err(`Invalid agent ID: "${args.newId}". Use lowercase letters, numbers, and hyphens.`);
+          }
+          if (PROTECTED_AGENTS.has(args.newId)) {
+            return err(`Cannot rename to reserved ID: ${args.newId}`);
+          }
+          const oldDir = agentDir(args.id);
+          if (!fs.existsSync(oldDir)) return err(`Agent not found: ${args.id}`);
+          if (args.newId !== args.id && fs.existsSync(agentDir(args.newId))) {
+            return err(`Agent "${args.newId}" already exists`);
+          }
+
+          // Update display name in config if requested
+          if (args.newName) {
+            const config = readAgentJson(args.id);
+            if (config) {
+              config.name = args.newName;
+              writeAgentJson(args.id, config);
+            }
+          }
+
+          // Rename directory if ID changed
+          if (args.newId !== args.id) {
+            fs.renameSync(oldDir, agentDir(args.newId));
+          }
+
+          const parts: string[] = [];
+          if (args.newId !== args.id) parts.push(`ID: ${args.id} → ${args.newId}`);
+          if (args.newName) parts.push(`name: "${args.newName}"`);
+          return ok(`Renamed agent. ${parts.join(", ")}`);
+        },
+      ),
+
+      tool(
         "read_triggers",
         "Read an agent's triggers",
         {
