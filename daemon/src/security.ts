@@ -28,7 +28,7 @@ function buildOptions(level: SecurityLevel): Record<string, unknown> {
     case "sandbox":
       return {
         permissionMode: "dontAsk",
-        allowedTools: ["WebSearch", "WebFetch", "Task"],
+        allowedTools: ["WebSearch", "WebFetch", "Task", "mcp__memory__*", "mcp__agents__*", "mcp__triggers__*"],
       };
     case "standard":
       return {
