@@ -56,7 +56,7 @@ function friendlyToolStatus(toolName: string, input: Record<string, unknown>): s
 export async function generateThreadTitle(userMessage: string, assistantResponse: string): Promise<string | null> {
   const userSnippet = userMessage.slice(0, 200);
   const assistantSnippet = assistantResponse.slice(0, 200);
-  const prompt = `Generate a concise title (3-6 words, no quotes) for this conversation:\n\nUser: ${userSnippet}\nAssistant: ${assistantSnippet}`;
+  const prompt = `What is this conversation about? Reply with ONLY a short title (3-6 words). No quotes, no labels, no preamble.\n\nUser: ${userSnippet}\nAssistant: ${assistantSnippet}`;
 
   const result = query({
     prompt,
@@ -76,7 +76,10 @@ export async function generateThreadTitle(userMessage: string, assistantResponse
     }
   }
 
-  const title = text.trim().replace(/^["']|["']$/g, "");
+  const title = text.trim()
+    .replace(/^["']|["']$/g, "")
+    .replace(/^(title|topic|conversation|subject|#)\s*[:—–-]\s*/i, "")
+    .trim();
   return title || null;
 }
 
