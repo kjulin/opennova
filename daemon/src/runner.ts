@@ -4,6 +4,7 @@ import { runClaude, type ClaudeCallbacks } from "./claude.js";
 import { loadAgents, buildSystemPrompt, getAgentCwd, getAgentDirectories, resolveSecurityLevel } from "./agents.js";
 import { createMemoryMcpServer } from "./memory.js";
 import { createAgentManagementMcpServer } from "./agent-management.js";
+import { createAskAgentMcpServer } from "./ask-agent.js";
 import { bus } from "./events.js";
 import {
   threadPath,
@@ -55,6 +56,7 @@ export async function runThread(
             memory: createMemoryMcpServer(agentDir),
             ...extraMcpServers,
             ...(agentId === "agent-builder" ? { agents: createAgentManagementMcpServer() } : {}),
+            ...(agent.allowedAgents ? { "ask-agent": createAskAgentMcpServer(agent) } : {}),
           },
         },
         manifest.sessionId,

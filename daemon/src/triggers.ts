@@ -48,7 +48,7 @@ export function saveTriggers(agentDir: string, triggers: Trigger[]) {
 
 export function createTriggerMcpServer(
   agentDir: string,
-  channel: ChannelType,
+  channel: "telegram",
 ): McpSdkServerConfigWithInstance {
   return createSdkMcpServer({
     name: "triggers",
