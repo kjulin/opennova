@@ -2,18 +2,27 @@ import fs from "fs";
 import { z } from "zod/v4";
 import { log } from "./logger.js";
 
+export const AgentBotConfigSchema = z.object({
+  token: z.string(),
+  chatId: z.string(),
+  activeThreadId: z.string().optional(),
+});
+
+export type AgentBotConfig = z.infer<typeof AgentBotConfigSchema>;
+
 export const TelegramConfigSchema = z.object({
   token: z.string(),
   chatId: z.string(),
   activeAgentId: z.string(),
   activeThreadId: z.string().optional(),
+  agentBots: z.record(z.string(), AgentBotConfigSchema).optional(),
 }).passthrough();
 
 export type TelegramConfig = z.infer<typeof TelegramConfigSchema>;
 
 export const TriggerSchema = z.object({
   id: z.string(),
-  channel: z.enum(["telegram"]),
+  channel: z.string(),
   cron: z.string(),
   tz: z.string().optional(),
   prompt: z.string(),
@@ -25,7 +34,7 @@ export type Trigger = z.infer<typeof TriggerSchema>;
 
 export const ThreadManifestSchema = z.object({
   title: z.string().optional(),
-  channel: z.enum(["telegram", "internal"]),
+  channel: z.string(),
   sessionId: z.string().optional(),
   createdAt: z.string(),
   updatedAt: z.string(),

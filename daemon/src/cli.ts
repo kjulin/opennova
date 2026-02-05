@@ -52,7 +52,7 @@ switch (command) {
   }
   case "agent": {
     const { run } = await import("./commands/agent.js");
-    run();
+    await run();
     break;
   }
   default:
@@ -66,6 +66,8 @@ switch (command) {
     console.log("  agent                         List agents");
     console.log("  agent <id>                    Show agent details");
     console.log("  agent <id> security <level>   Set agent security level");
+    console.log("  agent <id> telegram           Set up a dedicated Telegram bot");
+    console.log("  agent <id> telegram remove    Remove agent's dedicated bot");
     console.log("  status                        Show workspace and configuration status");
     console.log("  backup                        Back up workspace");
     console.log("  restore                       Restore workspace from backup");

@@ -1,11 +1,13 @@
 import fs from "fs";
 import path from "path";
+import readline from "readline/promises";
 import { resolveWorkspace } from "../workspace.js";
-import { SecurityLevel } from "../schemas.js";
+import { SecurityLevel, TelegramConfigSchema, safeParseJsonFile } from "../schemas.js";
+import { askRequired, pairTelegramChat } from "../telegram-pairing.js";
 
 const VALID_LEVELS = SecurityLevel.options;
 
-export function run() {
+export async function run() {
   const workspaceDir = resolveWorkspace();
   const agentsDir = path.join(workspaceDir, "agents");
 
@@ -64,6 +66,17 @@ export function run() {
     if (config.subagents) {
       console.log(`Subagents:  ${Object.keys(config.subagents).join(", ")}`);
     }
+    // Check for dedicated Telegram bot
+    const telegramConfigPath = path.join(workspaceDir, "telegram.json");
+    if (fs.existsSync(telegramConfigPath)) {
+      const raw = safeParseJsonFile(telegramConfigPath, "telegram.json");
+      if (raw) {
+        const result = TelegramConfigSchema.safeParse(raw);
+        if (result.success && result.data.agentBots?.[agentId]) {
+          console.log(`Telegram:   dedicated bot`);
+        }
+      }
+    }
     const threadsDir = path.join(agentDir, "threads");
     if (fs.existsSync(threadsDir)) {
       const count = fs.readdirSync(threadsDir).filter((f) => f.endsWith(".jsonl")).length;
@@ -94,7 +107,77 @@ export function run() {
     return;
   }
 
+  // nova agent <id> telegram [remove]
+  if (subcommand === "telegram") {
+    const telegramConfigPath = path.join(workspaceDir, "telegram.json");
+    const action = process.argv[5];
+
+    if (action === "remove") {
+      if (!fs.existsSync(telegramConfigPath)) {
+        console.log("No Telegram configuration found.");
+        return;
+      }
+      const raw = safeParseJsonFile(telegramConfigPath, "telegram.json");
+      if (!raw) { console.error("Failed to read telegram.json"); process.exit(1); }
+      const result = TelegramConfigSchema.safeParse(raw);
+      if (!result.success) { console.error("Invalid telegram.json"); process.exit(1); }
+      const telegramConfig = result.data;
+
+      if (!telegramConfig.agentBots?.[agentId]) {
+        console.log(`No dedicated Telegram bot configured for ${agentId}.`);
+        return;
+      }
+
+      delete telegramConfig.agentBots[agentId];
+      if (Object.keys(telegramConfig.agentBots).length === 0) {
+        delete (telegramConfig as Record<string, unknown>).agentBots;
+      }
+      fs.writeFileSync(telegramConfigPath, JSON.stringify(telegramConfig, null, 2) + "\n", { mode: 0o600 });
+      console.log(`Removed Telegram bot for ${agentId}.`);
+      console.log("Restart the daemon for changes to take effect.");
+      return;
+    }
+
+    // Setup flow
+    const agentConfig = JSON.parse(fs.readFileSync(configPath, "utf-8"));
+    const agentName = agentConfig.name || agentId;
+
+    console.log(`\n-- Telegram Bot Setup for ${agentName} --`);
+    console.log("You'll need a bot token from @BotFather in Telegram.");
+    console.log("Create a new bot (separate from your main Nova bot), then paste the token.\n");
+
+    const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+    const token = await askRequired(rl, "Bot token: ");
+    rl.close();
+
+    console.log("\nConnecting to Telegram...");
+    const paired = await pairTelegramChat(token, `*${agentName} is connected!* \ud83c\udf89`);
+
+    if (!paired) {
+      console.log("Pairing timed out.");
+      return;
+    }
+
+    console.log(`Paired with chat: ${paired.name} (${paired.chatId})`);
+
+    // Read or create telegram.json
+    let telegramConfig: Record<string, unknown> = {};
+    if (fs.existsSync(telegramConfigPath)) {
+      const raw = safeParseJsonFile(telegramConfigPath, "telegram.json");
+      if (raw && typeof raw === "object") telegramConfig = raw as Record<string, unknown>;
+    }
+
+    const agentBots = (telegramConfig.agentBots as Record<string, unknown>) ?? {};
+    agentBots[agentId] = { token, chatId: paired.chatId };
+    telegramConfig.agentBots = agentBots;
+    fs.writeFileSync(telegramConfigPath, JSON.stringify(telegramConfig, null, 2) + "\n", { mode: 0o600 });
+
+    console.log(`\nDedicated bot configured for ${agentName}.`);
+    console.log("Restart the daemon for changes to take effect.");
+    return;
+  }
+
   console.error(`Unknown subcommand: ${subcommand}`);
-  console.error("Usage: nova agent [<id>] [security <level>]");
+  console.error("Usage: nova agent [<id>] [security <level>] [telegram [remove]]");
   process.exit(1);
 }
