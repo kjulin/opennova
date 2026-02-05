@@ -1,6 +1,6 @@
 import fs from "fs";
 import path from "path";
-import { Bot } from "grammy";
+import { Bot, InlineKeyboard } from "grammy";
 import { Config } from "../config.js";
 import { bus } from "../events.js";
 import { loadAgents } from "../agents.js";
@@ -42,6 +42,22 @@ function resolveThreadId(config: TelegramConfig, agentDir: string): string {
   config.activeThreadId = id;
   saveTelegramConfig(config);
   return id;
+}
+
+function switchAgent(config: TelegramConfig, agentId: string): void {
+  config.activeAgentId = agentId;
+  config.activeThreadId = undefined;
+  const agentDir = path.join(Config.workspaceDir, "agents", agentId);
+  resolveThreadId(config, agentDir);
+}
+
+function agentKeyboard(agents: Map<string, { id: string; name: string }>, activeId: string): InlineKeyboard {
+  const keyboard = new InlineKeyboard();
+  for (const a of agents.values()) {
+    const label = a.id === activeId ? `✓ ${a.name}` : a.name;
+    keyboard.text(label, `agent:${a.id}`).row();
+  }
+  return keyboard;
 }
 
 export function startTelegram() {
@@ -92,7 +108,7 @@ export function startTelegram() {
 
   bot.on("message:text", async (ctx) => {
     const chatId = ctx.chat.id;
-    let text = ctx.message.text;
+    const text = ctx.message.text;
     const agents = loadAgents();
 
     if (String(chatId) !== config.chatId) return;
@@ -119,10 +135,10 @@ export function startTelegram() {
       const agentName = parts[1];
 
       if (!agentName) {
-        const list = [...agents.values()]
-          .map((a) => (a.id === config.activeAgentId ? `• *${a.name}* (active)` : `• ${a.name}`))
-          .join("\n");
-        await ctx.reply(`*Agents:*\n${list}\n\nSwitch with /agent <name>`, { parse_mode: "Markdown" });
+        await ctx.reply("*Select an agent:*", {
+          parse_mode: "Markdown",
+          reply_markup: agentKeyboard(agents, config.activeAgentId),
+        });
         return;
       }
 
@@ -131,14 +147,10 @@ export function startTelegram() {
         return;
       }
 
-      config.activeAgentId = agentName;
-      delete config.activeThreadId;
-      saveTelegramConfig(config);
+      switchAgent(config, agentName);
       const switched = agents.get(agentName)!;
       await ctx.reply(`Switched to *${switched.name}*`, { parse_mode: "Markdown" });
-
-      // Let the new agent greet the user
-      text = "greet the user";
+      return;
     }
 
     // Resolve active agent
@@ -203,6 +215,27 @@ export function startTelegram() {
       clearInterval(typingInterval);
       await deleteStatus();
     }
+  });
+
+  bot.on("callback_query:data", async (ctx) => {
+    const chatId = ctx.callbackQuery.message?.chat.id;
+    if (!chatId || String(chatId) !== config.chatId) return;
+
+    const data = ctx.callbackQuery.data;
+    if (!data.startsWith("agent:")) return;
+
+    const agentId = data.slice("agent:".length);
+    const agents = loadAgents();
+    if (!agents.has(agentId)) {
+      await ctx.answerCallbackQuery({ text: "Agent not found" });
+      return;
+    }
+
+    switchAgent(config, agentId);
+    const agent = agents.get(agentId)!;
+
+    await ctx.editMessageReplyMarkup({ reply_markup: agentKeyboard(agents, agentId) });
+    await ctx.answerCallbackQuery({ text: `Switched to ${agent.name}` });
   });
 
   bot.start();
