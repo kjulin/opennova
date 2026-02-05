@@ -7,7 +7,7 @@ import { log } from "./logger.js";
 const STANDARD_ALLOWED_TOOLS = [
   "Read", "Write", "Edit", "Glob", "Grep",
   "WebSearch", "WebFetch", "Task", "NotebookEdit",
-  "mcp__memory__*", "mcp__triggers__*", "mcp__agents__*",
+  "mcp__memory__*", "mcp__triggers__*", "mcp__agents__*", "mcp__ask-agent__*",
 ];
 
 /**

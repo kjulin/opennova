@@ -52,10 +52,14 @@ export function run() {
     const config = JSON.parse(fs.readFileSync(configPath, "utf-8"));
     console.log(`Name:       ${config.name || agentId}`);
     console.log(`ID:         ${agentId}`);
+    if (config.description) console.log(`Desc:       ${config.description}`);
     console.log(`Security:   ${config.security || "(global default)"}`);
     if (config.cwd) console.log(`Directory:  ${config.cwd}`);
     if (config.directories && config.directories.length > 0) {
       console.log(`Extra dirs: ${config.directories.join(", ")}`);
+    }
+    if (config.allowedAgents && config.allowedAgents.length > 0) {
+      console.log(`Delegates:  ${config.allowedAgents.join(", ")}`);
     }
     if (config.subagents) {
       console.log(`Subagents:  ${Object.keys(config.subagents).join(", ")}`);

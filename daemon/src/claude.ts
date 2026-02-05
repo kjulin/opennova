@@ -44,6 +44,10 @@ function friendlyToolStatus(toolName: string, input: Record<string, unknown>): s
       return input.description ? `${input.description}…` : "Running a subtask…";
     case "NotebookEdit":
       return "Editing a notebook…";
+    case "mcp__ask-agent__ask_agent": {
+      const msg = input.message ? `: ${String(input.message).slice(0, 80)}` : "";
+      return input.agent ? `Asking ${input.agent}${msg}…` : "Asking another agent…";
+    }
     default:
       return `Using ${toolName}…`;
   }

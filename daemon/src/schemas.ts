@@ -25,7 +25,7 @@ export type Trigger = z.infer<typeof TriggerSchema>;
 
 export const ThreadManifestSchema = z.object({
   title: z.string().optional(),
-  channel: z.enum(["telegram"]),
+  channel: z.enum(["telegram", "internal"]),
   sessionId: z.string().optional(),
   createdAt: z.string(),
   updatedAt: z.string(),
