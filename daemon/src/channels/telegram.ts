@@ -61,26 +61,49 @@ function agentKeyboard(agents: Map<string, { id: string; name: string }>, active
 }
 
 export function startTelegram() {
-  const config = loadTelegramConfig();
-  if (!config) {
+  const rawConfig = loadTelegramConfig();
+  if (!rawConfig) {
     log.info("telegram", "channel skipped (no telegram.json)");
     return null;
   }
-  if (!config.chatId) {
+  if (!rawConfig.chatId) {
     log.info("telegram", "channel skipped (chatId not configured)");
     return null;
   }
+  const config: TelegramConfig = rawConfig;
 
   const bot = new Bot(config.token);
   log.info("telegram", "channel started");
 
+  // Register agents as direct menu commands + utility commands
+  const initialAgents = loadAgents();
+  const agentCommands = [...initialAgents.values()].map((a) => ({
+    command: `agent_${a.id.replace(/-/g, "_")}`,
+    description: a.name,
+  }));
   bot.api.setMyCommands([
-    { command: "agent", description: "Select an agent" },
+    ...agentCommands,
     { command: "new", description: "Start a fresh conversation thread" },
     { command: "help", description: "Show help message" },
   ]).catch((err) => {
     log.warn("telegram", "failed to register commands:", err);
   });
+
+  function greetAgent(chatId: number, agentId: string): void {
+    const agentDir = path.join(Config.workspaceDir, "agents", agentId);
+    const threadId = resolveThreadId(config, agentDir);
+    const typingInterval = setInterval(() => {
+      bot.api.sendChatAction(chatId, "typing").catch(() => {});
+    }, 4000);
+    bot.api.sendChatAction(chatId, "typing").catch(() => {});
+    runThread(agentDir, threadId, "greet the user", undefined, {
+      triggers: createTriggerMcpServer(agentDir, "telegram"),
+    }).catch((err) => {
+      log.error("telegram", `greeting failed for ${agentId}:`, (err as Error).message);
+    }).finally(() => {
+      clearInterval(typingInterval);
+    });
+  }
 
   bus.on("thread:response", async (payload) => {
     if (payload.channel !== "telegram") return;
@@ -137,8 +160,22 @@ export function startTelegram() {
       return;
     }
 
-    // Handle /agent command
-    if (text.startsWith("/agent")) {
+    // Handle /agent_<id> menu commands (direct agent switch from menu)
+    if (text.startsWith("/agent_")) {
+      const agentId = text.slice("/agent_".length).replace(/_/g, "-");
+      if (!agents.has(agentId)) {
+        await ctx.reply(`Unknown agent: ${agentId}`);
+        return;
+      }
+      switchAgent(config, agentId);
+      const agent = agents.get(agentId)!;
+      await ctx.reply(`Switched to *${agent.name}*`, { parse_mode: "Markdown" });
+      greetAgent(chatId, agentId);
+      return;
+    }
+
+    // Handle /agent command (inline keyboard fallback)
+    if (text === "/agent" || text.startsWith("/agent ")) {
       const parts = text.split(/\s+/);
       const agentName = parts[1];
 
@@ -245,20 +282,7 @@ export function startTelegram() {
     await ctx.editMessageText(`Switched to *${agent.name}*`, { parse_mode: "Markdown" });
     await ctx.answerCallbackQuery();
 
-    // Greet the user from the new agent
-    const agentDir = path.join(Config.workspaceDir, "agents", agentId);
-    const threadId = resolveThreadId(config, agentDir);
-    const typingInterval = setInterval(() => {
-      bot.api.sendChatAction(chatId, "typing").catch(() => {});
-    }, 4000);
-    bot.api.sendChatAction(chatId, "typing").catch(() => {});
-    runThread(agentDir, threadId, "greet the user", undefined, {
-      triggers: createTriggerMcpServer(agentDir, "telegram"),
-    }).catch((err) => {
-      log.error("telegram", `greeting failed for ${agentId}:`, (err as Error).message);
-    }).finally(() => {
-      clearInterval(typingInterval);
-    });
+    greetAgent(chatId, agentId);
   });
 
   bot.start();
