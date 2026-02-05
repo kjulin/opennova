@@ -19,6 +19,7 @@ export interface AgentConfig {
   name: string;
   role: string;
   cwd?: string;
+  directories?: string[];
   security?: SecurityLevel;
   subagents?: Record<string, SubagentConfig>;
 }
@@ -38,28 +39,17 @@ Or change the global default:
 </Security>`,
   standard: `
 <Security>
-Your security level is "standard". You can read and write files within your working directory and search the web, but you CANNOT run shell commands or access files outside your working directory.
+Your security level is "standard". You can read and write files within your allowed directories and search the web, but you CANNOT run shell commands or access files outside your allowed directories.
 
-If the user asks you to run a command, build a project, or access files outside your working directory, explain that your current security level does not allow it. They can change it with:
+If the user asks you to run a command, build a project, or access files outside your allowed directories, explain that your current security level does not allow it. They can change it with:
   nova agent <agent-id> security unrestricted
 Or change the global default:
   nova config set settings.defaultSecurity unrestricted
-</Security>
-
-<FileSystem>
-You have a working directory on the local file system. Only read and write files within this directory.
-There may already be existing files — check before creating new ones.
-Do NOT access files outside your working directory.
-</FileSystem>`,
+</Security>`,
   unrestricted: `
 <Security>
 Your security level is "unrestricted". You have full access to the file system and can run shell commands.
-</Security>
-
-<FileSystem>
-You have a working directory on the local file system. Use it to read and write files as needed.
-There may already be existing files — check before creating new ones.
-</FileSystem>`,
+</Security>`,
 };
 
 const GENERAL_INSTRUCTIONS = `
@@ -140,19 +130,70 @@ function buildContextBlock(): string {
   return `\n<Context>\nCurrent time: ${local} (${tz})\n</Context>`;
 }
 
+function buildDirectoriesBlock(cwd: string, directories: string[], security: SecurityLevel): string {
+  if (security === "sandbox") return "";
+
+  const lines: string[] = [
+    `Your working directory is: ${cwd}`,
+    "There may already be existing files — check before creating new ones.",
+  ];
+
+  if (directories.length > 0) {
+    lines.push("");
+    lines.push("You also have access to these additional directories:");
+    for (const dir of directories) {
+      lines.push(`- ${dir}`);
+    }
+  }
+
+  if (security === "standard") {
+    lines.push("");
+    if (directories.length > 0) {
+      lines.push("Only read and write files within your working directory and the additional directories listed above.");
+      lines.push("Do NOT access files outside these directories.");
+    } else {
+      lines.push("Only read and write files within your working directory.");
+      lines.push("Do NOT access files outside your working directory.");
+    }
+  }
+
+  return `\n<Directories>\n${lines.join("\n")}\n</Directories>`;
+}
+
 export function buildSystemPrompt(agent: AgentConfig, agentDir: string, channel: ChannelType, security: SecurityLevel): string {
   const memories = buildMemoryPrompt(agentDir);
-  return `<Role>\n${agent.role}\n</Role>\n${SECURITY_INSTRUCTIONS[security]}\n${GENERAL_INSTRUCTIONS}\n${FORMATTING_INSTRUCTIONS[channel]}${buildContextBlock()}${memories}`;
+  const cwd = getAgentCwd(agent);
+  const directories = getAgentDirectories(agent);
+  const dirBlock = buildDirectoriesBlock(cwd, directories, security);
+  return `<Role>\n${agent.role}\n</Role>\n${SECURITY_INSTRUCTIONS[security]}${dirBlock}\n${GENERAL_INSTRUCTIONS}\n${FORMATTING_INSTRUCTIONS[channel]}${buildContextBlock()}${memories}`;
+}
+
+function resolveDirectory(rawPath: string): string {
+  if (rawPath.startsWith("~")) return path.join(os.homedir(), rawPath.slice(1));
+  if (path.isAbsolute(rawPath)) return rawPath;
+  return path.join(Config.workspaceDir, rawPath);
 }
 
 export function getAgentCwd(agent: AgentConfig): string {
-  let cwd: string;
-  if (!agent.cwd) cwd = path.join(Config.workspaceDir, "agents", agent.id);
-  else if (agent.cwd.startsWith("~")) cwd = path.join(os.homedir(), agent.cwd.slice(1));
-  else if (path.isAbsolute(agent.cwd)) cwd = agent.cwd;
-  else cwd = path.join(Config.workspaceDir, agent.cwd);
+  const cwd = agent.cwd
+    ? resolveDirectory(agent.cwd)
+    : path.join(Config.workspaceDir, "agents", agent.id);
   fs.mkdirSync(cwd, { recursive: true });
   return cwd;
+}
+
+export function getAgentDirectories(agent: AgentConfig): string[] {
+  if (!agent.directories || agent.directories.length === 0) return [];
+  const cwd = getAgentCwd(agent);
+  const dirs: string[] = [];
+  for (const dir of agent.directories) {
+    const resolved = resolveDirectory(dir);
+    if (resolved !== cwd) {
+      fs.mkdirSync(resolved, { recursive: true });
+      dirs.push(resolved);
+    }
+  }
+  return dirs;
 }
 
 export function loadSettings(): Settings {

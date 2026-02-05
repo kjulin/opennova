@@ -54,6 +54,9 @@ export function run() {
     console.log(`ID:         ${agentId}`);
     console.log(`Security:   ${config.security || "(global default)"}`);
     if (config.cwd) console.log(`Directory:  ${config.cwd}`);
+    if (config.directories && config.directories.length > 0) {
+      console.log(`Extra dirs: ${config.directories.join(", ")}`);
+    }
     if (config.subagents) {
       console.log(`Subagents:  ${Object.keys(config.subagents).join(", ")}`);
     }

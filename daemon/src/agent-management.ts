@@ -32,6 +32,7 @@ interface AgentJson {
   name: string;
   role: string;
   cwd?: string;
+  directories?: string[];
   [key: string]: unknown;
 }
 
@@ -93,7 +94,8 @@ export function createAgentManagementMcpServer(): McpSdkServerConfigWithInstance
           id: z.string().describe("Agent identifier (lowercase alphanumeric with hyphens)"),
           name: z.string().describe("Display name"),
           role: z.string().describe("System prompt / role"),
-          cwd: z.string().optional().describe("Working directory (optional)"),
+          cwd: z.string().optional().describe("Primary working directory (optional)"),
+          directories: z.array(z.string()).optional().describe("Additional directories the agent can access (optional)"),
         },
         async (args) => {
           if (!VALID_AGENT_ID.test(args.id)) {
@@ -108,6 +110,7 @@ export function createAgentManagementMcpServer(): McpSdkServerConfigWithInstance
 
           const data: AgentJson = { name: args.name, role: args.role };
           if (args.cwd) data.cwd = args.cwd;
+          if (args.directories && args.directories.length > 0) data.directories = args.directories;
           writeAgentJson(args.id, data);
           return ok(`Created agent "${args.id}"`);
         },
@@ -120,7 +123,8 @@ export function createAgentManagementMcpServer(): McpSdkServerConfigWithInstance
           id: z.string().describe("Agent identifier"),
           name: z.string().optional().describe("New display name"),
           role: z.string().optional().describe("New system prompt / role"),
-          cwd: z.string().optional().describe("New working directory"),
+          cwd: z.string().optional().describe("New primary working directory"),
+          directories: z.array(z.string()).optional().describe("New list of additional directories (replaces existing list)"),
         },
         async (args) => {
           if (PROTECTED_AGENTS.has(args.id)) {
@@ -132,6 +136,7 @@ export function createAgentManagementMcpServer(): McpSdkServerConfigWithInstance
           if (args.name !== undefined) config.name = args.name;
           if (args.role !== undefined) config.role = args.role;
           if (args.cwd !== undefined) config.cwd = args.cwd;
+          if (args.directories !== undefined) config.directories = args.directories;
 
           writeAgentJson(args.id, config);
           return ok(`Updated agent "${args.id}"`);
