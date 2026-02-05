@@ -21,6 +21,7 @@ export async function runThread(
   message: string,
   callbacks?: ClaudeCallbacks,
   extraMcpServers?: Record<string, McpServerConfig>,
+  askAgentDepth?: number,
 ): Promise<{ text: string }> {
   return withThreadLock(threadId, async () => {
     const filePath = threadPath(agentDir, threadId);
@@ -56,7 +57,7 @@ export async function runThread(
             memory: createMemoryMcpServer(agentDir),
             ...extraMcpServers,
             ...(agentId === "agent-builder" ? { agents: createAgentManagementMcpServer() } : {}),
-            ...(agent.allowedAgents ? { "ask-agent": createAskAgentMcpServer(agent) } : {}),
+            ...(agent.allowedAgents && security !== "sandbox" ? { "ask-agent": createAskAgentMcpServer(agent, askAgentDepth ?? 0) } : {}),
           },
         },
         manifest.sessionId,

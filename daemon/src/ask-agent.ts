@@ -11,8 +11,19 @@ import { createThread } from "./threads.js";
 import { runThread } from "./runner.js";
 import { log } from "./logger.js";
 
+const MAX_DEPTH = 3;
+
+function ok(text: string) {
+  return { content: [{ type: "text" as const, text }] };
+}
+
+function err(text: string) {
+  return { content: [{ type: "text" as const, text }], isError: true as const };
+}
+
 export function createAskAgentMcpServer(
   caller: AgentConfig,
+  depth: number = 0,
 ): McpSdkServerConfigWithInstance {
   const allowed = caller.allowedAgents ?? [];
 
@@ -32,54 +43,49 @@ export function createAskAgentMcpServer(
             if (!wildcard && !allowed.includes(a.id)) continue;
             entries.push({ id: a.id, name: a.name, description: a.description ?? "" });
           }
-          return {
-            content: [{ type: "text" as const, text: JSON.stringify(entries, null, 2) }],
-          };
+          return ok(JSON.stringify(entries, null, 2));
         },
       ),
 
       tool(
         "ask_agent",
-        "Send a message to another agent and get their response. Use this to delegate tasks or ask questions to specialist agents.",
+        "Send a message to another agent and get their response. Each call runs a full agent invocation, so use sparingly for tasks that need specialist knowledge.",
         {
           agent: z.string().describe("Target agent ID"),
           message: z.string().describe("The message to send to the agent"),
         },
         async (args) => {
+          if (args.agent === caller.id) {
+            return err("You cannot ask yourself. Use your own knowledge or ask a different agent.");
+          }
+
+          if (depth >= MAX_DEPTH) {
+            return err(`Delegation depth limit reached (max ${MAX_DEPTH}). Cannot delegate further.`);
+          }
+
           const wildcard = allowed.includes("*");
           if (!wildcard && !allowed.includes(args.agent)) {
-            return {
-              content: [{ type: "text" as const, text: `Not allowed to contact agent "${args.agent}". Allowed agents: ${allowed.join(", ")}` }],
-              isError: true as const,
-            };
+            return err(`Not allowed to contact agent "${args.agent}". Allowed agents: ${allowed.join(", ")}`);
           }
 
           const agents = loadAgents();
           const target = agents.get(args.agent);
           if (!target) {
-            return {
-              content: [{ type: "text" as const, text: `Agent not found: ${args.agent}` }],
-              isError: true as const,
-            };
+            return err(`Agent not found: ${args.agent}`);
           }
 
           const targetDir = path.join(Config.workspaceDir, "agents", target.id);
           const threadId = createThread(targetDir, "internal");
           const prompt = `[Message from agent "${caller.name}" (${caller.id})]\n\n${args.message}`;
 
-          log.info("ask-agent", `${caller.id} → ${target.id}: ${args.message.slice(0, 100)}`);
+          log.info("ask-agent", `${caller.id} → ${target.id} (depth ${depth}): ${args.message.slice(0, 100)}`);
 
           try {
-            const result = await runThread(targetDir, threadId, prompt);
-            return {
-              content: [{ type: "text" as const, text: result.text }],
-            };
-          } catch (err) {
-            log.error("ask-agent", `${caller.id} → ${target.id} failed:`, err);
-            return {
-              content: [{ type: "text" as const, text: `Agent "${target.name}" encountered an error: ${(err as Error).message}` }],
-              isError: true as const,
-            };
+            const result = await runThread(targetDir, threadId, prompt, undefined, undefined, depth + 1);
+            return ok(result.text);
+          } catch (e) {
+            log.error("ask-agent", `${caller.id} → ${target.id} failed:`, e);
+            return err(`Agent "${target.name}" encountered an error: ${(e as Error).message}`);
           }
         },
       ),
