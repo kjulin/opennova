@@ -1,6 +1,6 @@
 import path from "path";
 import type { McpServerConfig } from "@anthropic-ai/claude-agent-sdk";
-import { runClaude, type ClaudeCallbacks } from "./claude.js";
+import { runClaude, generateThreadTitle, type ClaudeCallbacks } from "./claude.js";
 import { loadAgents, buildSystemPrompt, getAgentCwd, getAgentDirectories, resolveSecurityLevel } from "./agents.js";
 import { createMemoryMcpServer } from "./memory.js";
 import { createAgentManagementMcpServer } from "./agent-management.js";
@@ -10,6 +10,7 @@ import {
   threadPath,
   loadManifest,
   saveManifest,
+  loadMessages,
   appendMessage,
   withThreadLock,
 } from "./threads.js";
@@ -115,6 +116,24 @@ export async function runThread(
     });
 
     log.info("runner", `thread ${threadId} for agent ${agentId} completed (${responseText.length} chars)`);
+
+    if (!manifest.title) {
+      const messages = loadMessages(filePath);
+      const userMessages = messages.filter((m) => m.role === "user");
+      // Wait for at least 2 user messages — the first is often just a greeting
+      if (userMessages.length >= 2) {
+        const topicMessages = userMessages.slice(-2).map((m) => m.text).join("\n");
+        generateThreadTitle(topicMessages, responseText).then((title) => {
+          if (title) {
+            manifest.title = title;
+            saveManifest(filePath, manifest);
+            log.info("runner", `titled thread ${threadId}: "${title}"`);
+          }
+        }).catch((err) => {
+          log.warn("runner", `title generation failed for ${threadId}:`, (err as Error).message);
+        });
+      }
+    }
 
     return { text: responseText };
   });

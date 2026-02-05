@@ -5,7 +5,7 @@ import { Config } from "../config.js";
 import { bus } from "../events.js";
 import { loadAgents } from "../agents.js";
 import { runThread } from "../runner.js";
-import { listThreads, createThread } from "../threads.js";
+import { listThreads, createThread, loadManifest, threadPath } from "../threads.js";
 import { createTriggerMcpServer } from "../triggers.js";
 import { TelegramConfigSchema, safeParseJsonFile, type TelegramConfig } from "../schemas.js";
 import { TELEGRAM_HELP_MESSAGE } from "./telegram-help.js";
@@ -51,6 +51,17 @@ function switchAgent(config: TelegramConfig, agentId: string): void {
   resolveThreadId(config, agentDir);
 }
 
+export function relativeTime(iso: string): string {
+  const diff = Date.now() - new Date(iso).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 60) return `${mins}m`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h`;
+  const days = Math.floor(hours / 24);
+  if (days < 7) return `${days}d`;
+  return new Date(iso).toLocaleDateString("en", { month: "short", day: "numeric" });
+}
+
 function agentKeyboard(agents: Map<string, { id: string; name: string }>, activeId: string): InlineKeyboard {
   const keyboard = new InlineKeyboard();
   for (const a of agents.values()) {
@@ -78,6 +89,7 @@ export function startTelegram() {
 
   bot.api.setMyCommands([
     { command: "agent", description: "Select an agent" },
+    { command: "threads", description: "List conversation threads" },
     { command: "stop", description: "Stop the running agent" },
     { command: "new", description: "Start a fresh conversation thread" },
     { command: "help", description: "Show help message" },
@@ -148,6 +160,30 @@ export function startTelegram() {
       config.activeThreadId = id;
       saveTelegramConfig(config);
       await ctx.reply("New thread started");
+      return;
+    }
+
+    // Handle /threads command
+    if (text === "/threads") {
+      const agentDir = path.join(Config.workspaceDir, "agents", config.activeAgentId);
+      const threads = listThreads(agentDir)
+        .filter((t) => t.manifest.channel === "telegram")
+        .sort((a, b) => b.manifest.updatedAt.localeCompare(a.manifest.updatedAt))
+        .slice(0, 10);
+
+      if (threads.length === 0) {
+        await ctx.reply("No threads yet.");
+        return;
+      }
+
+      const keyboard = new InlineKeyboard();
+      for (const t of threads) {
+        const title = t.manifest.title || "Untitled";
+        const time = relativeTime(t.manifest.updatedAt);
+        const active = t.id === config.activeThreadId ? "\u2713 " : "";
+        keyboard.text(`${active}${title} \u00b7 ${time}`, `thread:${t.id}`).row();
+      }
+      await ctx.reply("*Threads:*", { parse_mode: "Markdown", reply_markup: keyboard });
       return;
     }
 
@@ -252,6 +288,25 @@ export function startTelegram() {
     if (!chatId || String(chatId) !== config.chatId) return;
 
     const data = ctx.callbackQuery.data;
+
+    if (data.startsWith("thread:")) {
+      const threadId = data.slice("thread:".length);
+      const agentDir = path.join(Config.workspaceDir, "agents", config.activeAgentId);
+      const filePath = threadPath(agentDir, threadId);
+      try {
+        const manifest = loadManifest(filePath);
+        config.activeThreadId = threadId;
+        saveTelegramConfig(config);
+        const title = manifest.title || "Untitled";
+        await ctx.editMessageText(`Switched to: ${title}`);
+      } catch {
+        await ctx.answerCallbackQuery({ text: "Thread not found" });
+        return;
+      }
+      await ctx.answerCallbackQuery();
+      return;
+    }
+
     if (!data.startsWith("agent:")) return;
 
     const agentId = data.slice("agent:".length);

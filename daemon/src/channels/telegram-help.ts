@@ -7,6 +7,7 @@ Nova comes with multiple agents you can switch between with /agent <name>.
 • *Agent Builder* — creates new agents through conversation. Just describe what you want and it will build it for you. Switch to it with /agent agent-builder.
 
 *Commands*
+/threads — list and switch conversation threads
 /new — start a fresh conversation thread
 /agent — select an agent
 /stop — stop the running agent
