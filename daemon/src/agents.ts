@@ -61,7 +61,7 @@ For example: "Let me check your calendar for tomorrow." or "I'll look that up fo
 Keep it short and natural. Do not narrate every single tool call — just the key steps.
 </StatusNarration>`;
 
-const FORMATTING_INSTRUCTIONS: Partial<Record<ChannelType, string>> = {
+const FORMATTING_INSTRUCTIONS: Record<string, string> = {
   telegram: `
 <Formatting>
 You are communicating via Telegram. Format your responses using Telegram's Markdown syntax:
@@ -167,7 +167,8 @@ export function buildSystemPrompt(agent: AgentConfig, agentDir: string, channel:
   const cwd = getAgentCwd(agent);
   const directories = getAgentDirectories(agent);
   const dirBlock = buildDirectoriesBlock(cwd, directories, security);
-  const formatting = FORMATTING_INSTRUCTIONS[channel] ?? "";
+  const baseChannel = channel.startsWith("telegram") ? "telegram" : channel;
+  const formatting = FORMATTING_INSTRUCTIONS[baseChannel] ?? "";
   return `<Role>\n${agent.role}\n</Role>\n${SECURITY_INSTRUCTIONS[security]}${dirBlock}\n${GENERAL_INSTRUCTIONS}\n${formatting}${buildContextBlock()}${memories}`;
 }
 
