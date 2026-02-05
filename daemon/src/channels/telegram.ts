@@ -329,9 +329,9 @@ export function startTelegram() {
       bot.api.sendChatAction(chatId, "typing").catch(() => {});
     }, 4000);
     bot.api.sendChatAction(chatId, "typing").catch(() => {});
-    runThread(agentDir, threadId, "greet the user", undefined, {
+    runThread(agentDir, threadId, "The user just switched to you. Greet them briefly, then in 1-2 sentences help them reorient — recap where you left off, any open questions or pending tasks. If there's no prior context, just say hi and what you can help with. Keep it short.", undefined, {
       triggers: createTriggerMcpServer(agentDir, "telegram"),
-    }).catch((err) => {
+    }, undefined, undefined, { model: "haiku", maxTurns: 1 }).catch((err) => {
       log.error("telegram", `greeting failed for ${agentId}:`, (err as Error).message);
     }).finally(() => {
       clearInterval(typingInterval);

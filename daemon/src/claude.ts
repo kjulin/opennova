@@ -7,6 +7,8 @@ export interface ClaudeOptions {
   additionalDirectories?: string[];
   systemPrompt?: string;
   security?: SecurityLevel;
+  model?: "sonnet" | "opus" | "haiku";
+  maxTurns?: number;
   agents?: Record<string, { description: string; prompt: string; tools?: string[]; disallowedTools?: string[]; model?: "sonnet" | "opus" | "haiku"; maxTurns?: number }>;
   mcpServers?: Record<string, McpServerConfig>;
 }
@@ -119,6 +121,8 @@ async function execClaude(
       ...(options.systemPrompt ? { systemPrompt: options.systemPrompt } : {}),
       ...(options.agents ? { agents: options.agents } : {}),
       ...(options.mcpServers ? { mcpServers: options.mcpServers } : {}),
+      ...(options.model ? { model: options.model } : {}),
+      ...(options.maxTurns ? { maxTurns: options.maxTurns } : {}),
       ...securityOptions(security),
       ...(sessionId ? { resume: sessionId } : {}),
       ...(abortController ? { abortController } : {}),
