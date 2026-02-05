@@ -9,4 +9,5 @@ Nova comes with multiple agents you can switch between with /agent <name>.
 *Commands*
 /new — start a fresh conversation thread
 /agent — select an agent
+/stop — stop the running agent
 /help — show this message`;

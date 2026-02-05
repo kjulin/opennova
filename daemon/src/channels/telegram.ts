@@ -74,8 +74,11 @@ export function startTelegram() {
   const bot = new Bot(config.token);
   log.info("telegram", "channel started");
 
+  let activeAbortController: AbortController | null = null;
+
   bot.api.setMyCommands([
     { command: "agent", description: "Select an agent" },
+    { command: "stop", description: "Stop the running agent" },
     { command: "new", description: "Start a fresh conversation thread" },
     { command: "help", description: "Show help message" },
   ]).catch((err) => {
@@ -127,6 +130,17 @@ export function startTelegram() {
       return;
     }
 
+    // Handle /stop command
+    if (text === "/stop") {
+      if (activeAbortController) {
+        activeAbortController.abort();
+        await ctx.reply("Stopped.");
+      } else {
+        await ctx.reply("Nothing to stop.");
+      }
+      return;
+    }
+
     // Handle /new command
     if (text === "/new") {
       const agentDir = path.join(Config.workspaceDir, "agents", config.activeAgentId);
@@ -175,6 +189,9 @@ export function startTelegram() {
     const truncated = text.length > 200 ? text.slice(0, 200) + "…" : text;
     log.info("telegram", `[${chatId}] [${agent.id}] ${truncated}`);
 
+    const abortController = new AbortController();
+    activeAbortController = abortController;
+
     const typingInterval = setInterval(() => {
       bot.api.sendChatAction(chatId, "typing").catch(() => {});
     }, 4000);
@@ -200,29 +217,34 @@ export function startTelegram() {
       }
     }
 
-    try {
-      await runThread(
-        agentDir, threadId, text,
-        {
-          onAssistantMessage(text) {
-            updateStatus(text);
-          },
-          onToolUse(_toolName, _input, summary) {
-            updateStatus(summary);
-          },
-          onToolUseSummary(summary) {
-            updateStatus(summary);
-          },
+    // Don't await — let it run in the background so subsequent messages
+    // (like /stop) can be processed while the agent is working.
+    runThread(
+      agentDir, threadId, text,
+      {
+        onAssistantMessage(text) {
+          updateStatus(text);
         },
-        { triggers: createTriggerMcpServer(agentDir, "telegram") },
-      );
-    } catch (err) {
-      log.error("telegram", `claude error for ${agent.id}:`, (err as Error).message);
-      await ctx.reply(`Error: ${(err as Error).message}`);
-    } finally {
+        onToolUse(_toolName, _input, summary) {
+          updateStatus(summary);
+        },
+        onToolUseSummary(summary) {
+          updateStatus(summary);
+        },
+      },
+      { triggers: createTriggerMcpServer(agentDir, "telegram") },
+      undefined,
+      abortController,
+    ).catch((err) => {
+      if (!abortController.signal.aborted) {
+        log.error("telegram", `claude error for ${agent.id}:`, (err as Error).message);
+        bot.api.sendMessage(chatId, "Something went wrong. Check the logs for details.").catch(() => {});
+      }
+    }).finally(() => {
+      if (activeAbortController === abortController) activeAbortController = null;
       clearInterval(typingInterval);
-      await deleteStatus();
-    }
+      deleteStatus();
+    });
   });
 
   bot.on("callback_query:data", async (ctx) => {
