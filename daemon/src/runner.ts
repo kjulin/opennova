@@ -16,6 +16,11 @@ import {
 } from "./threads.js";
 import { log } from "./logger.js";
 
+export interface RunThreadOverrides {
+  model?: "sonnet" | "opus" | "haiku";
+  maxTurns?: number;
+}
+
 export async function runThread(
   agentDir: string,
   threadId: string,
@@ -24,6 +29,7 @@ export async function runThread(
   extraMcpServers?: Record<string, McpServerConfig>,
   askAgentDepth?: number,
   abortController?: AbortController,
+  overrides?: RunThreadOverrides,
 ): Promise<{ text: string }> {
   return withThreadLock(threadId, async () => {
     const filePath = threadPath(agentDir, threadId);
@@ -54,6 +60,8 @@ export async function runThread(
           ...(additionalDirectories.length > 0 ? { additionalDirectories } : {}),
           systemPrompt: buildSystemPrompt(agent, agentDir, manifest.channel, security),
           security,
+          ...(overrides?.model ? { model: overrides.model } : {}),
+          ...(overrides?.maxTurns ? { maxTurns: overrides.maxTurns } : {}),
           ...(agent.subagents ? { agents: agent.subagents } : {}),
           mcpServers: {
             memory: createMemoryMcpServer(agentDir),
