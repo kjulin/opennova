@@ -19,7 +19,6 @@ export interface AgentConfig {
   name: string;
   description?: string;
   role: string;
-  cwd?: string;
   directories?: string[];
   allowedAgents?: string[];
   security?: SecurityLevel;
@@ -193,9 +192,7 @@ function resolveDirectory(rawPath: string): string {
 }
 
 export function getAgentCwd(agent: AgentConfig): string {
-  const cwd = agent.cwd
-    ? resolveDirectory(agent.cwd)
-    : path.join(Config.workspaceDir, "agents", agent.id);
+  const cwd = path.join(Config.workspaceDir, "agents", agent.id);
   fs.mkdirSync(cwd, { recursive: true });
   return cwd;
 }
