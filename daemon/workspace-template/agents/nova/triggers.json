@@ -1,0 +1,9 @@
+[
+  {
+    "id": "weekly-usage",
+    "channel": "telegram",
+    "cron": "0 10 * * 1",
+    "prompt": "Use the get_usage_stats tool to check last week's usage. Give the user a brief, friendly summary: total activity, which agents they used most, any notable patterns. Keep it to 2-3 sentences.",
+    "enabled": true
+  }
+]

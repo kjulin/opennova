@@ -55,6 +55,11 @@ switch (command) {
     await run();
     break;
   }
+  case "usage": {
+    const { run } = await import("./commands/usage.js");
+    run();
+    break;
+  }
   default:
     console.log("Usage: nova <command>\n");
     console.log("Commands:");
@@ -69,6 +74,7 @@ switch (command) {
     console.log("  agent <id> telegram           Set up a dedicated Telegram bot");
     console.log("  agent <id> telegram remove    Remove agent's dedicated bot");
     console.log("  status                        Show workspace and configuration status");
+    console.log("  usage [--today|--week|--month] Show usage statistics");
     console.log("  backup                        Back up workspace");
     console.log("  restore                       Restore workspace from backup");
     console.log("  uninstall                     Remove workspace and data");
