@@ -4,7 +4,7 @@ import { log } from "./logger.js";
 
 export interface ClaudeOptions {
   cwd?: string;
-  additionalDirectories?: string[];
+  directories?: string[];
   systemPrompt?: string;
   security?: SecurityLevel;
   model?: "sonnet" | "opus" | "haiku";
@@ -126,7 +126,7 @@ async function execClaude(
     prompt,
     options: {
       ...(options.cwd ? { cwd: options.cwd } : {}),
-      ...(options.additionalDirectories && options.additionalDirectories.length > 0 ? { additionalDirectories: options.additionalDirectories } : {}),
+      ...(options.directories && options.directories.length > 0 ? { additionalDirectories: options.directories } : {}),
       ...(options.systemPrompt ? { systemPrompt: options.systemPrompt } : {}),
       ...(options.agents ? { agents: options.agents } : {}),
       ...(options.mcpServers ? { mcpServers: options.mcpServers } : {}),

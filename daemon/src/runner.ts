@@ -53,12 +53,12 @@ export async function runThread(
 
     let result;
     try {
-      const additionalDirectories = getAgentDirectories(agent);
+      const directories = getAgentDirectories(agent);
       result = await runClaude(
         message,
         {
           cwd: getAgentCwd(agent),
-          ...(additionalDirectories.length > 0 ? { additionalDirectories } : {}),
+          ...(directories.length > 0 ? { directories } : {}),
           systemPrompt: buildSystemPrompt(agent, agentDir, manifest.channel, security),
           security,
           ...(overrides?.model ? { model: overrides.model } : {}),

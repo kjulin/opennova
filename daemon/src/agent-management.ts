@@ -32,7 +32,6 @@ interface AgentJson {
   name: string;
   description?: string;
   role: string;
-  cwd?: string;
   directories?: string[];
   allowedAgents?: string[];
   [key: string]: unknown;
@@ -97,8 +96,7 @@ export function createAgentManagementMcpServer(): McpSdkServerConfigWithInstance
           name: z.string().describe("Display name"),
           description: z.string().optional().describe("Short description of what this agent does — shown to other agents for delegation discovery"),
           role: z.string().describe("System prompt / role"),
-          cwd: z.string().optional().describe("Primary working directory (optional)"),
-          directories: z.array(z.string()).optional().describe("Additional directories the agent can access (optional)"),
+          directories: z.array(z.string()).optional().describe("Directories the agent can access (optional)"),
           allowedAgents: z.array(z.string()).optional().describe("Agent IDs this agent can call via ask_agent (use [\"*\"] for any)"),
         },
         async (args) => {
@@ -114,7 +112,6 @@ export function createAgentManagementMcpServer(): McpSdkServerConfigWithInstance
 
           const data: AgentJson = { name: args.name, role: args.role };
           if (args.description) data.description = args.description;
-          if (args.cwd) data.cwd = args.cwd;
           if (args.directories && args.directories.length > 0) data.directories = args.directories;
           if (args.allowedAgents && args.allowedAgents.length > 0) data.allowedAgents = args.allowedAgents;
           writeAgentJson(args.id, data);
@@ -130,8 +127,7 @@ export function createAgentManagementMcpServer(): McpSdkServerConfigWithInstance
           name: z.string().optional().describe("New display name"),
           description: z.string().optional().describe("New short description"),
           role: z.string().optional().describe("New system prompt / role"),
-          cwd: z.string().optional().describe("New primary working directory"),
-          directories: z.array(z.string()).optional().describe("New list of additional directories (replaces existing list)"),
+          directories: z.array(z.string()).optional().describe("New list of directories (replaces existing list)"),
           allowedAgents: z.array(z.string()).optional().describe("Agent IDs this agent can call via ask_agent (use [\"*\"] for any)"),
         },
         async (args) => {
@@ -144,7 +140,6 @@ export function createAgentManagementMcpServer(): McpSdkServerConfigWithInstance
           if (args.name !== undefined) config.name = args.name;
           if (args.description !== undefined) config.description = args.description;
           if (args.role !== undefined) config.role = args.role;
-          if (args.cwd !== undefined) config.cwd = args.cwd;
           if (args.directories !== undefined) config.directories = args.directories;
           if (args.allowedAgents !== undefined) config.allowedAgents = args.allowedAgents;
 
