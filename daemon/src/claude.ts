@@ -16,6 +16,13 @@ export interface ClaudeOptions {
 export interface ClaudeResult {
   text: string;
   sessionId?: string | undefined;
+  usage?: {
+    inputTokens: number;
+    outputTokens: number;
+    cacheReadTokens: number;
+    durationMs: number;
+    turns: number;
+  } | undefined;
 }
 
 export interface ClaudeCallbacks {
@@ -50,6 +57,8 @@ function friendlyToolStatus(toolName: string, input: Record<string, unknown>): s
       const msg = input.message ? `: ${String(input.message).slice(0, 80)}` : "";
       return input.agent ? `Asking ${input.agent}${msg}…` : "Asking another agent…";
     }
+    case "mcp__usage__get_usage_stats":
+      return input.period ? `Checking ${input.period}'s usage…` : "Checking usage stats…";
     default:
       return `Using ${toolName}…`;
   }
@@ -131,6 +140,7 @@ async function execClaude(
 
   let responseText = "";
   let resultSessionId: string | undefined;
+  let resultUsage: ClaudeResult["usage"] | undefined;
 
   for await (const message of result) {
     log.debug("claude", `event: ${message.type}${("subtype" in message && message.subtype) ? `:${message.subtype}` : ""}`);
@@ -162,6 +172,18 @@ async function execClaude(
         }
       }
       log.info("claude", `done — session: ${resultSessionId}, cost: $${message.total_cost_usd}, duration: ${message.duration_ms}ms, turns: ${message.num_turns}${denials.length > 0 ? `, denials: ${denials.length}` : ""}`);
+
+      // Capture usage metrics
+      const usage = (message as { usage?: { input_tokens?: number; output_tokens?: number; cache_read_input_tokens?: number } }).usage;
+      if (usage) {
+        resultUsage = {
+          inputTokens: usage.input_tokens ?? 0,
+          outputTokens: usage.output_tokens ?? 0,
+          cacheReadTokens: usage.cache_read_input_tokens ?? 0,
+          durationMs: message.duration_ms,
+          turns: message.num_turns,
+        };
+      }
     } else if (message.type === "tool_use_summary") {
       log.debug("claude", `summary: ${message.summary}`);
       callbacks?.onToolUseSummary?.(message.summary);
@@ -176,8 +198,8 @@ async function execClaude(
 
   if (abortController?.signal.aborted) {
     log.info("claude", "aborted by caller");
-    return { text: "", sessionId: resultSessionId };
+    return { text: "", sessionId: resultSessionId, usage: resultUsage };
   }
 
-  return { text: responseText.trim(), sessionId: resultSessionId };
+  return { text: responseText.trim(), sessionId: resultSessionId, usage: resultUsage };
 }

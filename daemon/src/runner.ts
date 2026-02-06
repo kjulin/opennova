@@ -5,6 +5,7 @@ import { loadAgents, buildSystemPrompt, getAgentCwd, getAgentDirectories, resolv
 import { createMemoryMcpServer } from "./memory.js";
 import { createAgentManagementMcpServer } from "./agent-management.js";
 import { createAskAgentMcpServer } from "./ask-agent.js";
+import { appendUsage, createUsageMcpServer } from "./usage.js";
 import { bus } from "./events.js";
 import {
   threadPath,
@@ -67,6 +68,7 @@ export async function runThread(
             memory: createMemoryMcpServer(agentDir),
             ...extraMcpServers,
             ...(agentId === "agent-builder" ? { agents: createAgentManagementMcpServer() } : {}),
+            ...(agentId === "nova" ? { usage: createUsageMcpServer() } : {}),
             ...(agent.allowedAgents && security !== "sandbox" ? { "ask-agent": createAskAgentMcpServer(agent, askAgentDepth ?? 0) } : {}),
           },
         },
@@ -103,6 +105,16 @@ export async function runThread(
     }
 
     const responseText = result.text || "(empty response)";
+
+    // Record usage metrics
+    if (result.usage) {
+      appendUsage({
+        timestamp: new Date().toISOString(),
+        agentId,
+        threadId,
+        ...result.usage,
+      });
+    }
 
     appendMessage(filePath, {
       role: "assistant",
