@@ -10,7 +10,7 @@ export function StatusBar({ agentName, threadId }: Props) {
   return (
     <Box borderStyle="single" borderTop borderBottom={false} borderLeft={false} borderRight={false} paddingX={1}>
       <Text dimColor>
-        {agentName ?? "No agent"} • {threadId ? `Thread: ${threadId.slice(0, 8)}` : "No thread"} • /new /threads /agents /exit
+        {agentName ?? "No agent"} • {threadId ? `Thread: ${threadId.slice(0, 8)}` : "No thread"} • /help
       </Text>
     </Box>
   );

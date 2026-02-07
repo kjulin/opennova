@@ -224,6 +224,23 @@ export function App({ agentId: initialAgentId }: Props) {
         return;
       }
 
+      if (text === "/help") {
+        dispatch({
+          type: "ADD_MESSAGE",
+          message: {
+            role: "assistant",
+            text: `Available commands:
+  /new      - Start a new thread
+  /threads  - Switch to a different thread
+  /agents   - Switch to a different agent
+  /help     - Show this help message
+  /exit     - Exit the chat`,
+            timestamp: new Date().toISOString(),
+          },
+        });
+        return;
+      }
+
       if (!state.agent || !state.threadId) return;
 
       dispatch({
