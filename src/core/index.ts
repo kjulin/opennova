@@ -93,6 +93,13 @@ export {
 // Legacy Runner exports (for backwards compatibility)
 export { type RunnerCallbacks } from "./runner.js";
 
+// Focus (for cowork mode)
+export {
+  loadFocuses,
+  getFocus,
+  type Focus,
+} from "./focus.js";
+
 // MCP Servers
 export { createMemoryMcpServer } from "./memory.js";
 export { createAgentManagementMcpServer } from "./agent-management.js";
