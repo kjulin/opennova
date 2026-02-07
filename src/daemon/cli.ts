@@ -60,9 +60,16 @@ switch (command) {
     run();
     break;
   }
+  case "chat": {
+    const agentId = process.argv[3];
+    const { run } = await import("#tui/index.js");
+    run({ agentId });
+    break;
+  }
   default:
     console.log("Usage: nova <command>\n");
     console.log("Commands:");
+    console.log("  chat [agent]                  Start interactive chat (default: nova)");
     console.log("  init                          Set up nova workspace (interactive)");
     console.log("  daemon                        Start the daemon");
     console.log("  config list                   Show all configuration");

@@ -5,7 +5,8 @@
     "baseUrl": ".",
     "paths": {
       "#core/*": ["./src/core/*"],
-      "#daemon/*": ["./src/daemon/*"]
+      "#daemon/*": ["./src/daemon/*"],
+      "#tui/*": ["./src/tui/*"]
     },
 
     "module": "nodenext",

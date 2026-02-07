@@ -13,7 +13,8 @@
   ],
   "imports": {
     "#core/*": "./dist/core/*",
-    "#daemon/*": "./dist/daemon/*"
+    "#daemon/*": "./dist/daemon/*",
+    "#tui/*": "./dist/tui/*"
   },
   "scripts": {
     "dev": "tsx watch src/daemon/cli.ts daemon",
@@ -44,14 +45,18 @@
   },
   "devDependencies": {
     "@types/node": "^25.2.0",
+    "@types/react": "^19.2.13",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3",
     "vitest": "^3.0.5"
   },
   "dependencies": {
     "@anthropic-ai/claude-agent-sdk": "^0.2.27",
+    "@inkjs/ui": "^2.0.0",
     "cron-parser": "^5.5.0",
     "grammy": "^1.39.3",
+    "ink": "^6.6.0",
+    "react": "^19.2.4",
     "zod": "^4.3.6"
   }
 }
