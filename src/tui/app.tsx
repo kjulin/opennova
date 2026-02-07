@@ -94,16 +94,17 @@ export function App({ agentId: initialAgentId }: Props) {
         };
         dispatch({ type: "SET_AGENT", agent });
 
-        // Load or create thread
+        // Load or create thread - prefer most recent TUI thread
         const agentDir = path.join(Config.workspaceDir, "agents", agentId);
-        const threads = listThreads(agentDir);
+        const allThreads = listThreads(agentDir);
+        const tuiThreads = allThreads.filter((t) => t.manifest.channel === "tui");
 
-        if (threads.length > 0) {
-          // Sort by updatedAt, pick most recent
-          threads.sort((a, b) =>
+        if (tuiThreads.length > 0) {
+          // Sort by updatedAt, pick most recent TUI thread
+          tuiThreads.sort((a, b) =>
             new Date(b.manifest.updatedAt).getTime() - new Date(a.manifest.updatedAt).getTime()
           );
-          const thread = threads[0]!;
+          const thread = tuiThreads[0]!;
           const messages = loadMessages(path.join(agentDir, "threads", `${thread.id}.jsonl`));
           dispatch({
             type: "SET_THREAD",
