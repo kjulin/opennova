@@ -62,8 +62,9 @@ switch (command) {
   }
   case "chat": {
     const os = await import("os");
-    const { Config } = await import("#core/index.js");
+    const { Config, setLogger } = await import("#core/index.js");
     Config.workspaceDir = path.join(os.homedir(), ".nova");
+    setLogger({ debug() {}, info() {}, warn() {}, error() {} });
     const agentId = process.argv[3];
     const { run } = await import("#tui/index.js");
     run({ agentId });

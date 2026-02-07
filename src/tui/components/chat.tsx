@@ -7,7 +7,7 @@ import type { Message, Agent } from "../types.js";
 
 interface Props {
   agent: Agent | null;
-  threadId: string | null;
+  threadTitle: string | null;
   messages: Message[];
   status: string | null;
   loading: boolean;
@@ -17,7 +17,7 @@ interface Props {
 
 export function Chat({
   agent,
-  threadId,
+  threadTitle,
   messages,
   status,
   loading,
@@ -64,7 +64,7 @@ export function Chat({
           placeholder={loading ? "Waiting..." : "Type a message"}
         />
       </Box>
-      <StatusBar agentName={agent?.name ?? null} threadId={threadId} />
+      <StatusBar agentName={agent?.name ?? null} threadTitle={threadTitle} />
     </Box>
   );
 }

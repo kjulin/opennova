@@ -300,6 +300,12 @@ export function App({ agentId: initialAgentId }: Props) {
     dispatch({ type: "SET_MODE", mode: "chat" });
   }, []);
 
+  const threadTitle = useMemo(() => {
+    if (!state.threadId) return null;
+    const thread = state.threads.find((t) => t.id === state.threadId);
+    return thread?.manifest.title ?? null;
+  }, [state.threadId, state.threads]);
+
   if (state.mode === "select-thread") {
     return (
       <Box flexDirection="column" height="100%">
@@ -329,7 +335,7 @@ export function App({ agentId: initialAgentId }: Props) {
     <Box flexDirection="column" height="100%">
       <Chat
         agent={state.agent}
-        threadId={state.threadId}
+        threadTitle={threadTitle}
         messages={state.messages}
         status={state.status}
         loading={state.loading}
