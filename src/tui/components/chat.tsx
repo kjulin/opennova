@@ -3,6 +3,7 @@ import { Box, Text } from "ink";
 import { TextInput, Spinner } from "@inkjs/ui";
 import { MessageView } from "./message.js";
 import { StatusBar } from "./status-bar.js";
+import { Divider } from "./divider.js";
 import type { Message, Agent } from "../types.js";
 
 interface Props {
@@ -38,7 +39,7 @@ export function Chat({
 
   return (
     <Box flexDirection="column" flexGrow={1}>
-      <Box flexDirection="column" flexGrow={1} paddingX={1}>
+      <Box flexDirection="column" flexGrow={1} paddingX={1} paddingBottom={1}>
         {messages.map((msg) => (
           <MessageView key={`${msg.role}-${msg.timestamp}`} message={msg} agentName={agent?.name} />
         ))}
@@ -53,7 +54,8 @@ export function Chat({
           </Box>
         )}
       </Box>
-      <Box paddingX={1} paddingY={1}>
+      <Divider />
+      <Box paddingX={1}>
         <Text bold color="cyan">
           {">"}{" "}
         </Text>
@@ -64,6 +66,7 @@ export function Chat({
           placeholder={loading ? "Waiting..." : "Type a message"}
         />
       </Box>
+      <Divider />
       <StatusBar agentName={agent?.name ?? null} threadTitle={threadTitle} />
     </Box>
   );

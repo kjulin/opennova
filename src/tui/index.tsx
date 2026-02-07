@@ -7,5 +7,14 @@ interface Options {
 }
 
 export function run(options: Options = {}) {
-  render(<App agentId={options.agentId} />);
+  // Enter alternate screen buffer for full-screen experience
+  process.stdout.write("\x1b[?1049h");
+  process.stdout.write("\x1b[H");
+
+  const { unmount, waitUntilExit } = render(<App agentId={options.agentId} />);
+
+  waitUntilExit().then(() => {
+    // Return to normal screen buffer
+    process.stdout.write("\x1b[?1049l");
+  });
 }

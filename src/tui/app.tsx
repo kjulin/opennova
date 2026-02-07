@@ -1,5 +1,5 @@
-import React, { useReducer, useEffect, useCallback, useMemo } from "react";
-import { Box, useApp } from "ink";
+import React, { useReducer, useEffect, useCallback, useMemo, useRef } from "react";
+import { Box, useApp, useInput } from "ink";
 import path from "path";
 import {
   Config,
@@ -89,6 +89,20 @@ interface Props {
 export function App({ agentId: initialAgentId }: Props) {
   const [state, dispatch] = useReducer(reducer, initialState);
   const { exit } = useApp();
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  useInput((_input, key) => {
+    if (key.escape && state.loading && abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+      dispatch({ type: "SET_LOADING", loading: false });
+      dispatch({ type: "SET_STATUS", status: null });
+      dispatch({
+        type: "ADD_MESSAGE",
+        message: { role: "assistant", text: "(stopped)", timestamp: new Date().toISOString() },
+      });
+    }
+  });
 
   const loadThreadsForAgent = useCallback((agentId: string) => {
     const agentDir = path.join(Config.workspaceDir, "agents", agentId);
@@ -261,25 +275,38 @@ export function App({ agentId: initialAgentId }: Props) {
         },
       };
 
+      const abortController = new AbortController();
+      abortControllerRef.current = abortController;
+
       try {
         const result = await runThread(
           agentDir,
           state.threadId,
           text,
           callbacks,
+          undefined,
+          undefined,
+          abortController,
         );
 
-        dispatch({
-          type: "ADD_MESSAGE",
-          message: {
-            role: "assistant",
-            text: result.text,
-            timestamp: new Date().toISOString(),
-          },
-        });
+        // Only add message if not aborted
+        if (!abortController.signal.aborted && result.text) {
+          dispatch({
+            type: "ADD_MESSAGE",
+            message: {
+              role: "assistant",
+              text: result.text,
+              timestamp: new Date().toISOString(),
+            },
+          });
+        }
       } catch (err) {
-        dispatch({ type: "SET_ERROR", error: (err as Error).message });
+        // Only show error if not aborted
+        if (!abortController.signal.aborted) {
+          dispatch({ type: "SET_ERROR", error: (err as Error).message });
+        }
       } finally {
+        abortControllerRef.current = null;
         dispatch({ type: "SET_STATUS", status: null });
         dispatch({ type: "SET_LOADING", loading: false });
       }
