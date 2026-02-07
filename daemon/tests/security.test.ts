@@ -1,8 +1,8 @@
 import { describe, it, expect, vi } from "vitest";
-import { securityOptions } from "../src/security.js";
+import { securityOptions } from "../src/core/security.js";
 
 // Mock the logger
-vi.mock("../src/logger.js", () => ({
+vi.mock("../src/core/logger.js", () => ({
   log: {
     info: vi.fn(),
     debug: vi.fn(),

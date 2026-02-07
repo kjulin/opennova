@@ -1,10 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { createThreadRunner } from "../src/thread-runner.js";
-import type { Runtime } from "../src/runtime.js";
-import type { EngineResult } from "../src/engine/index.js";
+import { createThreadRunner } from "../src/core/thread-runner.js";
+import type { Runtime } from "../src/core/runtime.js";
+import type { EngineResult } from "../src/core/engine/index.js";
 
 // Mock all dependencies
-vi.mock("../src/logger.js", () => ({
+vi.mock("../src/core/logger.js", () => ({
   log: {
     info: vi.fn(),
     debug: vi.fn(),
@@ -13,7 +13,7 @@ vi.mock("../src/logger.js", () => ({
   },
 }));
 
-vi.mock("../src/threads.js", () => ({
+vi.mock("../src/core/threads.js", () => ({
   threadPath: vi.fn((agentDir, threadId) => `${agentDir}/threads/${threadId}.jsonl`),
   loadManifest: vi.fn(() => ({ channel: "test", sessionId: "sess-123" })),
   saveManifest: vi.fn(),
@@ -22,7 +22,7 @@ vi.mock("../src/threads.js", () => ({
   withThreadLock: vi.fn((threadId, fn) => fn()),
 }));
 
-vi.mock("../src/agents.js", () => ({
+vi.mock("../src/core/agents.js", () => ({
   loadAgents: vi.fn(() => new Map([
     ["test-agent", { name: "Test Agent", role: "Test role" }],
   ])),
@@ -32,29 +32,29 @@ vi.mock("../src/agents.js", () => ({
   resolveSecurityLevel: vi.fn(() => "standard"),
 }));
 
-vi.mock("../src/memory.js", () => ({
+vi.mock("../src/core/memory.js", () => ({
   createMemoryMcpServer: vi.fn(() => ({})),
 }));
 
-vi.mock("../src/agent-management.js", () => ({
+vi.mock("../src/core/agent-management.js", () => ({
   createAgentManagementMcpServer: vi.fn(() => ({})),
 }));
 
-vi.mock("../src/ask-agent.js", () => ({
+vi.mock("../src/core/ask-agent.js", () => ({
   createAskAgentMcpServer: vi.fn(() => ({})),
 }));
 
-vi.mock("../src/usage.js", () => ({
+vi.mock("../src/core/usage.js", () => ({
   appendUsage: vi.fn(),
   createUsageMcpServer: vi.fn(() => ({})),
 }));
 
-vi.mock("../src/claude.js", () => ({
+vi.mock("../src/core/claude.js", () => ({
   generateThreadTitle: vi.fn(() => Promise.resolve(null)),
 }));
 
-import { appendMessage, saveManifest } from "../src/threads.js";
-import { appendUsage } from "../src/usage.js";
+import { appendMessage, saveManifest } from "../src/core/threads.js";
+import { appendUsage } from "../src/core/usage.js";
 
 function createMockRuntime(): Runtime & { calls: Array<{ message: string; security: string }> } {
   const mock: Runtime & { calls: Array<{ message: string; security: string }> } = {

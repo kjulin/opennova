@@ -9,7 +9,7 @@ import {
   loadManifest,
   threadPath,
   type AgentBotConfig,
-} from "@opennova/core";
+} from "../core/index.js";
 import { bus } from "../events.js";
 import { runThread } from "../runner.js";
 import { createTriggerMcpServer } from "../triggers.js";

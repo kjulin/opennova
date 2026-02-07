@@ -14,11 +14,11 @@ import {
   safeParseJsonFile,
   createThread,
   type Trigger,
-} from "@opennova/core";
+} from "./core/index.js";
 import { runThread } from "./runner.js";
 import { log } from "./logger.js";
 
-export type { Trigger } from "@opennova/core";
+export type { Trigger } from "./core/index.js";
 
 export function loadTriggers(agentDir: string): Trigger[] {
   const filePath = path.join(agentDir, "triggers.json");
