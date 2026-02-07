@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { createThreadRunner } from "../../src/core/thread-runner.js";
-import type { Runtime } from "../../src/core/runtime.js";
-import type { EngineResult } from "../../src/core/engine/index.js";
+import { createThreadRunner } from "#core/thread-runner.js";
+import type { Runtime } from "#core/runtime.js";
+import type { EngineResult } from "#core/engine/index.js";
 
 // Mock all dependencies
 vi.mock("../../src/core/logger.js", () => ({
@@ -53,8 +53,8 @@ vi.mock("../../src/core/claude.js", () => ({
   generateThreadTitle: vi.fn(() => Promise.resolve(null)),
 }));
 
-import { appendMessage, saveManifest } from "../../src/core/threads.js";
-import { appendUsage } from "../../src/core/usage.js";
+import { appendMessage, saveManifest } from "#core/threads.js";
+import { appendUsage } from "#core/usage.js";
 
 function createMockRuntime(): Runtime & { calls: Array<{ message: string; security: string }> } {
   const mock: Runtime & { calls: Array<{ message: string; security: string }> } = {

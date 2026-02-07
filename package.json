@@ -1,4 +1,57 @@
 {
-  "private": true,
-  "workspaces": ["daemon"]
+  "name": "opennova",
+  "version": "0.2.0",
+  "description": "AI agent daemon powered by Claude",
+  "type": "module",
+  "main": "dist/daemon/index.js",
+  "bin": {
+    "nova": "dist/daemon/cli.js"
+  },
+  "files": [
+    "dist",
+    "workspace-template"
+  ],
+  "imports": {
+    "#core/*": "./src/core/*",
+    "#daemon/*": "./src/daemon/*"
+  },
+  "scripts": {
+    "dev": "tsx watch src/daemon/cli.ts daemon",
+    "build": "tsc",
+    "start": "node dist/daemon/index.js",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "prepublishOnly": "npm run build"
+  },
+  "engines": {
+    "node": ">=18.17.0"
+  },
+  "keywords": [
+    "ai",
+    "agent",
+    "claude",
+    "daemon",
+    "telegram",
+    "chatbot"
+  ],
+  "author": "Klaus Julin",
+  "license": "MIT",
+  "homepage": "https://github.com/kjulin/opennova",
+  "bugs": "https://github.com/kjulin/opennova/issues",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/kjulin/opennova.git"
+  },
+  "devDependencies": {
+    "@types/node": "^25.2.0",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3",
+    "vitest": "^3.0.5"
+  },
+  "dependencies": {
+    "@anthropic-ai/claude-agent-sdk": "^0.2.27",
+    "cron-parser": "^5.5.0",
+    "grammy": "^1.39.3",
+    "zod": "^4.3.6"
+  }
 }

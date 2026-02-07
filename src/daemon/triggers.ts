@@ -14,11 +14,11 @@ import {
   safeParseJsonFile,
   createThread,
   type Trigger,
-} from "./core/index.js";
+} from "#core/index.js";
 import { runThread } from "./runner.js";
 import { log } from "./logger.js";
 
-export type { Trigger } from "./core/index.js";
+export type { Trigger } from "#core/index.js";
 
 export function loadTriggers(agentDir: string): Trigger[] {
   const filePath = path.join(agentDir, "triggers.json");

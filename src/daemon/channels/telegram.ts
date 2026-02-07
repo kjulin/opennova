@@ -11,7 +11,7 @@ import {
   TelegramConfigSchema,
   safeParseJsonFile,
   type TelegramConfig,
-} from "../core/index.js";
+} from "#core/index.js";
 import { bus } from "../events.js";
 import { runThread } from "../runner.js";
 import { createTriggerMcpServer } from "../triggers.js";

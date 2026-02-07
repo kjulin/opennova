@@ -3,7 +3,7 @@ import {
   runThread as coreRunThread,
   type ClaudeCallbacks,
   type RunThreadOverrides,
-} from "./core/index.js";
+} from "#core/index.js";
 import { bus } from "./events.js";
 
 /**

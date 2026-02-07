@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { createClaudeEngine } from "../../../src/core/engine/claude.js";
-import type { EngineCallbacks } from "../../../src/core/engine/types.js";
+import { createClaudeEngine } from "#core/engine/claude.js";
+import type { EngineCallbacks } from "#core/engine/types.js";
 
 // Mock the SDK
 vi.mock("@anthropic-ai/claude-agent-sdk", () => ({

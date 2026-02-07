@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { createRuntime } from "../../src/core/runtime.js";
-import type { Engine, EngineOptions, EngineResult } from "../../src/core/engine/index.js";
+import { createRuntime } from "#core/runtime.js";
+import type { Engine, EngineOptions, EngineResult } from "#core/engine/index.js";
 
 // Mock the logger
 vi.mock("../../src/core/logger.js", () => ({
