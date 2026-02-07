@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { createClaudeEngine } from "../../src/core/engine/claude.js";
-import type { EngineCallbacks } from "../../src/core/engine/types.js";
+import { createClaudeEngine } from "../../../src/core/engine/claude.js";
+import type { EngineCallbacks } from "../../../src/core/engine/types.js";
 
 // Mock the SDK
 vi.mock("@anthropic-ai/claude-agent-sdk", () => ({
@@ -8,7 +8,7 @@ vi.mock("@anthropic-ai/claude-agent-sdk", () => ({
 }));
 
 // Mock the logger
-vi.mock("../../src/core/logger.js", () => ({
+vi.mock("../../../src/core/logger.js", () => ({
   log: {
     info: vi.fn(),
     debug: vi.fn(),
