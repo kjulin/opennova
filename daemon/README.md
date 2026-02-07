@@ -177,6 +177,15 @@ Restore the workspace from `~/.nova_backup`. Asks for confirmation before replac
 
 Remove the Nova workspace and all data (agents, threads, memories, triggers, channel configs). Asks for confirmation before deleting. Also offers to remove the backup if one exists. Prints instructions to remove the CLI package.
 
+### `nova usage`
+
+Show usage statistics — total tokens, cost estimates, and per-agent breakdowns. Data is collected from Claude Agent SDK responses and stored in `~/.nova/usage.jsonl`.
+
+```bash
+nova usage           # Show all-time usage
+nova usage --today   # Show today's usage only
+```
+
 ### `nova --version`
 
 Show the installed version.
@@ -189,6 +198,7 @@ Show the installed version.
 ├── telegram.json             # Telegram channel config (optional)
 ├── env.json                  # Stored API key (optional)
 ├── memories.json             # Global memories
+├── usage.jsonl               # Usage statistics (tokens, costs)
 └── agents/
     └── <agent-id>/
         ├── agent.json        # Agent config
@@ -212,7 +222,10 @@ Each agent lives in its own directory under `agents/` with an `agent.json` confi
 Optional fields:
 
 - `cwd` — Working directory for the agent (supports `~` and relative paths)
+- `directories` — Array of additional directories the agent can access (supports `~` and relative paths)
 - `subagents` — Array of delegated sub-agents for specialized tasks
+- `allowedAgents` — Array of agent IDs this agent can delegate to via the `ask_agent` tool
+- `telegram` — Per-agent Telegram bot configuration (see [Per-agent bots](#per-agent-bots))
 
 Two default agents are included:
 
@@ -234,6 +247,25 @@ Bot commands:
 
 - `/agent` — List agents or switch to a different one (`/agent <name>`)
 - `/new` — Start a new conversation thread
+- `/threads` — List recent threads and switch between them
+- `/stop` — Abort the currently running agent response
+
+#### Per-agent bots
+
+By default, all agents share a single Telegram bot. You can optionally give an agent its own dedicated bot by adding a `telegram` section to its `agent.json`:
+
+```json
+{
+  "name": "Deploy Bot",
+  "role": "...",
+  "telegram": {
+    "token": "123:ABC...",
+    "chatId": "12345678"
+  }
+}
+```
+
+This is useful for separating concerns — for example, a deploy bot that only you use vs. a shared assistant.
 
 ## Triggers
 
@@ -245,6 +277,22 @@ Agents can have cron-based triggers that run on a schedule. Triggers are managed
 - `remove_trigger` — Remove a trigger
 
 Triggers use standard 5-field cron expressions and create a new thread each time they fire.
+
+## Agent Delegation
+
+Agents can delegate tasks to other agents using the `ask_agent` MCP tool. Configure which agents can be called by adding an `allowedAgents` array to the caller's `agent.json`:
+
+```json
+{
+  "name": "Nova",
+  "role": "...",
+  "allowedAgents": ["researcher", "coder"]
+}
+```
+
+When an agent calls `ask_agent`, it creates a new thread with the target agent and returns the response. Delegation depth is limited to prevent infinite loops.
+
+Note: `ask_agent` is not available in sandbox mode.
 
 ## Memory
 

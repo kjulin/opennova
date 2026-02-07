@@ -13,10 +13,11 @@ OpenNova is inspired by [OpenClaw](https://github.com/openclaw/openclaw) and bor
 ## Features
 
 - **Persistent agents** — Define agents with custom roles, working directories, and sub-agents
-- **Telegram** — Chat with your agents through Telegram
+- **Telegram** — Chat with your agents through Telegram (supports per-agent bots)
 - **Cron triggers** — Schedule agents to run autonomously on a cron schedule
 - **Memory** — Agents remember things across conversations (agent-scoped and global)
-- **Sub-agents** — Agents can delegate tasks to specialized sub-agents
+- **Agent delegation** — Agents can delegate tasks to other agents via `ask_agent`
+- **Usage tracking** — Monitor token usage and costs across agents
 - **Claude Code integration** — Utilises your Claude Code installation and subscription
 
 ## Prerequisites
@@ -43,6 +44,7 @@ nova daemon                        Start the daemon
 nova config list|get|set           Manage configuration
 nova agent [<id>]                  List agents or show agent details
 nova agent <id> security <level>   Set agent security level
+nova usage [--today]               Show usage statistics
 nova status                        Show workspace and configuration status
 nova backup                        Back up workspace
 nova restore                       Restore workspace from backup
