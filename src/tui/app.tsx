@@ -92,15 +92,23 @@ export function App({ agentId: initialAgentId }: Props) {
   const abortControllerRef = useRef<AbortController | null>(null);
 
   useInput((_input, key) => {
-    if (key.escape && state.loading && abortControllerRef.current) {
-      abortControllerRef.current.abort();
-      abortControllerRef.current = null;
-      dispatch({ type: "SET_LOADING", loading: false });
-      dispatch({ type: "SET_STATUS", status: null });
-      dispatch({
-        type: "ADD_MESSAGE",
-        message: { role: "assistant", text: "(stopped)", timestamp: new Date().toISOString() },
-      });
+    if (key.escape) {
+      // Cancel select mode
+      if (state.mode === "select-thread" || state.mode === "select-agent") {
+        dispatch({ type: "SET_MODE", mode: "chat" });
+        return;
+      }
+      // Abort running request
+      if (state.loading && abortControllerRef.current) {
+        abortControllerRef.current.abort();
+        abortControllerRef.current = null;
+        dispatch({ type: "SET_LOADING", loading: false });
+        dispatch({ type: "SET_STATUS", status: null });
+        dispatch({
+          type: "ADD_MESSAGE",
+          message: { role: "assistant", text: "(stopped)", timestamp: new Date().toISOString() },
+        });
+      }
     }
   });
 
@@ -333,30 +341,20 @@ export function App({ agentId: initialAgentId }: Props) {
     return thread?.manifest.title ?? null;
   }, [state.threadId, state.threads]);
 
-  if (state.mode === "select-thread") {
-    return (
-      <Box flexDirection="column" height="100%">
-        <ThreadSelect
-          threads={state.threads}
-          onSelect={handleThreadSelect}
-          onCancel={handleCancel}
-        />
-      </Box>
-    );
-  }
-
-  if (state.mode === "select-agent") {
-    return (
-      <Box flexDirection="column" height="100%">
-        <AgentSelect
-          agents={state.agents}
-          currentAgentId={state.agent?.id ?? null}
-          onSelect={handleAgentSelect}
-          onCancel={handleCancel}
-        />
-      </Box>
-    );
-  }
+  const selectComponent = state.mode === "select-thread" ? (
+    <ThreadSelect
+      threads={state.threads}
+      onSelect={handleThreadSelect}
+      onCancel={handleCancel}
+    />
+  ) : state.mode === "select-agent" ? (
+    <AgentSelect
+      agents={state.agents}
+      currentAgentId={state.agent?.id ?? null}
+      onSelect={handleAgentSelect}
+      onCancel={handleCancel}
+    />
+  ) : null;
 
   return (
     <Box flexDirection="column" height="100%">
@@ -368,6 +366,7 @@ export function App({ agentId: initialAgentId }: Props) {
         loading={state.loading}
         error={state.error}
         onSubmit={handleSubmit}
+        selectComponent={selectComponent}
       />
     </Box>
   );
