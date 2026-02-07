@@ -8,7 +8,6 @@ import {
 import { Config } from "./config.js";
 import { loadAgents, type AgentConfig } from "./agents.js";
 import { createThread } from "./threads.js";
-import { runThread } from "./runner.js";
 import { log } from "./logger.js";
 
 const MAX_DEPTH = 3;
@@ -21,9 +20,17 @@ function err(text: string) {
   return { content: [{ type: "text" as const, text }], isError: true as const };
 }
 
+export type RunThreadFn = (
+  agentDir: string,
+  threadId: string,
+  message: string,
+  depth: number,
+) => Promise<{ text: string }>;
+
 export function createAskAgentMcpServer(
   caller: AgentConfig,
-  depth: number = 0,
+  depth: number,
+  runThreadFn: RunThreadFn,
 ): McpSdkServerConfigWithInstance {
   const allowed = caller.allowedAgents ?? [];
 
@@ -81,7 +88,7 @@ export function createAskAgentMcpServer(
           log.info("ask-agent", `${caller.id} → ${target.id} (depth ${depth}): ${args.message.slice(0, 100)}`);
 
           try {
-            const result = await runThread(targetDir, threadId, prompt, undefined, undefined, depth + 1);
+            const result = await runThreadFn(targetDir, threadId, prompt, depth + 1);
             return ok(result.text);
           } catch (e) {
             log.error("ask-agent", `${caller.id} → ${target.id} failed:`, e);

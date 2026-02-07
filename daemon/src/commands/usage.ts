@@ -1,7 +1,6 @@
 import fs from "fs";
 import { resolveWorkspace } from "../workspace.js";
-import { Config } from "../config.js";
-import { getUsageStats } from "../usage.js";
+import { Config, getUsageStats } from "@opennova/core";
 
 function formatTokens(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;

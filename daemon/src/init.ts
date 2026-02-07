@@ -1,6 +1,6 @@
 import fs from "fs";
 import path from "path";
-import { Config } from "./config.js";
+import { Config, setLogger } from "@opennova/core";
 import { resolveWorkspace } from "./workspace.js";
 import { log } from "./logger.js";
 
@@ -14,4 +14,7 @@ export function init(): void {
   }
 
   log.init(workspaceDir);
+
+  // Wire up core's logger to use daemon's file-based logger
+  setLogger(log);
 }

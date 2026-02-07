@@ -229,4 +229,3 @@ export function resolveSecurityLevel(agent: AgentConfig): SecurityLevel {
   if (agent.security) return agent.security;
   return loadSettings().defaultSecurity;
 }
-
