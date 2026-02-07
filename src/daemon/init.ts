@@ -1,6 +1,6 @@
 import fs from "fs";
 import path from "path";
-import { Config, setLogger } from "@opennova/core";
+import { Config, setLogger } from "#core/index.js";
 import { resolveWorkspace } from "./workspace.js";
 import { log } from "./logger.js";
 

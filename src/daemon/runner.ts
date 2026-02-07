@@ -3,7 +3,7 @@ import {
   runThread as coreRunThread,
   type ClaudeCallbacks,
   type RunThreadOverrides,
-} from "@opennova/core";
+} from "#core/index.js";
 import { bus } from "./events.js";
 
 /**

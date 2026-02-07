@@ -6,7 +6,7 @@ import path from "path";
 // Handle --version / -v before anything else
 const arg = process.argv[2];
 if (arg === "--version" || arg === "-v") {
-  const pkgPath = path.resolve(import.meta.dirname, "..", "package.json");
+  const pkgPath = path.resolve(import.meta.dirname, "..", "..", "package.json");
   const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf-8"));
   console.log(`nova ${pkg.version}`);
   process.exit(0);

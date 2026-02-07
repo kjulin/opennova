@@ -2,6 +2,11 @@
   "compilerOptions": {
     "rootDir": "src",
     "outDir": "dist",
+    "baseUrl": ".",
+    "paths": {
+      "#core/*": ["./src/core/*"],
+      "#daemon/*": ["./src/daemon/*"]
+    },
 
     "module": "nodenext",
     "target": "es2022",
@@ -15,6 +20,7 @@
     "exactOptionalPropertyTypes": true,
 
     "strict": true,
+    "jsx": "react-jsx",
     "verbatimModuleSyntax": true,
     "isolatedModules": true,
     "noUncheckedSideEffectImports": true,
@@ -23,5 +29,7 @@
 
     "moduleResolution": "nodenext",
     "esModuleInterop": true
-  }
+  },
+  "include": ["src"],
+  "exclude": ["tests", "vitest.config.ts"]
 }

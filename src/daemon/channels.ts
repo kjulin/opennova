@@ -2,7 +2,7 @@ import fs from "fs";
 import path from "path";
 import { startTelegram } from "./channels/telegram.js";
 import { startAgentTelegram } from "./channels/telegram-agent.js";
-import { TelegramConfigSchema, safeParseJsonFile, Config } from "@opennova/core";
+import { TelegramConfigSchema, safeParseJsonFile, Config } from "#core/index.js";
 import { log } from "./logger.js";
 
 export interface ChannelInfo {
