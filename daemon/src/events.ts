@@ -1,5 +1,5 @@
 import { EventEmitter } from "events";
-import type { ChannelType } from "./threads.js";
+import type { ChannelType } from "@opennova/core";
 
 interface DaemonEvents {
   "thread:response": [payload: {

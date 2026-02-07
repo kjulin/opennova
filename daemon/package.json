@@ -43,9 +43,8 @@
     "typescript": "^5.9.3"
   },
   "dependencies": {
-    "@anthropic-ai/claude-agent-sdk": "^0.2.27",
+    "@opennova/core": "*",
     "cron-parser": "^5.5.0",
-    "grammy": "^1.39.3",
-    "zod": "^4.3.6"
+    "grammy": "^1.39.3"
   }
 }

@@ -2,7 +2,7 @@ import fs from "fs";
 import path from "path";
 import readline from "readline/promises";
 import { resolveWorkspace } from "../workspace.js";
-import { SecurityLevel, TelegramConfigSchema, safeParseJsonFile } from "../schemas.js";
+import { SecurityLevel, TelegramConfigSchema, safeParseJsonFile } from "@opennova/core";
 import { askRequired, pairTelegramChat } from "../telegram-pairing.js";
 
 const VALID_LEVELS = SecurityLevel.options;

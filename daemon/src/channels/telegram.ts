@@ -1,13 +1,20 @@
 import fs from "fs";
 import path from "path";
 import { Bot, InlineKeyboard } from "grammy";
-import { Config } from "../config.js";
+import {
+  Config,
+  loadAgents,
+  listThreads,
+  createThread,
+  loadManifest,
+  threadPath,
+  TelegramConfigSchema,
+  safeParseJsonFile,
+  type TelegramConfig,
+} from "@opennova/core";
 import { bus } from "../events.js";
-import { loadAgents } from "../agents.js";
 import { runThread } from "../runner.js";
-import { listThreads, createThread, loadManifest, threadPath } from "../threads.js";
 import { createTriggerMcpServer } from "../triggers.js";
-import { TelegramConfigSchema, safeParseJsonFile, type TelegramConfig } from "../schemas.js";
 import { TELEGRAM_HELP_MESSAGE } from "./telegram-help.js";
 import { log } from "../logger.js";
 

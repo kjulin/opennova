@@ -4,8 +4,7 @@ import { init } from "./init.js";
 import { loadChannels } from "./channels.js";
 import { startTriggerScheduler } from "./triggers.js";
 import { ensureAuth } from "./auth.js";
-import { loadSettings } from "./agents.js";
-import { Config } from "./config.js";
+import { Config, loadSettings } from "@opennova/core";
 import { log } from "./logger.js";
 
 export function start() {

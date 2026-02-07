@@ -8,13 +8,17 @@ import {
   tool,
   type McpSdkServerConfigWithInstance,
 } from "@anthropic-ai/claude-agent-sdk";
-import { Config } from "./config.js";
+import {
+  Config,
+  TriggerSchema,
+  safeParseJsonFile,
+  createThread,
+  type Trigger,
+} from "@opennova/core";
 import { runThread } from "./runner.js";
-import { createThread, type ChannelType } from "./threads.js";
-import { TriggerSchema, safeParseJsonFile } from "./schemas.js";
 import { log } from "./logger.js";
-export type { Trigger } from "./schemas.js";
-import type { Trigger } from "./schemas.js";
+
+export type { Trigger } from "@opennova/core";
 
 export function loadTriggers(agentDir: string): Trigger[] {
   const filePath = path.join(agentDir, "triggers.json");
