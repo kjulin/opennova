@@ -23,5 +23,7 @@
 
     "moduleResolution": "nodenext",
     "esModuleInterop": true
-  }
+  },
+  "include": ["src"],
+  "exclude": ["tests", "vitest.config.ts"]
 }

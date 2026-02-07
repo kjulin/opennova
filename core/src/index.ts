@@ -53,7 +53,35 @@ export {
   type AgentConfig,
 } from "./agents.js";
 
-// Claude
+// Engine
+export {
+  claudeEngine,
+  createClaudeEngine,
+  type Engine,
+  type EngineOptions,
+  type EngineResult,
+  type EngineCallbacks,
+} from "./engine/index.js";
+
+// Runtime
+export {
+  runtime,
+  createRuntime,
+  type Runtime,
+  type RuntimeOptions,
+} from "./runtime.js";
+
+// Thread Runner
+export {
+  threadRunner,
+  createThreadRunner,
+  runThread,
+  type ThreadRunner,
+  type ThreadRunnerCallbacks,
+  type RunThreadOverrides,
+} from "./thread-runner.js";
+
+// Legacy Claude exports (for backwards compatibility and utilities)
 export {
   runClaude,
   generateThreadTitle,
@@ -62,12 +90,8 @@ export {
   type ClaudeCallbacks,
 } from "./claude.js";
 
-// Runner
-export {
-  runThread,
-  type RunThreadOverrides,
-  type RunnerCallbacks,
-} from "./runner.js";
+// Legacy Runner exports (for backwards compatibility)
+export { type RunnerCallbacks } from "./runner.js";
 
 // MCP Servers
 export { createMemoryMcpServer } from "./memory.js";
