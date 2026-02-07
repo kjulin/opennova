@@ -3,7 +3,7 @@ import { createRuntime } from "#core/runtime.js";
 import type { Engine, EngineOptions, EngineResult } from "#core/engine/index.js";
 
 // Mock the logger
-vi.mock("../../src/core/logger.js", () => ({
+vi.mock("#core/logger.js", () => ({
   log: {
     info: vi.fn(),
     debug: vi.fn(),

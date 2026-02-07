@@ -12,8 +12,8 @@
     "workspace-template"
   ],
   "imports": {
-    "#core/*": "./src/core/*",
-    "#daemon/*": "./src/daemon/*"
+    "#core/*": "./dist/core/*",
+    "#daemon/*": "./dist/daemon/*"
   },
   "scripts": {
     "dev": "tsx watch src/daemon/cli.ts daemon",

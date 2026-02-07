@@ -8,7 +8,7 @@ vi.mock("@anthropic-ai/claude-agent-sdk", () => ({
 }));
 
 // Mock the logger
-vi.mock("../../../src/core/logger.js", () => ({
+vi.mock("#core/logger.js", () => ({
   log: {
     info: vi.fn(),
     debug: vi.fn(),

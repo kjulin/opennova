@@ -4,7 +4,7 @@ import type { Runtime } from "#core/runtime.js";
 import type { EngineResult } from "#core/engine/index.js";
 
 // Mock all dependencies
-vi.mock("../../src/core/logger.js", () => ({
+vi.mock("#core/logger.js", () => ({
   log: {
     info: vi.fn(),
     debug: vi.fn(),
@@ -13,16 +13,16 @@ vi.mock("../../src/core/logger.js", () => ({
   },
 }));
 
-vi.mock("../../src/core/threads.js", () => ({
-  threadPath: vi.fn((agentDir, threadId) => `${agentDir}/threads/${threadId}.jsonl`),
+vi.mock("#core/threads.js", () => ({
+  threadPath: vi.fn((agentDir: string, threadId: string) => `${agentDir}/threads/${threadId}.jsonl`),
   loadManifest: vi.fn(() => ({ channel: "test", sessionId: "sess-123" })),
   saveManifest: vi.fn(),
   loadMessages: vi.fn(() => []),
   appendMessage: vi.fn(),
-  withThreadLock: vi.fn((threadId, fn) => fn()),
+  withThreadLock: vi.fn((_threadId: string, fn: () => unknown) => fn()),
 }));
 
-vi.mock("../../src/core/agents.js", () => ({
+vi.mock("#core/agents.js", () => ({
   loadAgents: vi.fn(() => new Map([
     ["test-agent", { name: "Test Agent", role: "Test role" }],
   ])),
@@ -32,24 +32,24 @@ vi.mock("../../src/core/agents.js", () => ({
   resolveSecurityLevel: vi.fn(() => "standard"),
 }));
 
-vi.mock("../../src/core/memory.js", () => ({
+vi.mock("#core/memory.js", () => ({
   createMemoryMcpServer: vi.fn(() => ({})),
 }));
 
-vi.mock("../../src/core/agent-management.js", () => ({
+vi.mock("#core/agent-management.js", () => ({
   createAgentManagementMcpServer: vi.fn(() => ({})),
 }));
 
-vi.mock("../../src/core/ask-agent.js", () => ({
+vi.mock("#core/ask-agent.js", () => ({
   createAskAgentMcpServer: vi.fn(() => ({})),
 }));
 
-vi.mock("../../src/core/usage.js", () => ({
+vi.mock("#core/usage.js", () => ({
   appendUsage: vi.fn(),
   createUsageMcpServer: vi.fn(() => ({})),
 }));
 
-vi.mock("../../src/core/claude.js", () => ({
+vi.mock("#core/claude.js", () => ({
   generateThreadTitle: vi.fn(() => Promise.resolve(null)),
 }));
 
