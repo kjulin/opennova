@@ -43,15 +43,25 @@ export {
 // Agents
 export {
   loadAgents,
-  buildMemoryPrompt,
-  buildSystemPrompt,
   getAgentCwd,
   getAgentDirectories,
+  getAgentRole,
   loadSettings,
   resolveSecurityLevel,
   type SubagentConfig,
   type AgentConfig,
 } from "./agents.js";
+
+// Prompts
+export {
+  buildSystemPrompt,
+  buildMemoryPrompt,
+  buildContextBlock,
+  buildDirectoriesBlock,
+  getFormattingInstructions,
+  SECURITY_INSTRUCTIONS,
+  MEMORY_INSTRUCTIONS,
+} from "./prompts/index.js";
 
 // Engine
 export {

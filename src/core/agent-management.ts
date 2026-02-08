@@ -31,7 +31,9 @@ function err(text: string) {
 interface AgentJson {
   name: string;
   description?: string;
-  role: string;
+  role?: string; // Legacy - kept for backwards compatibility
+  identity?: string; // Who: expertise, personality, methodology
+  working_arrangement?: string; // How: files, rhythm, focus, constraints
   directories?: string[];
   allowedAgents?: string[];
   [key: string]: unknown;
@@ -90,12 +92,13 @@ export function createAgentManagementMcpServer(): McpSdkServerConfigWithInstance
 
       tool(
         "create_agent",
-        "Create a new agent. Cannot set the security field — security levels are managed by the user via CLI only.",
+        "Create a new agent. Use identity for who the agent is, and working_arrangement for how they operate. Cannot set the security field — security levels are managed by the user via CLI only.",
         {
           id: z.string().describe("Agent identifier (lowercase alphanumeric with hyphens)"),
           name: z.string().describe("Display name"),
           description: z.string().optional().describe("Short description of what this agent does — shown to other agents for delegation discovery"),
-          role: z.string().describe("System prompt / role"),
+          identity: z.string().describe("Who the agent is — expertise, personality, methodology"),
+          working_arrangement: z.string().optional().describe("How the agent operates — files, rhythm, focus, constraints"),
           directories: z.array(z.string()).optional().describe("Directories the agent can access (optional)"),
           allowedAgents: z.array(z.string()).optional().describe("Agent IDs this agent can call via ask_agent (use [\"*\"] for any)"),
         },
@@ -110,8 +113,9 @@ export function createAgentManagementMcpServer(): McpSdkServerConfigWithInstance
             return err(`Agent "${args.id}" already exists. Use update_agent to modify it.`);
           }
 
-          const data: AgentJson = { name: args.name, role: args.role };
+          const data: AgentJson = { name: args.name, identity: args.identity };
           if (args.description) data.description = args.description;
+          if (args.working_arrangement) data.working_arrangement = args.working_arrangement;
           if (args.directories && args.directories.length > 0) data.directories = args.directories;
           if (args.allowedAgents && args.allowedAgents.length > 0) data.allowedAgents = args.allowedAgents;
           writeAgentJson(args.id, data);
@@ -126,7 +130,8 @@ export function createAgentManagementMcpServer(): McpSdkServerConfigWithInstance
           id: z.string().describe("Agent identifier"),
           name: z.string().optional().describe("New display name"),
           description: z.string().optional().describe("New short description"),
-          role: z.string().optional().describe("New system prompt / role"),
+          identity: z.string().optional().describe("New identity — who the agent is"),
+          working_arrangement: z.string().optional().describe("New working arrangement — how the agent operates"),
           directories: z.array(z.string()).optional().describe("New list of directories (replaces existing list)"),
           allowedAgents: z.array(z.string()).optional().describe("Agent IDs this agent can call via ask_agent (use [\"*\"] for any)"),
         },
@@ -139,7 +144,8 @@ export function createAgentManagementMcpServer(): McpSdkServerConfigWithInstance
 
           if (args.name !== undefined) config.name = args.name;
           if (args.description !== undefined) config.description = args.description;
-          if (args.role !== undefined) config.role = args.role;
+          if (args.identity !== undefined) config.identity = args.identity;
+          if (args.working_arrangement !== undefined) config.working_arrangement = args.working_arrangement;
           if (args.directories !== undefined) config.directories = args.directories;
           if (args.allowedAgents !== undefined) config.allowedAgents = args.allowedAgents;
 
