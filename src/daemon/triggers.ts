@@ -211,9 +211,15 @@ export function startTriggerScheduler() {
           });
           const prev = expr.prev();
           const prevTime = prev.getTime();
-          const lastRunTime = trigger.lastRun
-            ? new Date(trigger.lastRun).getTime()
-            : 0;
+          // If lastRun is missing, initialize to now (don't fire on first tick)
+          if (!trigger.lastRun) {
+            log.debug("trigger", `${agentId}/${trigger.id} initializing lastRun (first seen)`);
+            trigger.lastRun = new Date().toISOString();
+            changed = true;
+            continue;
+          }
+
+          const lastRunTime = new Date(trigger.lastRun).getTime();
 
           if (prevTime > lastRunTime) {
             log.debug("trigger", `${agentId}/${trigger.id} cron="${trigger.cron}" tz=${tz} prev=${new Date(prevTime).toISOString()} lastRun=${trigger.lastRun ?? "never"}`);
