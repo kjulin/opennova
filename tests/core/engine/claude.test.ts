@@ -58,6 +58,7 @@ describe("ClaudeEngine", () => {
         cwd: "/test",
         systemPrompt: "You are helpful",
         model: "sonnet",
+        settingSources: ["project"],
       },
     });
 
@@ -93,6 +94,7 @@ describe("ClaudeEngine", () => {
       prompt: "Continue",
       options: {
         resume: "sess-123",
+        settingSources: ["project"],
       },
     });
   });
@@ -223,6 +225,7 @@ describe("ClaudeEngine", () => {
         permissionMode: "dontAsk",
         allowedTools: ["Read", "Write"],
         disallowedTools: ["Bash"],
+        settingSources: ["project"],
       },
     });
   });

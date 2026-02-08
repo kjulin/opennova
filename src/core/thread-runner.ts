@@ -3,9 +3,10 @@ import type { McpServerConfig } from "@anthropic-ai/claude-agent-sdk";
 import { runtime as defaultRuntime, type Runtime } from "./runtime.js";
 import { generateThreadTitle } from "./engine/index.js";
 import type { EngineCallbacks } from "./engine/index.js";
-import { loadAgents, buildSystemPrompt, getAgentCwd, getAgentDirectories, resolveSecurityLevel } from "./agents.js";
+import { loadAgents, getAgentCwd, getAgentDirectories, resolveSecurityLevel } from "./agents.js";
+import { buildSystemPrompt } from "./prompts/index.js";
 import { createMemoryMcpServer } from "./memory.js";
-import { createAgentManagementMcpServer } from "./agent-management.js";
+import { createAgentManagementMcpServer, createSelfManagementMcpServer } from "./agent-management.js";
 import { createAskAgentMcpServer } from "./ask-agent.js";
 import { appendUsage, createUsageMcpServer } from "./usage.js";
 import {
@@ -92,18 +93,20 @@ export function createThreadRunner(runtime: Runtime = defaultRuntime): ThreadRun
 
       let result;
       try {
+        const cwd = getAgentCwd(agent);
         const directories = getAgentDirectories(agent);
         result = await runtime.run(
           message,
           {
-            cwd: getAgentCwd(agent),
+            cwd,
             ...(directories.length > 0 ? { directories } : {}),
-            systemPrompt: buildSystemPrompt(agent, agentDir, manifest.channel, security),
+            systemPrompt: buildSystemPrompt(agent, agentDir, manifest.channel, security, cwd, directories),
             ...(overrides?.model ? { model: overrides.model } : {}),
             ...(overrides?.maxTurns ? { maxTurns: overrides.maxTurns } : {}),
             ...(agent.subagents ? { agents: agent.subagents } : {}),
             mcpServers: {
               memory: createMemoryMcpServer(agentDir),
+              ...(security !== "sandbox" ? { self: createSelfManagementMcpServer(agentDir) } : {}),
               ...extraMcpServers,
               ...(agentId === "agent-builder" ? { agents: createAgentManagementMcpServer() } : {}),
               ...(agentId === "nova" ? { usage: createUsageMcpServer() } : {}),

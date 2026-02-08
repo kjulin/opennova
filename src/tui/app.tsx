@@ -4,6 +4,7 @@ import path from "path";
 import {
   Config,
   loadAgents,
+  getAgentRole,
   createThread,
   listThreads,
   loadMessages,
@@ -143,7 +144,7 @@ export function App({ agentId: initialAgentId }: Props) {
     const agent: Agent = {
       id: agentId,
       name: agentConfig.name,
-      role: agentConfig.role,
+      role: getAgentRole(agentConfig),
     };
     dispatch({ type: "SET_AGENT", agent });
 
@@ -180,7 +181,7 @@ export function App({ agentId: initialAgentId }: Props) {
       const agent: Agent = {
         id: agentId,
         name: agentConfig.name,
-        role: agentConfig.role,
+        role: getAgentRole(agentConfig),
       };
       dispatch({ type: "SET_AGENT", agent });
 
