@@ -269,11 +269,38 @@ export function App({ agentId: initialAgentId, mode: appMode = "chat", workingDi
       }
       dispatch({ type: "SET_AGENTS", agents });
 
-      // Load focuses for cowork mode
+      // Cowork mode: auto-select defaults and start immediately
       if (appMode === "cowork") {
         const focuses = loadFocuses();
         dispatch({ type: "SET_FOCUSES", focuses });
-        // In cowork mode, wait for user to select agent
+
+        // Select Coworker agent, or fall back to first available
+        const agentId = agents.has("coworker") ? "coworker" : Array.from(agents.keys())[0];
+        if (!agentId) {
+          dispatch({ type: "SET_ERROR", error: "No agents found" });
+          return;
+        }
+        const agentConfig = agents.get(agentId)!;
+        const agent: Agent = {
+          id: agentId,
+          name: agentConfig.name,
+          role: agentConfig.role,
+        };
+        dispatch({ type: "SET_AGENT", agent });
+
+        // Select Collaborator focus, or fall back to first available
+        const focusId = focuses.has("collaborator") ? "collaborator" : Array.from(focuses.keys())[0];
+        if (!focusId) {
+          dispatch({ type: "SET_ERROR", error: "No focuses found" });
+          return;
+        }
+        const focus = focuses.get(focusId)!;
+
+        // Create thread and start cowork immediately
+        const agentDir = path.join(Config.workspaceDir, "agents", agentId);
+        const threadId = createThread(agentDir, "cowork");
+        dispatch({ type: "SET_THREADS", threads: listThreads(agentDir) });
+        dispatch({ type: "START_COWORK", threadId, focus });
         return;
       }
 
@@ -356,6 +383,55 @@ export function App({ agentId: initialAgentId, mode: appMode = "chat", workingDi
       dispatch({ type: "SET_LOADING", loading: false });
     });
   }, [appMode, state.agent, state.threadId, state.uiMode]);
+
+  // Run cowork greeting when session starts
+  useEffect(() => {
+    if (appMode !== "cowork") return;
+    if (greetingRunRef.current) return;
+    if (!state.agent || !state.threadId || !state.focus) return;
+    if (state.uiMode !== "cowork") return;
+
+    greetingRunRef.current = true;
+
+    const agentDir = path.join(Config.workspaceDir, "agents", state.agent.id);
+    const coworkGreeting = `Cowork session started. You are watching files in ${workingDir} with the "${state.focus.name}" focus. Briefly greet the user and explain what you'll be looking for as they edit.`;
+
+    dispatch({ type: "SET_LOADING", loading: true });
+
+    runThread(
+      agentDir,
+      state.threadId,
+      coworkGreeting,
+      {
+        onAssistantMessage(msg) {
+          dispatch({ type: "SET_STATUS", status: msg });
+        },
+        onToolUse(_name, _input, summary) {
+          dispatch({ type: "SET_STATUS", status: summary });
+        },
+      },
+      undefined,
+      undefined,
+      undefined,
+      { model: "haiku", maxTurns: 1, systemPromptSuffix: buildCoworkPrompt(state.focus, workingDir ?? process.cwd()) },
+    ).then((result) => {
+      if (result.text) {
+        dispatch({
+          type: "ADD_MESSAGE",
+          message: {
+            role: "assistant",
+            text: result.text,
+            timestamp: new Date().toISOString(),
+          },
+        });
+      }
+    }).catch((err) => {
+      dispatch({ type: "SET_ERROR", error: (err as Error).message });
+    }).finally(() => {
+      dispatch({ type: "SET_STATUS", status: null });
+      dispatch({ type: "SET_LOADING", loading: false });
+    });
+  }, [appMode, state.agent, state.threadId, state.focus, state.uiMode, workingDir]);
 
   const handleSubmit = useCallback(
     async (text: string) => {
