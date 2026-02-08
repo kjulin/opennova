@@ -27,7 +27,7 @@ export const TriggerSchema = z.object({
   tz: z.string().optional(),
   prompt: z.string(),
   enabled: z.boolean(),
-  lastRun: z.string().nullable().optional(),
+  lastRunAt: z.string().nullable().optional(),
 });
 
 export type Trigger = z.infer<typeof TriggerSchema>;

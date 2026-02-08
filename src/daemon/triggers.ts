@@ -97,7 +97,7 @@ export function createTriggerMcpServer(
             tz: args.tz,
             prompt: args.prompt,
             enabled: args.enabled,
-            lastRun: new Date().toISOString(),
+            lastRunAt: new Date().toISOString(),
           };
           triggers.push(trigger);
           saveTriggers(agentDir, triggers);
@@ -211,13 +211,13 @@ export function startTriggerScheduler() {
           });
           const prev = expr.prev();
           const prevTime = prev.getTime();
-          const lastRunTime = trigger.lastRun
-            ? new Date(trigger.lastRun).getTime()
+          const lastRunAtTime = trigger.lastRunAt
+            ? new Date(trigger.lastRunAt).getTime()
             : 0;
 
-          if (prevTime > lastRunTime) {
-            log.debug("trigger", `${agentId}/${trigger.id} cron="${trigger.cron}" tz=${tz} prev=${new Date(prevTime).toISOString()} lastRun=${trigger.lastRun ?? "never"}`);
-            trigger.lastRun = new Date().toISOString();
+          if (prevTime > lastRunAtTime) {
+            log.debug("trigger", `${agentId}/${trigger.id} cron="${trigger.cron}" tz=${tz} prev=${new Date(prevTime).toISOString()} lastRunAt=${trigger.lastRunAt ?? "never"}`);
+            trigger.lastRunAt = new Date().toISOString();
             changed = true;
 
             const threadId = createThread(agentDir, trigger.channel);

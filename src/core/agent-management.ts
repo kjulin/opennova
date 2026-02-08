@@ -281,14 +281,14 @@ export function createAgentManagementMcpServer(): McpSdkServerConfigWithInstance
               }
             }
 
-            // Auto-fill missing fields
+            // Auto-fill missing fields (lastRunAt always set to now on creation)
             normalized.push({
               id: t.id ?? generateTriggerId(),
               channel: t.channel ?? "telegram",
               cron: t.cron,
               prompt: t.prompt,
               enabled: t.enabled ?? true,
-              lastRun: t.lastRun ?? null,
+              lastRunAt: new Date().toISOString(),
             });
           }
 

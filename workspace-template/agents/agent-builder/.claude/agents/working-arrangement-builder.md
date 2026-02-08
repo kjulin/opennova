@@ -63,14 +63,12 @@ If the user mentioned recurring tasks, design triggers:
 
 ```json
 {
-  "id": "12-char-hex",
-  "channel": "telegram",
   "cron": "0 9 * * *",
-  "prompt": "Clear, self-contained instruction...",
-  "enabled": true,
-  "lastRun": null
+  "prompt": "Clear, self-contained instruction..."
 }
 ```
+
+Only `cron` and `prompt` are required — other fields (id, channel, enabled) are auto-filled.
 
 **Trigger design principles**:
 - The prompt must be self-contained (no user in the loop)
@@ -119,12 +117,8 @@ Never prescribe specific supplements or medical advice — recommend consulting 
 <triggers>
 [
   {
-    "id": "a1b2c3d4e5f6",
-    "channel": "telegram",
     "cron": "0 21 * * 0",
-    "prompt": "Review the user's progress.md and send a thoughtful weekly reflection. Celebrate wins, acknowledge challenges, and suggest one focus for the coming week.",
-    "enabled": true,
-    "lastRun": null
+    "prompt": "Review the user's progress.md and send a thoughtful weekly reflection. Celebrate wins, acknowledge challenges, and suggest one focus for the coming week."
   }
 ]
 </triggers>
