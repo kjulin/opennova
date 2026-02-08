@@ -22,7 +22,8 @@ interface Props {
   loading: boolean;
   error: string | null;
   onSubmit: (text: string) => void;
-  selectComponent?: React.ReactNode | undefined;
+  selectComponent?: React.ReactNode | null | undefined;
+  statusBar?: React.ReactNode | undefined;
 }
 
 export function Chat({
@@ -34,6 +35,7 @@ export function Chat({
   error,
   onSubmit,
   selectComponent,
+  statusBar,
 }: Props) {
   const [inputKey, setInputKey] = useState(0);
   const [inputValue, setInputValue] = useState("");
@@ -130,7 +132,7 @@ export function Chat({
               />
             </Box>
           ) : (
-            <StatusBar agentName={agent?.name ?? null} threadTitle={threadTitle} />
+            statusBar ?? <StatusBar agentName={agent?.name ?? null} threadTitle={threadTitle} />
           )}
           <Box marginBottom={1} />
         </>

@@ -1,6 +1,7 @@
 import path from "path";
 import type { McpServerConfig } from "@anthropic-ai/claude-agent-sdk";
 import { runClaude, generateThreadTitle, type ClaudeCallbacks } from "./claude.js";
+import type { Model } from "./models.js";
 import { loadAgents, buildSystemPrompt, getAgentCwd, getAgentDirectories, resolveSecurityLevel } from "./agents.js";
 import { createMemoryMcpServer } from "./memory.js";
 import { createAgentManagementMcpServer } from "./agent-management.js";
@@ -17,7 +18,7 @@ import {
 import { log } from "./logger.js";
 
 export interface RunThreadOverrides {
-  model?: "sonnet" | "opus" | "haiku";
+  model?: Model;
   maxTurns?: number;
 }
 

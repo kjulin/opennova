@@ -1,6 +1,9 @@
 // Configuration
 export { Config } from "./config.js";
 
+// Models
+export { MODELS, type Model } from "./models.js";
+
 // Logger
 export { log, setLogger, type Logger } from "./logger.js";
 
@@ -97,6 +100,8 @@ export { type RunnerCallbacks } from "./runner.js";
 export {
   loadFocuses,
   getFocus,
+  buildCoworkPrompt,
+  parseCoworkResponse,
   type Focus,
 } from "./focus.js";
 

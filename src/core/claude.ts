@@ -1,15 +1,16 @@
 import { query, type McpServerConfig } from "@anthropic-ai/claude-agent-sdk";
 import { securityOptions, type SecurityLevel } from "./security.js";
 import { log } from "./logger.js";
+import type { Model } from "./models.js";
 
 export interface ClaudeOptions {
   cwd?: string;
   directories?: string[];
   systemPrompt?: string;
   security?: SecurityLevel;
-  model?: "sonnet" | "opus" | "haiku";
+  model?: Model;
   maxTurns?: number;
-  agents?: Record<string, { description: string; prompt: string; tools?: string[]; disallowedTools?: string[]; model?: "sonnet" | "opus" | "haiku"; maxTurns?: number }>;
+  agents?: Record<string, { description: string; prompt: string; tools?: string[]; disallowedTools?: string[]; model?: Model; maxTurns?: number }>;
   mcpServers?: Record<string, McpServerConfig>;
 }
 

@@ -106,3 +106,41 @@ export function getFocus(id: string): Focus | null {
   const focuses = loadFocuses();
   return focuses.get(id) ?? null;
 }
+
+/**
+ * Build the cowork system prompt suffix.
+ */
+export function buildCoworkPrompt(focus: Focus, workingDir: string): string {
+  return `<Cowork>
+You are in cowork mode, watching files in ${workingDir} as the user edits.
+When notified of file changes, read the file and provide brief feedback.
+
+Focus: ${focus.name}
+${focus.prompt}
+
+IMPORTANT: Keep responses very short (1-3 sentences). The user is actively writing and will see your feedback in a small terminal.
+
+Always start your response with an importance tag:
+- [low] - Minor observations, "looks good", routine feedback
+- [medium] - Useful suggestions, things to consider
+- [high] - Important issues, significant improvements, things that need attention
+
+Example: "[low] Looking good so far, keep going."
+Example: "[high] This contradicts what you said earlier about X."
+</Cowork>`;
+}
+
+/**
+ * Parse a cowork response to extract importance and message.
+ */
+export function parseCoworkResponse(text: string): { importance: "low" | "medium" | "high"; message: string } {
+  const match = text.match(/^\[(low|medium|high)\]\s*/i);
+  if (match) {
+    return {
+      importance: match[1]!.toLowerCase() as "low" | "medium" | "high",
+      message: text.slice(match[0].length).trim(),
+    };
+  }
+  // Default to medium if no tag found
+  return { importance: "medium", message: text };
+}

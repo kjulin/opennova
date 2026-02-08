@@ -1,6 +1,7 @@
 import path from "path";
 import type { McpServerConfig } from "@anthropic-ai/claude-agent-sdk";
 import { runtime as defaultRuntime, type Runtime } from "./runtime.js";
+import type { Model } from "./models.js";
 import { generateThreadTitle } from "./claude.js";
 import type { EngineCallbacks } from "./engine/index.js";
 import { loadAgents, buildSystemPrompt, getAgentCwd, getAgentDirectories, resolveSecurityLevel } from "./agents.js";
@@ -19,8 +20,9 @@ import {
 import { log } from "./logger.js";
 
 export interface RunThreadOverrides {
-  model?: "sonnet" | "opus" | "haiku" | undefined;
+  model?: Model | undefined;
   maxTurns?: number | undefined;
+  systemPromptSuffix?: string | undefined;
 }
 
 export interface ThreadRunnerCallbacks extends EngineCallbacks {
@@ -93,12 +95,16 @@ export function createThreadRunner(runtime: Runtime = defaultRuntime): ThreadRun
       let result;
       try {
         const directories = getAgentDirectories(agent);
+        const baseSystemPrompt = buildSystemPrompt(agent, agentDir, manifest.channel, security);
+        const systemPrompt = overrides?.systemPromptSuffix
+          ? `${baseSystemPrompt}\n\n${overrides.systemPromptSuffix}`
+          : baseSystemPrompt;
         result = await runtime.run(
           message,
           {
             cwd: getAgentCwd(agent),
             ...(directories.length > 0 ? { directories } : {}),
-            systemPrompt: buildSystemPrompt(agent, agentDir, manifest.channel, security),
+            systemPrompt,
             ...(overrides?.model ? { model: overrides.model } : {}),
             ...(overrides?.maxTurns ? { maxTurns: overrides.maxTurns } : {}),
             ...(agent.subagents ? { agents: agent.subagents } : {}),
