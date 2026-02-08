@@ -8,7 +8,6 @@ export { log, setLogger, type Logger } from "./logger.js";
 export {
   AgentBotConfigSchema,
   TelegramConfigSchema,
-  TriggerSchema,
   ThreadManifestSchema,
   ThreadMessageSchema,
   SecurityLevel,
@@ -16,9 +15,19 @@ export {
   safeParseJsonFile,
   type AgentBotConfig,
   type TelegramConfig,
-  type Trigger,
   type Settings,
 } from "./schemas.js";
+
+// Triggers
+export {
+  TriggerSchema,
+  loadTriggers,
+  saveTriggers,
+  createTriggerMcpServer,
+  startTriggerScheduler,
+  setRunThreadFn,
+  type Trigger,
+} from "./triggers/index.js";
 
 // Security
 export { securityOptions, type SecurityLevel as SecurityLevelType } from "./security.js";

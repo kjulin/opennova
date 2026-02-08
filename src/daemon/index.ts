@@ -2,9 +2,9 @@ import fs from "fs";
 import path from "path";
 import { init } from "./init.js";
 import { loadChannels } from "./channels.js";
-import { startTriggerScheduler } from "./triggers.js";
+import { runThread } from "./runner.js";
 import { ensureAuth } from "./auth.js";
-import { Config, loadSettings } from "#core/index.js";
+import { Config, loadSettings, startTriggerScheduler, setRunThreadFn } from "#core/index.js";
 import { log } from "./logger.js";
 
 export function start() {
@@ -36,6 +36,8 @@ export function start() {
     }
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  setRunThreadFn(runThread as any);
   const triggerInterval = startTriggerScheduler();
   log.info("daemon", "nova daemon started");
 

@@ -59,27 +59,35 @@ Keep it **minimal and actionable**. Don't add sections that don't carry weight.
 
 ### 3. Design Triggers (if applicable)
 
-If the user mentioned recurring tasks, design triggers:
+If the user mentioned scheduled tasks, design triggers:
 
 ```json
 {
   "cron": "0 9 * * *",
-  "prompt": "Clear, self-contained instruction..."
+  "prompt": "Clear, self-contained instruction...",
+  "expiresAt": "2026-02-14T23:59:00+02:00"
 }
 ```
 
-Only `cron` and `prompt` are required — other fields (id, channel, enabled) are auto-filled.
+Only `cron` and `prompt` are required. Optional fields:
+- `expiresAt` — ISO datetime when trigger auto-deletes (for one-time or time-limited)
+
+**Trigger types**:
+- **Recurring** (no expiresAt): runs forever on schedule
+- **One-time** (expiresAt just after scheduled time): fires once, then auto-deletes
+- **Time-limited** (expiresAt in future): runs on schedule until expiry
 
 **Trigger design principles**:
 - The prompt must be self-contained (no user in the loop)
 - Be specific about what action to take
 - Include any necessary context
 
-**Common patterns**:
+**Common cron patterns**:
 - `"0 9 * * *"` — daily at 9 AM
 - `"0 9 * * 1-5"` — weekdays at 9 AM
 - `"0 9 * * 1"` — weekly on Monday at 9 AM
 - `"0 18 * * 5"` — Friday at 6 PM (weekly review)
+- `"0 18 8 2 *"` — specific date/time (Feb 8 at 6 PM)
 
 ## Output Format
 

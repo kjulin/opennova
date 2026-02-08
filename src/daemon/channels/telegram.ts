@@ -10,11 +10,11 @@ import {
   threadPath,
   TelegramConfigSchema,
   safeParseJsonFile,
+  createTriggerMcpServer,
   type TelegramConfig,
 } from "#core/index.js";
 import { bus } from "../events.js";
 import { runThread } from "../runner.js";
-import { createTriggerMcpServer } from "../triggers.js";
 import { TELEGRAM_HELP_MESSAGE } from "./telegram-help.js";
 import { log } from "../logger.js";
 

@@ -20,18 +20,6 @@ export const TelegramConfigSchema = z.object({
 
 export type TelegramConfig = z.infer<typeof TelegramConfigSchema>;
 
-export const TriggerSchema = z.object({
-  id: z.string(),
-  channel: z.string(),
-  cron: z.string(),
-  tz: z.string().optional(),
-  prompt: z.string(),
-  enabled: z.boolean(),
-  lastRun: z.string().nullable().optional(),
-});
-
-export type Trigger = z.infer<typeof TriggerSchema>;
-
 export const ThreadManifestSchema = z.object({
   title: z.string().optional(),
   channel: z.string(),

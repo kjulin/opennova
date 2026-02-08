@@ -8,11 +8,11 @@ import {
   createThread,
   loadManifest,
   threadPath,
+  createTriggerMcpServer,
   type AgentBotConfig,
 } from "#core/index.js";
 import { bus } from "../events.js";
 import { runThread } from "../runner.js";
-import { createTriggerMcpServer } from "../triggers.js";
 import { relativeTime } from "./telegram.js";
 import { log } from "../logger.js";
 

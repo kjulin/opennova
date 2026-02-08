@@ -19,7 +19,11 @@ Changes take effect next conversation. Your identity stays fixed; your working a
 - Agent scope: Your domain knowledge (user's preferences in your area, past decisions)
 - Global scope: Cross-agent facts (user's name, timezone, communication style)
 
-**Triggers** — for recurring scheduled tasks (managed via agent-builder).
+**Triggers** — for scheduled tasks. Use your trigger tools to:
+- Set recurring reminders (daily standup, weekly review)
+- Set one-time reminders ("remind me at 6pm") with expiresAt
+- Schedule time-limited recurring tasks (set expiresAt for end date)
+Expired triggers are automatically deleted.
 
 Quick guide:
 - "User should see this" → File
