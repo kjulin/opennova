@@ -57,6 +57,7 @@ export {
 export {
   claudeEngine,
   createClaudeEngine,
+  generateThreadTitle,
   type Engine,
   type EngineOptions,
   type EngineResult,
@@ -80,18 +81,6 @@ export {
   type ThreadRunnerCallbacks,
   type RunThreadOverrides,
 } from "./thread-runner.js";
-
-// Legacy Claude exports (for backwards compatibility and utilities)
-export {
-  runClaude,
-  generateThreadTitle,
-  type ClaudeOptions,
-  type ClaudeResult,
-  type ClaudeCallbacks,
-} from "./claude.js";
-
-// Legacy Runner exports (for backwards compatibility)
-export { type RunnerCallbacks } from "./runner.js";
 
 // MCP Servers
 export { createMemoryMcpServer } from "./memory.js";

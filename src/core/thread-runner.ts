@@ -1,7 +1,7 @@
 import path from "path";
 import type { McpServerConfig } from "@anthropic-ai/claude-agent-sdk";
 import { runtime as defaultRuntime, type Runtime } from "./runtime.js";
-import { generateThreadTitle } from "./claude.js";
+import { generateThreadTitle } from "./engine/index.js";
 import type { EngineCallbacks } from "./engine/index.js";
 import { loadAgents, buildSystemPrompt, getAgentCwd, getAgentDirectories, resolveSecurityLevel } from "./agents.js";
 import { createMemoryMcpServer } from "./memory.js";
