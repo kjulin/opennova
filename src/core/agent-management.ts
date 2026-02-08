@@ -1,3 +1,4 @@
+import crypto from "crypto";
 import fs from "fs";
 import path from "path";
 import { z } from "zod/v4";
@@ -10,6 +11,10 @@ import {
 import { Config } from "./config.js";
 
 const PROTECTED_AGENTS = new Set(["nova", "agent-builder"]);
+
+function generateTriggerId(): string {
+  return crypto.randomBytes(6).toString("hex");
+}
 const VALID_AGENT_ID = /^[a-z0-9][a-z0-9-]*$/;
 
 function agentsDir(): string {
@@ -258,22 +263,40 @@ export function createAgentManagementMcpServer(): McpSdkServerConfigWithInstance
 
           if (!Array.isArray(parsed)) return err("Triggers must be a JSON array");
 
-          // Validate each trigger's cron expression
+          // Validate and normalize each trigger
+          const normalized = [];
           for (const trigger of parsed) {
-            if (trigger && typeof trigger === "object" && "cron" in trigger) {
+            if (!trigger || typeof trigger !== "object") {
+              return err("Each trigger must be an object");
+            }
+
+            const t = trigger as Record<string, unknown>;
+
+            // Validate cron expression
+            if ("cron" in t) {
               try {
-                CronExpressionParser.parse(trigger.cron as string);
+                CronExpressionParser.parse(t.cron as string);
               } catch {
-                return err(`Invalid cron expression: ${trigger.cron}`);
+                return err(`Invalid cron expression: ${t.cron}`);
               }
             }
+
+            // Auto-fill missing fields
+            normalized.push({
+              id: t.id ?? generateTriggerId(),
+              channel: t.channel ?? "telegram",
+              cron: t.cron,
+              prompt: t.prompt,
+              enabled: t.enabled ?? true,
+              lastRun: t.lastRun ?? null,
+            });
           }
 
           fs.writeFileSync(
             path.join(dir, "triggers.json"),
-            JSON.stringify(parsed, null, 2) + "\n",
+            JSON.stringify(normalized, null, 2) + "\n",
           );
-          return ok(`Wrote triggers for agent "${args.id}"`);
+          return ok(`Wrote ${normalized.length} trigger(s) for agent "${args.id}"`);
         },
       ),
     ],

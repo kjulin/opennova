@@ -58,7 +58,7 @@ async function execQuery(
     ...(options.disallowedTools ? { disallowedTools: options.disallowedTools } : {}),
     ...(options.allowDangerouslySkipPermissions ? { allowDangerouslySkipPermissions: options.allowDangerouslySkipPermissions } : {}),
     ...(sessionId ? { resume: sessionId } : {}),
-    settingSources: ["project", "user"] as SettingSource[],
+    settingSources: ["project"] as SettingSource[],
   };
 
   // Log options without mcpServers (may contain circular refs)

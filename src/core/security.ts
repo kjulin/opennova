@@ -40,7 +40,6 @@ function buildOptions(level: SecurityLevel): Record<string, unknown> {
       return {
         allowDangerouslySkipPermissions: true,
         permissionMode: "bypassPermissions",
-        allowedTools: ["Skill"]
       };
   }
 }
