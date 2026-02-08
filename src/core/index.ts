@@ -60,7 +60,7 @@ export {
   buildDirectoriesBlock,
   getFormattingInstructions,
   SECURITY_INSTRUCTIONS,
-  MEMORY_INSTRUCTIONS,
+  STORAGE_INSTRUCTIONS,
 } from "./prompts/index.js";
 
 // Engine
@@ -94,7 +94,7 @@ export {
 
 // MCP Servers
 export { createMemoryMcpServer } from "./memory.js";
-export { createAgentManagementMcpServer } from "./agent-management.js";
+export { createAgentManagementMcpServer, createSelfManagementMcpServer } from "./agent-management.js";
 export { createAskAgentMcpServer, type RunThreadFn } from "./ask-agent.js";
 export {
   appendUsage,

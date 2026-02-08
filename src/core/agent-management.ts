@@ -302,3 +302,57 @@ export function createAgentManagementMcpServer(): McpSdkServerConfigWithInstance
     ],
   });
 }
+
+const MAX_WORKING_ARRANGEMENT_LENGTH = 10000;
+
+export function createSelfManagementMcpServer(
+  agentDir: string,
+): McpSdkServerConfigWithInstance {
+  return createSdkMcpServer({
+    name: "self",
+    tools: [
+      tool(
+        "update_my_working_arrangement",
+        "Update how you operate. Use when you discover better approaches, user preferences about your workflow, or patterns that work well. Takes effect next conversation.",
+        {
+          content: z.string()
+            .min(1, "Working arrangement cannot be empty")
+            .max(MAX_WORKING_ARRANGEMENT_LENGTH, `Working arrangement cannot exceed ${MAX_WORKING_ARRANGEMENT_LENGTH} characters`)
+            .describe("Your new working arrangement — how you operate"),
+        },
+        async (args) => {
+          const configPath = path.join(agentDir, "agent.json");
+          if (!fs.existsSync(configPath)) {
+            return err("Agent configuration not found");
+          }
+          try {
+            const config = JSON.parse(fs.readFileSync(configPath, "utf-8"));
+            config.working_arrangement = args.content;
+            fs.writeFileSync(configPath, JSON.stringify(config, null, 2) + "\n");
+            return ok(`Updated working arrangement (${args.content.length} chars)`);
+          } catch (e) {
+            return err(`Failed to update: ${(e as Error).message}`);
+          }
+        },
+      ),
+
+      tool(
+        "read_my_working_arrangement",
+        "Read your current working arrangement before updating.",
+        {},
+        async () => {
+          const configPath = path.join(agentDir, "agent.json");
+          if (!fs.existsSync(configPath)) {
+            return err("Agent configuration not found");
+          }
+          try {
+            const config = JSON.parse(fs.readFileSync(configPath, "utf-8"));
+            return ok(config.working_arrangement ?? "(no working arrangement set)");
+          } catch (e) {
+            return err(`Failed to read: ${(e as Error).message}`);
+          }
+        },
+      ),
+    ],
+  });
+}

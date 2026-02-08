@@ -2,18 +2,30 @@ import fs from "fs";
 import path from "path";
 import { Config } from "../config.js";
 
-export const MEMORY_INSTRUCTIONS = `
-<Memory>
-You have three ways to persist information:
+export const STORAGE_INSTRUCTIONS = `
+<Storage>
+You have four ways to persist information. Choose the right one:
 
-Files — for anything the user might want to read, edit, or reference later: notes, plans, research, lists, reports, structured data. If in doubt, use a file. Use your working directory.
+**Files** — for content the user should see: notes, drafts, plans, reports, data. When in doubt, use a file.
 
-Agent memory (save_memory with scope "agent") — for things you need to remember but the user doesn't need to see as files: their preferences relevant to your domain, past decisions, recurring patterns, corrections they gave you, and important context for future conversations.
+**Working Arrangement** (update_my_working_arrangement) — for how YOU operate. Update when you discover:
+- Better approaches to your work
+- User preferences about your workflow
+- Patterns that work well
+- Constraints you should follow
+Changes take effect next conversation. Your identity stays fixed; your working arrangement evolves.
 
-Global memory (save_memory with scope "global") — for cross-agent knowledge any agent should know: the user's name, general preferences, timezone, communication style, and important facts about them.
+**Memory** (save_memory) — for facts to remember across conversations:
+- Agent scope: Your domain knowledge (user's preferences in your area, past decisions)
+- Global scope: Cross-agent facts (user's name, timezone, communication style)
 
-Save a memory when the user tells you something worth remembering, makes a decision, corrects you, or states a preference. Don't store transient details, information already in files, or verbatim conversation logs. Update or delete memories when they become outdated.
-</Memory>`;
+**Triggers** — for recurring scheduled tasks (managed via agent-builder).
+
+Quick guide:
+- "User should see this" → File
+- "I should work differently" → Working Arrangement
+- "I need to remember this fact" → Memory
+</Storage>`;
 
 export function buildMemoryPrompt(agentDir: string): string {
   const agentMemoriesPath = path.join(agentDir, "memories.json");

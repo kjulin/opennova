@@ -6,7 +6,7 @@ import type { EngineCallbacks } from "./engine/index.js";
 import { loadAgents, getAgentCwd, getAgentDirectories, resolveSecurityLevel } from "./agents.js";
 import { buildSystemPrompt } from "./prompts/index.js";
 import { createMemoryMcpServer } from "./memory.js";
-import { createAgentManagementMcpServer } from "./agent-management.js";
+import { createAgentManagementMcpServer, createSelfManagementMcpServer } from "./agent-management.js";
 import { createAskAgentMcpServer } from "./ask-agent.js";
 import { appendUsage, createUsageMcpServer } from "./usage.js";
 import {
@@ -106,6 +106,7 @@ export function createThreadRunner(runtime: Runtime = defaultRuntime): ThreadRun
             ...(agent.subagents ? { agents: agent.subagents } : {}),
             mcpServers: {
               memory: createMemoryMcpServer(agentDir),
+              ...(security !== "sandbox" ? { self: createSelfManagementMcpServer(agentDir) } : {}),
               ...extraMcpServers,
               ...(agentId === "agent-builder" ? { agents: createAgentManagementMcpServer() } : {}),
               ...(agentId === "nova" ? { usage: createUsageMcpServer() } : {}),

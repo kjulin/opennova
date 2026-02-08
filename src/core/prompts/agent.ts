@@ -3,7 +3,7 @@ import type { SecurityLevel } from "../schemas.js";
 import type { ChannelType } from "../threads.js";
 
 import { SECURITY_INSTRUCTIONS } from "./security.js";
-import { MEMORY_INSTRUCTIONS, buildMemoryPrompt } from "./memory.js";
+import { STORAGE_INSTRUCTIONS, buildMemoryPrompt } from "./memory.js";
 import { getFormattingInstructions } from "./formatting.js";
 import { buildContextBlock } from "./context.js";
 import { buildDirectoriesBlock } from "./directories.js";
@@ -33,7 +33,7 @@ export function buildSystemPrompt(
   const memories = buildMemoryPrompt(agentDir);
   const dirBlock = buildDirectoriesBlock(cwd, directories, security);
   const formatting = getFormattingInstructions(channel);
-  const memoryInstructions = security !== "sandbox" ? MEMORY_INSTRUCTIONS : "";
+  const storageInstructions = security !== "sandbox" ? STORAGE_INSTRUCTIONS : "";
 
-  return `${buildRoleBlock(agent)}\n${SECURITY_INSTRUCTIONS[security]}${dirBlock}${memoryInstructions}\n${formatting}${buildContextBlock()}${memories}`;
+  return `${buildRoleBlock(agent)}\n${SECURITY_INSTRUCTIONS[security]}${dirBlock}${storageInstructions}\n${formatting}${buildContextBlock()}${memories}`;
 }

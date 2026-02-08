@@ -1,6 +1,6 @@
 // Instruction prompts
 export { SECURITY_INSTRUCTIONS } from "./security.js";
-export { MEMORY_INSTRUCTIONS, buildMemoryPrompt } from "./memory.js";
+export { STORAGE_INSTRUCTIONS, buildMemoryPrompt } from "./memory.js";
 export { getFormattingInstructions } from "./formatting.js";
 
 // Builders
