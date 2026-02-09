@@ -8,6 +8,11 @@ import { getFormattingInstructions } from "./formatting.js";
 import { buildContextBlock } from "./context.js";
 import { buildDirectoriesBlock } from "./directories.js";
 
+const COMMUNICATION_INSTRUCTIONS = `
+<Communication>
+When asking questions, ask one thing at a time. Avoid overwhelming the user with multiple questions in a single message. Wait for their response before asking follow-up questions.
+</Communication>`;
+
 function buildRoleBlock(agent: AgentConfig): string {
   // New format: identity + working_arrangement
   if (agent.identity) {
@@ -35,5 +40,5 @@ export function buildSystemPrompt(
   const formatting = getFormattingInstructions(channel);
   const storageInstructions = security !== "sandbox" ? STORAGE_INSTRUCTIONS : "";
 
-  return `${buildRoleBlock(agent)}\n${SECURITY_INSTRUCTIONS[security]}${dirBlock}${storageInstructions}\n${formatting}${buildContextBlock()}${memories}`;
+  return `${buildRoleBlock(agent)}\n${SECURITY_INSTRUCTIONS[security]}${dirBlock}${storageInstructions}\n${formatting}${COMMUNICATION_INSTRUCTIONS}${buildContextBlock()}${memories}`;
 }
