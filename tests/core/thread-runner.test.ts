@@ -38,6 +38,7 @@ vi.mock("#core/memory.js", () => ({
 
 vi.mock("#core/agent-management.js", () => ({
   createAgentManagementMcpServer: vi.fn(() => ({})),
+  createSelfManagementMcpServer: vi.fn(() => ({})),
 }));
 
 vi.mock("#core/ask-agent.js", () => ({

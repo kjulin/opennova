@@ -46,20 +46,31 @@ export {
 // Agents
 export {
   loadAgents,
-  buildMemoryPrompt,
-  buildSystemPrompt,
   getAgentCwd,
   getAgentDirectories,
+  getAgentRole,
   loadSettings,
   resolveSecurityLevel,
   type SubagentConfig,
   type AgentConfig,
 } from "./agents.js";
 
+// Prompts
+export {
+  buildSystemPrompt,
+  buildMemoryPrompt,
+  buildContextBlock,
+  buildDirectoriesBlock,
+  getFormattingInstructions,
+  SECURITY_INSTRUCTIONS,
+  STORAGE_INSTRUCTIONS,
+} from "./prompts/index.js";
+
 // Engine
 export {
   claudeEngine,
   createClaudeEngine,
+  generateThreadTitle,
   type Engine,
   type EngineOptions,
   type EngineResult,
@@ -84,18 +95,6 @@ export {
   type RunThreadOverrides,
 } from "./thread-runner.js";
 
-// Legacy Claude exports (for backwards compatibility and utilities)
-export {
-  runClaude,
-  generateThreadTitle,
-  type ClaudeOptions,
-  type ClaudeResult,
-  type ClaudeCallbacks,
-} from "./claude.js";
-
-// Legacy Runner exports (for backwards compatibility)
-export { type RunnerCallbacks } from "./runner.js";
-
 // Focus (for cowork mode)
 export {
   loadFocuses,
@@ -107,7 +106,7 @@ export {
 
 // MCP Servers
 export { createMemoryMcpServer } from "./memory.js";
-export { createAgentManagementMcpServer } from "./agent-management.js";
+export { createAgentManagementMcpServer, createSelfManagementMcpServer } from "./agent-management.js";
 export { createAskAgentMcpServer, type RunThreadFn } from "./ask-agent.js";
 export {
   appendUsage,

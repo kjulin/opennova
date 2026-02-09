@@ -1,3 +1,4 @@
+import crypto from "crypto";
 import fs from "fs";
 import path from "path";
 import { z } from "zod/v4";
@@ -10,6 +11,10 @@ import {
 import { Config } from "./config.js";
 
 const PROTECTED_AGENTS = new Set(["nova", "agent-builder"]);
+
+function generateTriggerId(): string {
+  return crypto.randomBytes(6).toString("hex");
+}
 const VALID_AGENT_ID = /^[a-z0-9][a-z0-9-]*$/;
 
 function agentsDir(): string {
@@ -31,7 +36,9 @@ function err(text: string) {
 interface AgentJson {
   name: string;
   description?: string;
-  role: string;
+  role?: string; // Legacy - kept for backwards compatibility
+  identity?: string; // Who: expertise, personality, methodology
+  working_arrangement?: string; // How: files, rhythm, focus, constraints
   directories?: string[];
   allowedAgents?: string[];
   [key: string]: unknown;
@@ -90,12 +97,13 @@ export function createAgentManagementMcpServer(): McpSdkServerConfigWithInstance
 
       tool(
         "create_agent",
-        "Create a new agent. Cannot set the security field — security levels are managed by the user via CLI only.",
+        "Create a new agent. Use identity for who the agent is, and working_arrangement for how they operate. Cannot set the security field — security levels are managed by the user via CLI only.",
         {
           id: z.string().describe("Agent identifier (lowercase alphanumeric with hyphens)"),
           name: z.string().describe("Display name"),
           description: z.string().optional().describe("Short description of what this agent does — shown to other agents for delegation discovery"),
-          role: z.string().describe("System prompt / role"),
+          identity: z.string().describe("Who the agent is — expertise, personality, methodology"),
+          working_arrangement: z.string().optional().describe("How the agent operates — files, rhythm, focus, constraints"),
           directories: z.array(z.string()).optional().describe("Directories the agent can access (optional)"),
           allowedAgents: z.array(z.string()).optional().describe("Agent IDs this agent can call via ask_agent (use [\"*\"] for any)"),
         },
@@ -110,8 +118,9 @@ export function createAgentManagementMcpServer(): McpSdkServerConfigWithInstance
             return err(`Agent "${args.id}" already exists. Use update_agent to modify it.`);
           }
 
-          const data: AgentJson = { name: args.name, role: args.role };
+          const data: AgentJson = { name: args.name, identity: args.identity };
           if (args.description) data.description = args.description;
+          if (args.working_arrangement) data.working_arrangement = args.working_arrangement;
           if (args.directories && args.directories.length > 0) data.directories = args.directories;
           if (args.allowedAgents && args.allowedAgents.length > 0) data.allowedAgents = args.allowedAgents;
           writeAgentJson(args.id, data);
@@ -126,7 +135,8 @@ export function createAgentManagementMcpServer(): McpSdkServerConfigWithInstance
           id: z.string().describe("Agent identifier"),
           name: z.string().optional().describe("New display name"),
           description: z.string().optional().describe("New short description"),
-          role: z.string().optional().describe("New system prompt / role"),
+          identity: z.string().optional().describe("New identity — who the agent is"),
+          working_arrangement: z.string().optional().describe("New working arrangement — how the agent operates"),
           directories: z.array(z.string()).optional().describe("New list of directories (replaces existing list)"),
           allowedAgents: z.array(z.string()).optional().describe("Agent IDs this agent can call via ask_agent (use [\"*\"] for any)"),
         },
@@ -139,7 +149,8 @@ export function createAgentManagementMcpServer(): McpSdkServerConfigWithInstance
 
           if (args.name !== undefined) config.name = args.name;
           if (args.description !== undefined) config.description = args.description;
-          if (args.role !== undefined) config.role = args.role;
+          if (args.identity !== undefined) config.identity = args.identity;
+          if (args.working_arrangement !== undefined) config.working_arrangement = args.working_arrangement;
           if (args.directories !== undefined) config.directories = args.directories;
           if (args.allowedAgents !== undefined) config.allowedAgents = args.allowedAgents;
 
@@ -252,22 +263,94 @@ export function createAgentManagementMcpServer(): McpSdkServerConfigWithInstance
 
           if (!Array.isArray(parsed)) return err("Triggers must be a JSON array");
 
-          // Validate each trigger's cron expression
+          // Validate and normalize each trigger
+          const normalized = [];
           for (const trigger of parsed) {
-            if (trigger && typeof trigger === "object" && "cron" in trigger) {
+            if (!trigger || typeof trigger !== "object") {
+              return err("Each trigger must be an object");
+            }
+
+            const t = trigger as Record<string, unknown>;
+
+            // Validate cron expression
+            if ("cron" in t) {
               try {
-                CronExpressionParser.parse(trigger.cron as string);
+                CronExpressionParser.parse(t.cron as string);
               } catch {
-                return err(`Invalid cron expression: ${trigger.cron}`);
+                return err(`Invalid cron expression: ${t.cron}`);
               }
             }
+
+            // Auto-fill missing fields (lastRun always set to now on creation)
+            normalized.push({
+              id: t.id ?? generateTriggerId(),
+              channel: t.channel ?? "telegram",
+              cron: t.cron,
+              prompt: t.prompt,
+              enabled: t.enabled ?? true,
+              lastRun: new Date().toISOString(),
+            });
           }
 
           fs.writeFileSync(
             path.join(dir, "triggers.json"),
-            JSON.stringify(parsed, null, 2) + "\n",
+            JSON.stringify(normalized, null, 2) + "\n",
           );
-          return ok(`Wrote triggers for agent "${args.id}"`);
+          return ok(`Wrote ${normalized.length} trigger(s) for agent "${args.id}"`);
+        },
+      ),
+    ],
+  });
+}
+
+const MAX_WORKING_ARRANGEMENT_LENGTH = 10000;
+
+export function createSelfManagementMcpServer(
+  agentDir: string,
+): McpSdkServerConfigWithInstance {
+  return createSdkMcpServer({
+    name: "self",
+    tools: [
+      tool(
+        "update_my_working_arrangement",
+        "Update how you operate. Use when you discover better approaches, user preferences about your workflow, or patterns that work well. Takes effect next conversation.",
+        {
+          content: z.string()
+            .min(1, "Working arrangement cannot be empty")
+            .max(MAX_WORKING_ARRANGEMENT_LENGTH, `Working arrangement cannot exceed ${MAX_WORKING_ARRANGEMENT_LENGTH} characters`)
+            .describe("Your new working arrangement — how you operate"),
+        },
+        async (args) => {
+          const configPath = path.join(agentDir, "agent.json");
+          if (!fs.existsSync(configPath)) {
+            return err("Agent configuration not found");
+          }
+          try {
+            const config = JSON.parse(fs.readFileSync(configPath, "utf-8"));
+            config.working_arrangement = args.content;
+            fs.writeFileSync(configPath, JSON.stringify(config, null, 2) + "\n");
+            return ok(`Updated working arrangement (${args.content.length} chars)`);
+          } catch (e) {
+            return err(`Failed to update: ${(e as Error).message}`);
+          }
+        },
+      ),
+
+      tool(
+        "read_my_working_arrangement",
+        "Read your current working arrangement before updating.",
+        {},
+        async () => {
+          const configPath = path.join(agentDir, "agent.json");
+          if (!fs.existsSync(configPath)) {
+            return err("Agent configuration not found");
+          }
+          try {
+            const config = JSON.parse(fs.readFileSync(configPath, "utf-8"));
+            return ok(config.working_arrangement ?? "(no working arrangement set)");
+          } catch (e) {
+            return err(`Failed to read: ${(e as Error).message}`);
+          }
         },
       ),
     ],

@@ -5,4 +5,4 @@ export type {
   EngineCallbacks,
 } from "./types.js";
 
-export { createClaudeEngine, claudeEngine } from "./claude.js";
+export { createClaudeEngine, claudeEngine, generateThreadTitle } from "./claude.js";

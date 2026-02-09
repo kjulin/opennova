@@ -8,6 +8,7 @@ import {
   loadFocuses,
   buildCoworkPrompt,
   parseCoworkResponse,
+  getAgentRole,
   createThread,
   listThreads,
   loadMessages,
@@ -379,7 +380,7 @@ export function App({ agentId: initialAgentId, mode: appMode = "chat", workingDi
     const agent: Agent = {
       id: agentId,
       name: agentConfig.name,
-      role: agentConfig.role,
+      role: getAgentRole(agentConfig),
     };
     dispatch({ type: "SET_AGENT", agent });
 
@@ -421,7 +422,7 @@ export function App({ agentId: initialAgentId, mode: appMode = "chat", workingDi
         const agent: Agent = {
           id: agentId,
           name: agentConfig.name,
-          role: agentConfig.role,
+          role: getAgentRole(agentConfig),
         };
         dispatch({ type: "SET_AGENT", agent });
 
@@ -452,7 +453,7 @@ export function App({ agentId: initialAgentId, mode: appMode = "chat", workingDi
       const agent: Agent = {
         id: agentId,
         name: agentConfig.name,
-        role: agentConfig.role,
+        role: getAgentRole(agentConfig),
       };
       dispatch({ type: "SET_AGENT", agent });
 
@@ -707,7 +708,7 @@ export function App({ agentId: initialAgentId, mode: appMode = "chat", workingDi
     const agent: Agent = {
       id: agentId,
       name: agentConfig.name,
-      role: agentConfig.role,
+      role: getAgentRole(agentConfig),
     };
     dispatch({ type: "SET_AGENT", agent });
     dispatch({ type: "SET_UI_MODE", uiMode: "cowork-select-focus" });

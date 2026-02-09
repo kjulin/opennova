@@ -1,7 +1,7 @@
 import type { McpServerConfig } from "@anthropic-ai/claude-agent-sdk";
 import {
   runThread as coreRunThread,
-  type ClaudeCallbacks,
+  type ThreadRunnerCallbacks,
   type RunThreadOverrides,
 } from "#core/index.js";
 import { bus } from "./events.js";
@@ -13,7 +13,7 @@ export async function runThread(
   agentDir: string,
   threadId: string,
   message: string,
-  callbacks?: ClaudeCallbacks,
+  callbacks?: ThreadRunnerCallbacks,
   extraMcpServers?: Record<string, McpServerConfig>,
   askAgentDepth?: number,
   abortController?: AbortController,

@@ -2,11 +2,11 @@ import path from "path";
 import type { McpServerConfig } from "@anthropic-ai/claude-agent-sdk";
 import { runtime as defaultRuntime, type Runtime } from "./runtime.js";
 import type { Model } from "./models.js";
-import { generateThreadTitle } from "./claude.js";
-import type { EngineCallbacks } from "./engine/index.js";
-import { loadAgents, buildSystemPrompt, getAgentCwd, getAgentDirectories, resolveSecurityLevel } from "./agents.js";
+import { generateThreadTitle, type EngineCallbacks } from "./engine/index.js";
+import { loadAgents, getAgentCwd, getAgentDirectories, resolveSecurityLevel } from "./agents.js";
+import { buildSystemPrompt } from "./prompts/index.js";
 import { createMemoryMcpServer } from "./memory.js";
-import { createAgentManagementMcpServer } from "./agent-management.js";
+import { createAgentManagementMcpServer, createSelfManagementMcpServer } from "./agent-management.js";
 import { createAskAgentMcpServer } from "./ask-agent.js";
 import { appendUsage, createUsageMcpServer } from "./usage.js";
 import { createSuggestEditMcpServer, type SuggestEditCallback } from "./suggest-edit.js";
@@ -96,15 +96,16 @@ export function createThreadRunner(runtime: Runtime = defaultRuntime): ThreadRun
 
       let result;
       try {
+        const cwd = getAgentCwd(agent);
         const directories = getAgentDirectories(agent);
-        const baseSystemPrompt = buildSystemPrompt(agent, agentDir, manifest.channel, security);
+        const baseSystemPrompt = buildSystemPrompt(agent, agentDir, manifest.channel, security, cwd, directories);
         const systemPrompt = overrides?.systemPromptSuffix
           ? `${baseSystemPrompt}\n\n${overrides.systemPromptSuffix}`
           : baseSystemPrompt;
         result = await runtime.run(
           message,
           {
-            cwd: getAgentCwd(agent),
+            cwd,
             ...(directories.length > 0 ? { directories } : {}),
             systemPrompt,
             ...(overrides?.model ? { model: overrides.model } : {}),
@@ -112,6 +113,7 @@ export function createThreadRunner(runtime: Runtime = defaultRuntime): ThreadRun
             ...(agent.subagents ? { agents: agent.subagents } : {}),
             mcpServers: {
               memory: createMemoryMcpServer(agentDir),
+              ...(security !== "sandbox" ? { self: createSelfManagementMcpServer(agentDir) } : {}),
               ...extraMcpServers,
               ...(agentId === "agent-builder" ? { agents: createAgentManagementMcpServer() } : {}),
               ...(agentId === "nova" ? { usage: createUsageMcpServer() } : {}),

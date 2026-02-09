@@ -1,4 +1,4 @@
-import { query } from "@anthropic-ai/claude-agent-sdk";
+import {query, type SettingSource} from "@anthropic-ai/claude-agent-sdk";
 import { log } from "../logger.js";
 import type { Engine, EngineOptions, EngineResult, EngineCallbacks } from "./types.js";
 
@@ -46,23 +46,35 @@ async function execQuery(
 ): Promise<EngineResult> {
   log.info("engine", `running${sessionId ? ` (session: ${sessionId})` : ""}`);
 
+  const queryOptions = {
+    ...(options.cwd ? { cwd: options.cwd } : {}),
+    ...(options.directories && options.directories.length > 0 ? { additionalDirectories: options.directories } : {}),
+    ...(options.systemPrompt ? { systemPrompt: options.systemPrompt } : {}),
+    ...(options.agents ? { agents: options.agents } : {}),
+    ...(options.mcpServers ? { mcpServers: options.mcpServers } : {}),
+    ...(options.model ? { model: options.model } : {}),
+    ...(options.maxTurns ? { maxTurns: options.maxTurns } : {}),
+    // Security options (injected by Runtime)
+    ...(options.permissionMode ? { permissionMode: options.permissionMode } : {}),
+    ...(options.allowedTools ? { allowedTools: options.allowedTools } : {}),
+    ...(options.disallowedTools ? { disallowedTools: options.disallowedTools } : {}),
+    ...(options.allowDangerouslySkipPermissions ? { allowDangerouslySkipPermissions: options.allowDangerouslySkipPermissions } : {}),
+    ...(sessionId ? { resume: sessionId } : {}),
+    settingSources: ["project"] as SettingSource[],
+  };
+
+  // Log options without mcpServers (may contain circular refs)
+  const { mcpServers, ...loggableOptions } = queryOptions as Record<string, unknown>;
+  log.debug("engine", "options", JSON.stringify({
+    ...loggableOptions,
+    ...(mcpServers ? { mcpServers: Object.keys(mcpServers as object) } : {}),
+  }, null, 2));
+
   const result = query({
     prompt: message,
     options: {
-      ...(options.cwd ? { cwd: options.cwd } : {}),
-      ...(options.directories && options.directories.length > 0 ? { additionalDirectories: options.directories } : {}),
-      ...(options.systemPrompt ? { systemPrompt: options.systemPrompt } : {}),
-      ...(options.agents ? { agents: options.agents } : {}),
-      ...(options.mcpServers ? { mcpServers: options.mcpServers } : {}),
-      ...(options.model ? { model: options.model } : {}),
-      ...(options.maxTurns ? { maxTurns: options.maxTurns } : {}),
-      // Security options (injected by Runtime)
-      ...(options.permissionMode ? { permissionMode: options.permissionMode } : {}),
-      ...(options.allowedTools ? { allowedTools: options.allowedTools } : {}),
-      ...(options.disallowedTools ? { disallowedTools: options.disallowedTools } : {}),
-      ...(options.allowDangerouslySkipPermissions ? { allowDangerouslySkipPermissions: options.allowDangerouslySkipPermissions } : {}),
-      ...(sessionId ? { resume: sessionId } : {}),
-      ...(abortController ? { abortController } : {}),
+      ...queryOptions,
+      ...(abortController ? { abortController } : {})
     },
   });
 
@@ -130,6 +142,36 @@ async function execQuery(
   }
 
   return { text: responseText.trim(), sessionId: resultSessionId, usage: resultUsage };
+}
+
+export async function generateThreadTitle(userMessage: string, assistantResponse: string): Promise<string | null> {
+  const userSnippet = userMessage.slice(0, 200);
+  const assistantSnippet = assistantResponse.slice(0, 200);
+  const prompt = `What is this conversation about? Reply with ONLY a short title (3-6 words). No quotes, no labels, no preamble.\n\nUser: ${userSnippet}\nAssistant: ${assistantSnippet}`;
+
+  const result = query({
+    prompt,
+    options: {
+      model: "haiku",
+      tools: [],
+      maxTurns: 1,
+      persistSession: false,
+      permissionMode: "dontAsk",
+    },
+  });
+
+  let text = "";
+  for await (const msg of result) {
+    if (msg.type === "result" && msg.subtype === "success") {
+      text = msg.result;
+    }
+  }
+
+  const title = text.trim()
+    .replace(/^["']|["']$/g, "")
+    .replace(/^(title|topic|conversation|subject|#)\s*[:—–-]\s*/i, "")
+    .trim();
+  return title || null;
 }
 
 export function createClaudeEngine(): Engine {
