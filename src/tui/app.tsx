@@ -169,6 +169,66 @@ export function App({ agentId: initialAgentId, mode: appMode = "chat", workingDi
     dispatch({ type: "CLEAR_SUGGESTION" });
   }, []);
 
+  const handleManualRun = useCallback(async () => {
+    if (!state.agent || !state.threadId || !state.focus || !workingDir) return;
+    if (state.loading) return;
+
+    dispatch({ type: "SET_LOADING", loading: true });
+    dispatch({ type: "SET_ERROR", error: null });
+
+    const agentDir = path.join(Config.workspaceDir, "agents", state.agent.id);
+
+    const callbacks: ThreadRunnerCallbacks = {
+      onAssistantMessage(msg) {
+        dispatch({ type: "SET_STATUS", status: msg });
+      },
+      onToolUse(_name, _input, summary) {
+        dispatch({ type: "SET_STATUS", status: summary });
+      },
+    };
+
+    const abortController = new AbortController();
+    abortControllerRef.current = abortController;
+
+    const overrides = {
+      systemPromptSuffix: buildCoworkPrompt(state.focus, workingDir),
+      model: state.fastMode ? "haiku" as const : "opus" as const,
+      onSuggestEdit: handleSuggestEdit,
+    };
+
+    try {
+      const result = await runThread(
+        agentDir,
+        state.threadId,
+        "The user requested a manual review. Check the current state of the files and provide feedback.",
+        callbacks,
+        undefined,
+        undefined,
+        abortController,
+        overrides,
+      );
+
+      if (!abortController.signal.aborted && result.text) {
+        dispatch({
+          type: "ADD_MESSAGE",
+          message: {
+            role: "assistant",
+            text: result.text,
+            timestamp: new Date().toISOString(),
+          },
+        });
+      }
+    } catch (err) {
+      if (!abortController.signal.aborted) {
+        dispatch({ type: "SET_ERROR", error: (err as Error).message });
+      }
+    } finally {
+      abortControllerRef.current = null;
+      dispatch({ type: "SET_STATUS", status: null });
+      dispatch({ type: "SET_LOADING", loading: false });
+    }
+  }, [state.agent, state.threadId, state.focus, state.fastMode, state.loading, workingDir, handleSuggestEdit]);
+
   const handleApplySuggestion = useCallback(async () => {
     if (!state.pendingSuggestion || !workingDir) return;
 
@@ -240,6 +300,12 @@ export function App({ agentId: initialAgentId, mode: appMode = "chat", workingDi
       // 'n' rejects pending suggestion
       if (input === "n" && state.pendingSuggestion) {
         handleRejectSuggestion();
+        return;
+      }
+
+      // 'r' manually triggers agent run
+      if (input === "r") {
+        handleManualRun();
         return;
       }
     }
@@ -863,7 +929,7 @@ export function App({ agentId: initialAgentId, mode: appMode = "chat", workingDi
         workingDir={workingDir ?? process.cwd()}
         agentName={state.agent?.name ?? null}
         focusName={state.focus?.name ? `${state.focus.name}${modeLabel}` : null}
-        hints="Tab · m:mode · f:focus · a:agent"
+        hints="Tab · r:run · m:mode · f:focus · a:agent"
       />
     );
     const fullStatusBar = (
@@ -889,7 +955,7 @@ export function App({ agentId: initialAgentId, mode: appMode = "chat", workingDi
       return (
         <Box flexDirection="column" height="100%">
           {minimalStatusBar}
-          <Box flexDirection="column" flexGrow={1} paddingX={2} paddingTop={2}>
+          <Box flexDirection="column" flexGrow={1} paddingX={2} paddingTop={2} marginBottom={2}>
             {state.loading ? (
               <Text dimColor>{state.status ?? "Thinking..."}</Text>
             ) : parsed ? (

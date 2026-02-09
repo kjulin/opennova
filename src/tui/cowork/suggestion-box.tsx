@@ -28,7 +28,6 @@ export function SuggestionBox({ suggestion }: Props) {
       borderColor="yellow"
       paddingX={1}
       marginX={1}
-      marginTop={1}
       marginBottom={1}
     >
       <Box justifyContent="space-between">
