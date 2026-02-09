@@ -180,6 +180,9 @@ export function App({ agentId: initialAgentId, mode: appMode = "chat", workingDi
     const agentDir = path.join(Config.workspaceDir, "agents", state.agent.id);
 
     const callbacks: ThreadRunnerCallbacks = {
+      onThinking() {
+        dispatch({ type: "SET_STATUS", status: "Thinking…" });
+      },
       onAssistantMessage(msg) {
         dispatch({ type: "SET_STATUS", status: msg });
       },
@@ -492,6 +495,9 @@ export function App({ agentId: initialAgentId, mode: appMode = "chat", workingDi
       state.threadId,
       greetingMessage,
       {
+        onThinking() {
+          dispatch({ type: "SET_STATUS", status: "Thinking…" });
+        },
         onAssistantMessage(msg) {
           dispatch({ type: "SET_STATUS", status: msg });
         },
@@ -541,6 +547,9 @@ export function App({ agentId: initialAgentId, mode: appMode = "chat", workingDi
       state.threadId,
       coworkGreeting,
       {
+        onThinking() {
+          dispatch({ type: "SET_STATUS", status: "Thinking…" });
+        },
         onAssistantMessage(msg) {
           dispatch({ type: "SET_STATUS", status: msg });
         },
@@ -632,6 +641,9 @@ export function App({ agentId: initialAgentId, mode: appMode = "chat", workingDi
       const agentDir = path.join(Config.workspaceDir, "agents", state.agent.id);
 
       const callbacks: ThreadRunnerCallbacks = {
+        onThinking() {
+          dispatch({ type: "SET_STATUS", status: "Thinking…" });
+        },
         onAssistantMessage(msg) {
           dispatch({ type: "SET_STATUS", status: msg });
         },
@@ -726,6 +738,9 @@ export function App({ agentId: initialAgentId, mode: appMode = "chat", workingDi
     const agentDir = path.join(Config.workspaceDir, "agents", agentId);
 
     const callbacks: ThreadRunnerCallbacks = {
+      onThinking() {
+        dispatch({ type: "SET_STATUS", status: "Thinking…" });
+      },
       onAssistantMessage(msg) {
         dispatch({ type: "SET_STATUS", status: msg });
       },
@@ -798,6 +813,9 @@ export function App({ agentId: initialAgentId, mode: appMode = "chat", workingDi
     const agentDir = path.join(Config.workspaceDir, "agents", state.agent.id);
 
     const callbacks: ThreadRunnerCallbacks = {
+      onThinking() {
+        dispatch({ type: "SET_STATUS", status: "Thinking…" });
+      },
       onAssistantMessage(msg) {
         dispatch({ type: "SET_STATUS", status: msg });
       },

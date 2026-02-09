@@ -1,6 +1,14 @@
+import path from "path";
 import {query, type SettingSource} from "@anthropic-ai/claude-agent-sdk";
 import { log } from "../logger.js";
 import type { Engine, EngineOptions, EngineResult, EngineCallbacks } from "./types.js";
+
+/** Shorten a file path to parent/filename for display */
+function shortPath(filePath: string): string {
+  const parent = path.basename(path.dirname(filePath));
+  const file = path.basename(filePath);
+  return parent ? `${parent}/${file}` : file;
+}
 
 function friendlyToolStatus(toolName: string, input: Record<string, unknown>): string {
   switch (toolName) {
@@ -9,11 +17,11 @@ function friendlyToolStatus(toolName: string, input: Record<string, unknown>): s
     case "WebFetch":
       return input.url ? `Fetching ${input.url}…` : "Fetching a webpage…";
     case "Read":
-      return input.file_path ? `Reading ${input.file_path}…` : "Reading files…";
+      return input.file_path ? `Reading ${shortPath(String(input.file_path))}…` : "Reading files…";
     case "Write":
-      return input.file_path ? `Writing ${input.file_path}…` : "Writing a file…";
+      return input.file_path ? `Writing ${shortPath(String(input.file_path))}…` : "Writing a file…";
     case "Edit":
-      return input.file_path ? `Editing ${input.file_path}…` : "Editing a file…";
+      return input.file_path ? `Editing ${shortPath(String(input.file_path))}…` : "Editing a file…";
     case "Bash":
       return input.command ? `Running \`${input.command}\`…` : "Running a command…";
     case "Grep":
@@ -31,7 +39,7 @@ function friendlyToolStatus(toolName: string, input: Record<string, unknown>): s
     case "mcp__usage__get_usage_stats":
       return input.period ? `Checking ${input.period}'s usage…` : "Checking usage stats…";
     case "mcp__suggest-edit__suggest_edit":
-      return input.file ? `Suggesting edit to ${input.file}…` : "Suggesting an edit…";
+      return input.file ? `Suggesting edit to ${shortPath(String(input.file))}…` : "Suggesting an edit…";
     default:
       return `Using ${toolName}…`;
   }
@@ -78,14 +86,29 @@ async function execQuery(
     },
   });
 
+  // Signal thinking immediately at start
+  callbacks?.onThinking?.();
+
   let responseText = "";
   let resultSessionId: string | undefined;
   let resultUsage: EngineResult["usage"] | undefined;
+  let thinkingTimeout: ReturnType<typeof setTimeout> | null = null;
 
   for await (const event of result) {
     log.debug("engine", `event: ${event.type}${("subtype" in event && event.subtype) ? `:${event.subtype}` : ""}`);
 
-    if (event.type === "assistant") {
+    // Clear any pending thinking timeout on new events
+    if (thinkingTimeout) {
+      clearTimeout(thinkingTimeout);
+      thinkingTimeout = null;
+    }
+
+    if (event.type === "user") {
+      // Tool results delivered — show "Thinking..." after 3s delay if no other event
+      thinkingTimeout = setTimeout(() => {
+        callbacks?.onThinking?.();
+      }, 3000);
+    } else if (event.type === "assistant") {
       resultSessionId = event.message.session_id;
       const hasToolUse = event.message.content.some((b: { type: string }) => b.type === "tool_use");
       for (const block of event.message.content) {
@@ -134,6 +157,11 @@ async function execQuery(
       }
       log.error("engine", `${event.subtype}:`, "error" in event ? (event as { error: string }).error : "unknown error");
     }
+  }
+
+  // Clean up any pending timeout
+  if (thinkingTimeout) {
+    clearTimeout(thinkingTimeout);
   }
 
   if (abortController?.signal.aborted) {

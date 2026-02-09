@@ -265,6 +265,9 @@ export function startTelegram() {
     runThread(
       agentDir, threadId, text,
       {
+        onThinking() {
+          updateStatus("Thinking…");
+        },
         onAssistantMessage(text) {
           updateStatus(text);
         },
