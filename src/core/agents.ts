@@ -2,6 +2,7 @@ import fs from "fs";
 import os from "os";
 import path from "path";
 import { Config } from "./config.js";
+import type { Model } from "./models.js";
 import { SettingsSchema, type SecurityLevel, type Settings } from "./schemas.js";
 import { log } from "./logger.js";
 
@@ -10,7 +11,7 @@ export interface SubagentConfig {
   prompt: string;
   tools?: string[];
   disallowedTools?: string[];
-  model?: "sonnet" | "opus" | "haiku";
+  model?: Model;
   maxTurns?: number;
 }
 

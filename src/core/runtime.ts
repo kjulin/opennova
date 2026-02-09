@@ -1,11 +1,12 @@
 import { claudeEngine, type Engine, type EngineOptions, type EngineResult, type EngineCallbacks } from "./engine/index.js";
 import { securityOptions, type SecurityLevel } from "./security.js";
+import type { Model } from "./models.js";
 
 export interface RuntimeOptions {
   cwd?: string | undefined;
   directories?: string[] | undefined;
   systemPrompt?: string | undefined;
-  model?: "sonnet" | "opus" | "haiku" | undefined;
+  model?: Model | undefined;
   maxTurns?: number | undefined;
   agents?: EngineOptions["agents"];
   mcpServers?: EngineOptions["mcpServers"];

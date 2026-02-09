@@ -1,0 +1,12 @@
+name: Structure
+description: Organization, outline, and document flow
+prompt: |
+  Focus on document structure and organization. Watch for:
+  - Logical ordering of sections and ideas
+  - Missing sections or gaps in coverage
+  - Redundant or misplaced content
+  - Transitions between sections
+  - Overall coherence and narrative flow
+
+  Suggest structural improvements. Only comment when reorganization would meaningfully
+  improve the document.

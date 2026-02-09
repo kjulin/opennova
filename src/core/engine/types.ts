@@ -1,4 +1,5 @@
 import type { McpServerConfig } from "@anthropic-ai/claude-agent-sdk";
+import type { Model } from "../models.js";
 
 export interface EngineCallbacks {
   onAssistantMessage?: (text: string) => void;
@@ -25,7 +26,7 @@ export interface EngineOptions {
 
   // Prompt configuration
   systemPrompt?: string | undefined;
-  model?: "sonnet" | "opus" | "haiku" | undefined;
+  model?: Model | undefined;
   maxTurns?: number | undefined;
 
   // Sub-agents and MCP
@@ -34,7 +35,7 @@ export interface EngineOptions {
     prompt: string;
     tools?: string[];
     disallowedTools?: string[];
-    model?: "sonnet" | "opus" | "haiku";
+    model?: Model;
     maxTurns?: number;
   }> | undefined;
   mcpServers?: Record<string, McpServerConfig> | undefined;

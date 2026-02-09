@@ -30,6 +30,8 @@ function friendlyToolStatus(toolName: string, input: Record<string, unknown>): s
     }
     case "mcp__usage__get_usage_stats":
       return input.period ? `Checking ${input.period}'s usage…` : "Checking usage stats…";
+    case "mcp__suggest-edit__suggest_edit":
+      return input.file ? `Suggesting edit to ${input.file}…` : "Suggesting an edit…";
     default:
       return `Using ${toolName}…`;
   }

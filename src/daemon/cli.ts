@@ -109,10 +109,57 @@ switch (command) {
     run({ agentId });
     break;
   }
+  case "cowork": {
+    const os = await import("os");
+    const { Config, setLogger } = await import("#core/index.js");
+    const workspaceDir = path.join(os.homedir(), ".nova");
+    Config.workspaceDir = workspaceDir;
+
+    // File-only logger for TUI (no console output)
+    const logsDir = path.join(workspaceDir, "logs");
+    fs.mkdirSync(logsDir, { recursive: true });
+    const logStream = fs.createWriteStream(path.join(logsDir, "cowork.log"), { flags: "a" });
+    const writeLog = (level: string, tag: string, msg: string, args: unknown[]) => {
+      const ts = new Date().toISOString();
+      const extra = args.length > 0 ? " " + args.map(String).join(" ") : "";
+      logStream.write(`${ts} ${level.toUpperCase().padEnd(5)} [${tag}] ${msg}${extra}\n`);
+    };
+    setLogger({
+      debug(tag, msg, ...args) { writeLog("debug", tag, msg, args); },
+      info(tag, msg, ...args) { writeLog("info", tag, msg, args); },
+      warn(tag, msg, ...args) { writeLog("warn", tag, msg, args); },
+      error(tag, msg, ...args) { writeLog("error", tag, msg, args); },
+    });
+
+    // Redirect console and stderr to log file
+    const writeToLog = (data: string) => logStream.write(data + "\n");
+    console.log = (...args) => writeToLog(args.map(String).join(" "));
+    console.info = (...args) => writeToLog(args.map(String).join(" "));
+    console.warn = (...args) => writeToLog("[WARN] " + args.map(String).join(" "));
+    console.error = (...args) => writeToLog("[ERROR] " + args.map(String).join(" "));
+    console.debug = (...args) => writeToLog("[DEBUG] " + args.map(String).join(" "));
+
+    process.stderr.write = (chunk: Uint8Array | string) => {
+      logStream.write(chunk);
+      return true;
+    };
+
+    process.on("uncaughtException", (err) => {
+      logStream.write(`[UNCAUGHT] ${err.stack ?? err.message}\n`);
+    });
+    process.on("unhandledRejection", (reason) => {
+      logStream.write(`[UNHANDLED] ${reason}\n`);
+    });
+
+    const { run } = await import("#tui/index.js");
+    run({ mode: "cowork", workingDir: process.cwd() });
+    break;
+  }
   default:
     console.log("Usage: nova <command>\n");
     console.log("Commands:");
     console.log("  chat [agent]                  Start interactive chat (default: nova)");
+    console.log("  cowork                        Start cowork mode in current directory");
     console.log("  init                          Set up nova workspace (interactive)");
     console.log("  daemon                        Start the daemon");
     console.log("  config list                   Show all configuration");

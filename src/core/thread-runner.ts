@@ -1,14 +1,15 @@
 import path from "path";
 import type { McpServerConfig } from "@anthropic-ai/claude-agent-sdk";
 import { runtime as defaultRuntime, type Runtime } from "./runtime.js";
-import { generateThreadTitle } from "./engine/index.js";
-import type { EngineCallbacks } from "./engine/index.js";
+import type { Model } from "./models.js";
+import { generateThreadTitle, type EngineCallbacks } from "./engine/index.js";
 import { loadAgents, getAgentCwd, getAgentDirectories, resolveSecurityLevel } from "./agents.js";
 import { buildSystemPrompt } from "./prompts/index.js";
 import { createMemoryMcpServer } from "./memory.js";
 import { createAgentManagementMcpServer, createSelfManagementMcpServer } from "./agent-management.js";
 import { createAskAgentMcpServer } from "./ask-agent.js";
 import { appendUsage, createUsageMcpServer } from "./usage.js";
+import { createSuggestEditMcpServer, type SuggestEditCallback } from "./suggest-edit.js";
 import {
   threadPath,
   loadManifest,
@@ -20,8 +21,10 @@ import {
 import { log } from "./logger.js";
 
 export interface RunThreadOverrides {
-  model?: "sonnet" | "opus" | "haiku" | undefined;
+  model?: Model | undefined;
   maxTurns?: number | undefined;
+  systemPromptSuffix?: string | undefined;
+  onSuggestEdit?: SuggestEditCallback | undefined;
 }
 
 export interface ThreadRunnerCallbacks extends EngineCallbacks {
@@ -95,12 +98,16 @@ export function createThreadRunner(runtime: Runtime = defaultRuntime): ThreadRun
       try {
         const cwd = getAgentCwd(agent);
         const directories = getAgentDirectories(agent);
+        const baseSystemPrompt = buildSystemPrompt(agent, agentDir, manifest.channel, security, cwd, directories);
+        const systemPrompt = overrides?.systemPromptSuffix
+          ? `${baseSystemPrompt}\n\n${overrides.systemPromptSuffix}`
+          : baseSystemPrompt;
         result = await runtime.run(
           message,
           {
             cwd,
             ...(directories.length > 0 ? { directories } : {}),
-            systemPrompt: buildSystemPrompt(agent, agentDir, manifest.channel, security, cwd, directories),
+            systemPrompt,
             ...(overrides?.model ? { model: overrides.model } : {}),
             ...(overrides?.maxTurns ? { maxTurns: overrides.maxTurns } : {}),
             ...(agent.subagents ? { agents: agent.subagents } : {}),
@@ -111,6 +118,7 @@ export function createThreadRunner(runtime: Runtime = defaultRuntime): ThreadRun
               ...(agentId === "agent-builder" ? { agents: createAgentManagementMcpServer() } : {}),
               ...(agentId === "nova" ? { usage: createUsageMcpServer() } : {}),
               ...(agent.allowedAgents && security !== "sandbox" ? { "ask-agent": createAskAgentMcpServer(agent, askAgentDepth ?? 0, runThreadForAskAgent) } : {}),
+              ...(overrides?.onSuggestEdit ? { "suggest-edit": createSuggestEditMcpServer(overrides.onSuggestEdit) } : {}),
             },
           },
           security,
