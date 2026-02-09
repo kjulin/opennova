@@ -2,6 +2,7 @@ import type { McpServerConfig } from "@anthropic-ai/claude-agent-sdk";
 import type { Model } from "../models.js";
 
 export interface EngineCallbacks {
+  onThinking?: () => void;
   onAssistantMessage?: (text: string) => void;
   onToolUse?: (toolName: string, input: Record<string, unknown>, summary: string) => void;
   onToolUseSummary?: (summary: string) => void;

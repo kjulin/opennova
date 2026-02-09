@@ -168,6 +168,9 @@ export function startAgentTelegram(
     runThread(
       agentDir, threadId, text,
       {
+        onThinking() {
+          updateStatus("Thinking…");
+        },
         onAssistantMessage(text) {
           updateStatus(text);
         },
