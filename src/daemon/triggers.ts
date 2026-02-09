@@ -11,9 +11,11 @@ import {
 import {
   Config,
   TriggerSchema,
+  TelegramConfigSchema,
   safeParseJsonFile,
   createThread,
   type Trigger,
+  type TelegramConfig,
 } from "#core/index.js";
 import { runThread } from "./runner.js";
 import { log } from "./logger.js";
@@ -177,6 +179,15 @@ export function createTriggerMcpServer(
   });
 }
 
+function loadTelegramConfig(): TelegramConfig | null {
+  const configPath = path.join(Config.workspaceDir, "telegram.json");
+  if (!fs.existsSync(configPath)) return null;
+  const raw = safeParseJsonFile(configPath, "telegram.json");
+  if (!raw) return null;
+  const result = TelegramConfigSchema.safeParse(raw);
+  return result.success ? result.data : null;
+}
+
 export function startTriggerScheduler() {
   const agentsDir = path.join(Config.workspaceDir, "agents");
 
@@ -185,6 +196,7 @@ export function startTriggerScheduler() {
     log.debug("trigger", "scheduler tick");
 
     const systemTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const telegramConfig = loadTelegramConfig();
 
     for (const entry of fs.readdirSync(agentsDir, { withFileTypes: true })) {
       if (!entry.isDirectory()) continue;
@@ -226,12 +238,19 @@ export function startTriggerScheduler() {
             trigger.lastRun = new Date().toISOString();
             changed = true;
 
-            const threadId = createThread(agentDir, trigger.channel);
+            // Check if agent has a dedicated bot for telegram channel
+            let effectiveChannel = trigger.channel;
+            if (trigger.channel === "telegram" && telegramConfig?.agentBots?.[agentId]) {
+              effectiveChannel = `telegram:${agentId}`;
+              log.debug("trigger", `${agentId}/${trigger.id} using dedicated bot channel ${effectiveChannel}`);
+            }
+
+            const threadId = createThread(agentDir, effectiveChannel);
 
             log.info("trigger", `firing for agent ${agentId} thread ${threadId}: "${trigger.prompt}"`);
 
             runThread(agentDir, threadId, trigger.prompt, undefined, {
-              triggers: createTriggerMcpServer(agentDir, trigger.channel),
+              triggers: createTriggerMcpServer(agentDir, effectiveChannel),
             })
               .then(() => {
                 log.info("trigger", `completed for agent ${agentId} thread ${threadId}`);
