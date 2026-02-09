@@ -7,7 +7,7 @@ import { log } from "./logger.js";
 const STANDARD_ALLOWED_TOOLS = [
   "Read", "Write", "Edit", "Glob", "Grep",
   "WebSearch", "WebFetch", "Task", "NotebookEdit",
-  "mcp__memory__*", "mcp__triggers__*", "mcp__agents__*", "mcp__ask-agent__*", "mcp__usage__*",
+  "mcp__memory__*", "mcp__triggers__*", "mcp__agents__*", "mcp__ask-agent__*", "mcp__usage__*", "mcp__suggest-edit__*",
 ];
 
 /**
@@ -28,7 +28,7 @@ function buildOptions(level: SecurityLevel): Record<string, unknown> {
     case "sandbox":
       return {
         permissionMode: "dontAsk",
-        allowedTools: ["WebSearch", "WebFetch", "Task", "mcp__memory__*", "mcp__agents__*", "mcp__triggers__*", "mcp__usage__*"],
+        allowedTools: ["WebSearch", "WebFetch", "Task", "mcp__memory__*", "mcp__agents__*", "mcp__triggers__*", "mcp__usage__*", "mcp__suggest-edit__*"],
       };
     case "standard":
       return {

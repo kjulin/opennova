@@ -117,3 +117,8 @@ export {
   type UsageRecord,
   type UsageStats,
 } from "./usage.js";
+export {
+  createSuggestEditMcpServer,
+  type EditSuggestion,
+  type SuggestEditCallback,
+} from "./suggest-edit.js";

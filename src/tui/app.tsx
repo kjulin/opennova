@@ -1,6 +1,7 @@
 import React, { useReducer, useEffect, useCallback, useMemo, useRef } from "react";
 import { Box, Text, useApp, useInput } from "ink";
 import path from "path";
+import fs from "fs";
 import {
   Config,
   loadAgents,
@@ -15,6 +16,7 @@ import {
   type Focus,
   type ThreadInfo,
   type ThreadRunnerCallbacks,
+  type EditSuggestion,
 } from "#core/index.js";
 import { Chat } from "./components/chat.js";
 import { ThreadSelect } from "./components/thread-select.js";
@@ -23,8 +25,10 @@ import { FocusSelect } from "./components/focus-select.js";
 import {
   useFileWatcher,
   useCoordinator,
+  useSuggestionExpiration,
   CoworkAgentSelect,
   CoworkStatusBar,
+  SuggestionBox,
 } from "./cowork/index.js";
 import type { Message, Agent } from "./types.js";
 import type { AppMode } from "./index.js";
@@ -51,6 +55,7 @@ interface AppState {
   error: string | null;
   minimalMode: boolean;
   fastMode: boolean; // false = Deep Mode (opus), true = Fast Mode (haiku)
+  pendingSuggestion: EditSuggestion | null;
 }
 
 type Action =
@@ -68,7 +73,9 @@ type Action =
   | { type: "CLEAR_THREAD"; threadId: string }
   | { type: "START_COWORK"; threadId: string; focus: Focus }
   | { type: "TOGGLE_MINIMAL_MODE" }
-  | { type: "TOGGLE_MODE" };
+  | { type: "TOGGLE_MODE" }
+  | { type: "SET_SUGGESTION"; suggestion: EditSuggestion }
+  | { type: "CLEAR_SUGGESTION" };
 
 function reducer(state: AppState, action: Action): AppState {
   switch (action.type) {
@@ -112,6 +119,10 @@ function reducer(state: AppState, action: Action): AppState {
       return { ...state, minimalMode: !state.minimalMode };
     case "TOGGLE_MODE":
       return { ...state, fastMode: !state.fastMode };
+    case "SET_SUGGESTION":
+      return { ...state, pendingSuggestion: action.suggestion };
+    case "CLEAR_SUGGESTION":
+      return { ...state, pendingSuggestion: null };
     default:
       return state;
   }
@@ -131,6 +142,7 @@ const initialState: AppState = {
   error: null,
   minimalMode: true, // Start in minimal mode for cleaner view
   fastMode: false, // Start in Deep Mode (opus)
+  pendingSuggestion: null,
 };
 
 interface Props {
@@ -148,6 +160,50 @@ export function App({ agentId: initialAgentId, mode: appMode = "chat", workingDi
   const abortControllerRef = useRef<AbortController | null>(null);
   const greetingRunRef = useRef(false);
 
+  // Suggestion handlers (defined early so they're available in useInput)
+  const handleSuggestEdit = useCallback((suggestion: EditSuggestion) => {
+    dispatch({ type: "SET_SUGGESTION", suggestion });
+  }, []);
+
+  const handleRejectSuggestion = useCallback(() => {
+    dispatch({ type: "CLEAR_SUGGESTION" });
+  }, []);
+
+  const handleApplySuggestion = useCallback(async () => {
+    if (!state.pendingSuggestion || !workingDir) return;
+
+    const suggestion = state.pendingSuggestion;
+    // Handle both absolute and relative paths
+    const filePath = path.isAbsolute(suggestion.file)
+      ? suggestion.file
+      : path.join(workingDir, suggestion.file);
+
+    try {
+      const content = await fs.promises.readFile(filePath, "utf-8");
+      if (!content.includes(suggestion.oldString)) {
+        dispatch({ type: "SET_ERROR", error: "Could not find text to replace - file may have changed" });
+        dispatch({ type: "CLEAR_SUGGESTION" });
+        return;
+      }
+
+      const newContent = content.replace(suggestion.oldString, suggestion.newString);
+      await fs.promises.writeFile(filePath, newContent);
+
+      dispatch({ type: "CLEAR_SUGGESTION" });
+      dispatch({
+        type: "ADD_MESSAGE",
+        message: {
+          role: "assistant",
+          text: `Applied edit to ${suggestion.file}`,
+          timestamp: new Date().toISOString(),
+        },
+      });
+    } catch (err) {
+      dispatch({ type: "SET_ERROR", error: (err as Error).message });
+      dispatch({ type: "CLEAR_SUGGESTION" });
+    }
+  }, [state.pendingSuggestion, workingDir]);
+
   useInput((input, key) => {
     // Tab toggles minimal mode in cowork
     if (key.tab && state.uiMode === "cowork") {
@@ -155,22 +211,37 @@ export function App({ agentId: initialAgentId, mode: appMode = "chat", workingDi
       return;
     }
 
-    // 'm' toggles between Fast Mode (haiku) and Deep Mode (opus)
-    if (input === "m" && state.uiMode === "cowork" && !state.loading) {
-      dispatch({ type: "TOGGLE_MODE" });
-      return;
-    }
+    // Letter shortcuts only work in minimal mode (no text input)
+    if (state.uiMode === "cowork" && state.minimalMode && !state.loading) {
+      // 'm' toggles between Fast Mode (haiku) and Deep Mode (opus)
+      if (input === "m") {
+        dispatch({ type: "TOGGLE_MODE" });
+        return;
+      }
 
-    // 'f' changes focus in cowork
-    if (input === "f" && state.uiMode === "cowork" && !state.loading) {
-      dispatch({ type: "SET_UI_MODE", uiMode: "cowork-select-focus" });
-      return;
-    }
+      // 'f' changes focus in cowork
+      if (input === "f") {
+        dispatch({ type: "SET_UI_MODE", uiMode: "cowork-select-focus" });
+        return;
+      }
 
-    // 'a' changes agent in cowork
-    if (input === "a" && state.uiMode === "cowork" && !state.loading) {
-      dispatch({ type: "SET_UI_MODE", uiMode: "cowork-select-agent" });
-      return;
+      // 'a' changes agent in cowork
+      if (input === "a") {
+        dispatch({ type: "SET_UI_MODE", uiMode: "cowork-select-agent" });
+        return;
+      }
+
+      // 'y' applies pending suggestion
+      if (input === "y" && state.pendingSuggestion) {
+        handleApplySuggestion();
+        return;
+      }
+
+      // 'n' rejects pending suggestion
+      if (input === "n" && state.pendingSuggestion) {
+        handleRejectSuggestion();
+        return;
+      }
     }
 
     if (key.escape) {
@@ -674,6 +745,7 @@ export function App({ agentId: initialAgentId, mode: appMode = "chat", workingDi
     const overrides = {
       systemPromptSuffix: buildCoworkPrompt(state.focus, workingDir),
       model: state.fastMode ? "haiku" as const : "opus" as const,
+      onSuggestEdit: handleSuggestEdit,
     };
 
     try {
@@ -708,19 +780,33 @@ export function App({ agentId: initialAgentId, mode: appMode = "chat", workingDi
       dispatch({ type: "SET_STATUS", status: null });
       dispatch({ type: "SET_LOADING", loading: false });
     }
-  }, [state.agent, state.threadId, state.focus, state.fastMode, workingDir]);
+  }, [state.agent, state.threadId, state.focus, state.fastMode, workingDir, handleSuggestEdit]);
 
   // Cowork coordinator
   const coordinator = useCoordinator({
-    debounceMs: 10000, // Wait 10 seconds after last change before triggering
+    debounceMs: 4000, // Wait 4 seconds after last change before triggering
     onTrigger: handleCoworkTrigger,
   });
+
+  // Handle file change - invalidate suggestion if target file changed
+  const handleFileChanged = useCallback((file: string) => {
+    if (state.pendingSuggestion && state.pendingSuggestion.file === file) {
+      dispatch({ type: "CLEAR_SUGGESTION" });
+    }
+    coordinator.onFileChanged(file);
+  }, [state.pendingSuggestion, coordinator]);
 
   // File watcher for cowork mode
   useFileWatcher({
     workingDir: workingDir ?? process.cwd(),
     enabled: state.uiMode === "cowork",
-    onFileChanged: coordinator.onFileChanged,
+    onFileChanged: handleFileChanged,
+  });
+
+  // Auto-expire pending suggestions
+  useSuggestionExpiration({
+    suggestion: state.pendingSuggestion,
+    onExpire: handleRejectSuggestion,
   });
 
   const threadTitle = useMemo(() => {
@@ -771,13 +857,21 @@ export function App({ agentId: initialAgentId, mode: appMode = "chat", workingDi
 
   if (state.uiMode === "cowork") {
     const modeLabel = state.fastMode ? " ⚡ Fast" : " 🧠 Deep";
-    const coworkStatusBar = (
+    // Both modes show pending at bottom, not in status bar
+    const minimalStatusBar = (
       <CoworkStatusBar
         workingDir={workingDir ?? process.cwd()}
         agentName={state.agent?.name ?? null}
         focusName={state.focus?.name ? `${state.focus.name}${modeLabel}` : null}
-        pendingFiles={coordinator.pendingFiles}
         hints="Tab · m:mode · f:focus · a:agent"
+      />
+    );
+    const fullStatusBar = (
+      <CoworkStatusBar
+        workingDir={workingDir ?? process.cwd()}
+        agentName={state.agent?.name ?? null}
+        focusName={state.focus?.name ? `${state.focus.name}${modeLabel}` : null}
+        hints="Tab to minimal mode"
       />
     );
 
@@ -791,16 +885,6 @@ export function App({ agentId: initialAgentId, mode: appMode = "chat", workingDi
       const importanceColor = parsed?.importance === "low" ? "gray"
         : parsed?.importance === "high" ? "green"
         : undefined; // medium = default white
-
-      const modeIndicator = state.fastMode ? " ⚡ Fast" : " 🧠 Deep";
-      const minimalStatusBar = (
-        <CoworkStatusBar
-          workingDir={workingDir ?? process.cwd()}
-          agentName={state.agent?.name ?? null}
-          focusName={state.focus?.name ? `${state.focus.name}${modeIndicator}` : null}
-          hints="Tab · m:mode · f:focus · a:agent"
-        />
-      );
 
       return (
         <Box flexDirection="column" height="100%">
@@ -822,20 +906,29 @@ export function App({ agentId: initialAgentId, mode: appMode = "chat", workingDi
                 <Text color="red">Error: {state.error}</Text>
               </Box>
             )}
-            {pendingCount > 0 && !state.loading && (
-              <Box marginTop={2}>
-                <Text color="yellow">
-                  {pendingCount === 1 ? "1 change pending..." : `${pendingCount} changes pending...`}
-                </Text>
-              </Box>
-            )}
           </Box>
+          {state.pendingSuggestion && (
+            <SuggestionBox suggestion={state.pendingSuggestion} />
+          )}
+          {pendingCount > 0 && !state.loading && (
+            <Box paddingX={2} marginBottom={1}>
+              <Text color="yellow">
+                {pendingCount === 1 ? "1 change pending..." : `${pendingCount} changes pending...`}
+              </Text>
+            </Box>
+          )}
         </Box>
       );
     }
 
+    const pendingCount = coordinator.pendingFiles.length;
+
     return (
       <Box flexDirection="column" height="100%">
+        {fullStatusBar}
+        {state.pendingSuggestion && (
+          <SuggestionBox suggestion={state.pendingSuggestion} />
+        )}
         <Chat
           agent={state.agent}
           threadTitle={null}
@@ -845,8 +938,14 @@ export function App({ agentId: initialAgentId, mode: appMode = "chat", workingDi
           error={state.error}
           onSubmit={handleSubmit}
           selectComponent={null}
-          statusBar={coworkStatusBar}
         />
+        {pendingCount > 0 && !state.loading && (
+          <Box paddingX={1} marginBottom={1}>
+            <Text color="yellow">
+              {pendingCount === 1 ? "1 change pending..." : `${pendingCount} changes pending...`}
+            </Text>
+          </Box>
+        )}
       </Box>
     );
   }
