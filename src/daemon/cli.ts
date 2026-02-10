@@ -109,6 +109,26 @@ switch (command) {
     run({ agentId });
     break;
   }
+  case "obsidian": {
+    const subcommand = process.argv[3];
+    const vaultPath = process.argv[4];
+
+    if (subcommand === "install" && vaultPath) {
+      const { obsidianInstall } = await import("./commands/obsidian.js");
+      obsidianInstall(vaultPath);
+    } else if (subcommand === "uninstall" && vaultPath) {
+      const { obsidianUninstall } = await import("./commands/obsidian.js");
+      obsidianUninstall(vaultPath);
+    } else {
+      console.log("Usage: nova obsidian <command> <vault-path>\n");
+      console.log("Commands:");
+      console.log("  install <path>    Install Nova Cowork plugin to vault");
+      console.log("  uninstall <path>  Remove plugin from vault");
+      console.log("\nExample:");
+      console.log("  nova obsidian install ~/my-vault");
+    }
+    break;
+  }
   case "cowork": {
     const os = await import("os");
     const { Config, setLogger } = await import("#core/index.js");
@@ -172,6 +192,8 @@ switch (command) {
     console.log("  agent <id> telegram remove    Remove agent's dedicated bot");
     console.log("  status                        Show workspace and configuration status");
     console.log("  usage [--today|--week|--month] Show usage statistics");
+    console.log("  obsidian install <path>       Install Obsidian plugin to vault");
+    console.log("  obsidian uninstall <path>     Remove Obsidian plugin from vault");
     console.log("  backup                        Back up workspace");
     console.log("  restore                       Restore workspace from backup");
     console.log("  uninstall                     Remove workspace and data");
