@@ -1,0 +1,177 @@
+/* Nova Cowork Plugin Styles */
+
+.nova-cowork-container {
+  padding: 12px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Header */
+.nova-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.nova-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.nova-status-dot.connected {
+  background-color: var(--color-green);
+}
+
+.nova-status-dot.disconnected {
+  background-color: var(--color-red);
+}
+
+.nova-status-text {
+  font-size: 0.9em;
+  color: var(--text-muted);
+}
+
+.nova-connect-btn {
+  margin-left: auto;
+  font-size: 0.85em;
+}
+
+/* Status bar */
+.nova-status-bar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.85em;
+  color: var(--text-muted);
+}
+
+.nova-status-thinking {
+  color: var(--color-yellow);
+}
+
+.nova-status-working {
+  color: var(--color-blue);
+}
+
+.nova-pending-count {
+  color: var(--text-faint);
+}
+
+/* Suggestion card */
+.nova-suggestion-card {
+  background: var(--background-secondary);
+  border: 1px solid var(--color-yellow);
+  border-radius: 8px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.nova-suggestion-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.nova-suggestion-file {
+  font-weight: 600;
+  font-size: 0.9em;
+  color: var(--text-normal);
+}
+
+.nova-suggestion-reason {
+  font-size: 0.85em;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.nova-suggestion-diff {
+  font-family: var(--font-monospace);
+  font-size: 0.85em;
+  background: var(--background-primary);
+  border-radius: 4px;
+  padding: 8px;
+  overflow-x: auto;
+}
+
+.nova-diff-remove {
+  color: var(--color-red);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.nova-diff-add {
+  color: var(--color-green);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.nova-suggestion-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.nova-btn {
+  padding: 4px 12px;
+  border-radius: 4px;
+  font-size: 0.85em;
+  cursor: pointer;
+}
+
+.nova-btn-apply {
+  background: var(--color-green);
+  color: var(--text-on-accent);
+}
+
+.nova-btn-reject {
+  background: var(--background-modifier-border);
+  color: var(--text-normal);
+}
+
+/* Messages */
+.nova-messages {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.nova-message {
+  padding: 8px;
+  border-radius: 6px;
+  background: var(--background-secondary);
+}
+
+.nova-message-high {
+  border-left: 3px solid var(--color-yellow);
+}
+
+.nova-message-low {
+  border-left: 3px solid var(--background-modifier-border);
+}
+
+.nova-message-text {
+  font-size: 0.9em;
+  line-height: 1.4;
+}
+
+.nova-message-time {
+  font-size: 0.75em;
+  color: var(--text-faint);
+  margin-top: 4px;
+}
+
+.nova-empty-state {
+  color: var(--text-faint);
+  font-style: italic;
+  text-align: center;
+  padding: 20px;
+}

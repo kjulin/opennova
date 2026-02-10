@@ -1,0 +1,10 @@
+{
+  "id": "nova-cowork",
+  "name": "Nova Cowork",
+  "version": "0.1.0",
+  "minAppVersion": "1.0.0",
+  "description": "Integrate Nova cowork mode with Obsidian for AI-assisted editing",
+  "author": "OpenNova",
+  "authorUrl": "https://github.com/kjulin/opennova",
+  "isDesktopOnly": true
+}

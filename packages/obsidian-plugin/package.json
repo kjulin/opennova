@@ -1,0 +1,24 @@
+{
+  "name": "@opennova/obsidian-plugin",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Nova Cowork plugin for Obsidian",
+  "main": "main.js",
+  "scripts": {
+    "build": "node esbuild.config.mjs production",
+    "dev": "node esbuild.config.mjs"
+  },
+  "keywords": [
+    "obsidian",
+    "obsidian-plugin",
+    "nova",
+    "cowork",
+    "ai"
+  ],
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "esbuild": "^0.20.0",
+    "obsidian": "^1.5.0",
+    "typescript": "^5.0.0"
+  }
+}
