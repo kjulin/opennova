@@ -1,7 +1,7 @@
 import fs from "fs";
 import path from "path";
 import os from "os";
-import { Bot, InlineKeyboard } from "grammy";
+import { Bot, InlineKeyboard, InputFile } from "grammy";
 import {
   Config,
   loadAgents,
@@ -13,6 +13,8 @@ import {
   safeParseJsonFile,
   transcribe,
   checkTranscriptionDependencies,
+  textToSpeech,
+  checkTTS,
   type TelegramConfig,
 } from "#core/index.js";
 import { bus } from "../events.js";
@@ -97,6 +99,9 @@ export function startTelegram() {
 
   let activeAbortController: AbortController | null = null;
 
+  // Track threads initiated by voice messages (for voice responses)
+  const voiceThreads = new Set<string>();
+
   bot.api.setMyCommands([
     { command: "agent", description: "Select an agent" },
     { command: "threads", description: "List conversation threads" },
@@ -122,6 +127,33 @@ export function startTelegram() {
       saveTelegramConfig(config);
       log.info("telegram", `context switched to agent=${payload.agentId} thread=${payload.threadId}`);
       text = `_Switched to ${name}_\n\n${text}`;
+    }
+
+    // Check if this was a voice-initiated thread — respond with voice
+    if (voiceThreads.has(payload.threadId)) {
+      voiceThreads.delete(payload.threadId);
+
+      // Check if TTS is available
+      const ttsAvailable = await checkTTS();
+      if (ttsAvailable && text.length < 4000) {
+        try {
+          log.info("telegram", `generating voice response for thread ${payload.threadId}`);
+          const tts = await textToSpeech(text);
+          await bot.api.sendVoice(chatId, new InputFile(tts.audioPath));
+
+          // Cleanup audio file
+          try { fs.unlinkSync(tts.audioPath); } catch {}
+
+          // Also send text for reference (in case voice is hard to understand)
+          await bot.api.sendMessage(chatId, `_${text}_`, { parse_mode: "Markdown" }).catch(() => {
+            bot.api.sendMessage(chatId, text).catch(() => {});
+          });
+          return;
+        } catch (err) {
+          log.warn("telegram", `TTS failed, falling back to text:`, (err as Error).message);
+          // Fall through to text response
+        }
+      }
     }
 
     bot.api.sendMessage(chatId, text, { parse_mode: "Markdown" }).catch(() => {
@@ -373,6 +405,10 @@ ${result.text}
 
       // Invoke agent
       const threadId = resolveThreadId(config, agentDir);
+
+      // Track this thread for voice response
+      voiceThreads.add(threadId);
+
       const prompt = `I just sent you a voice memo (${duration}s). The transcript is saved at:
 ${mdPath}
 

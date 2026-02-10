@@ -189,3 +189,12 @@ export async function downloadModel(
 export { MODEL_URLS, MODEL_SIZES } from "./whisper.js";
 export { checkFfmpeg } from "./convert.js";
 export { checkWhisper } from "./whisper.js";
+
+// TTS
+export {
+  textToSpeech,
+  listVoices,
+  checkTTS,
+  type TTSOptions,
+  type TTSResult,
+} from "./tts.js";

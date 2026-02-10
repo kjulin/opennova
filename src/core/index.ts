@@ -137,3 +137,12 @@ export {
   type TranscriptionResult,
   type TranscriptionOptions,
 } from "./transcription/index.js";
+
+// Text-to-Speech
+export {
+  textToSpeech,
+  listVoices,
+  checkTTS,
+  type TTSOptions,
+  type TTSResult,
+} from "./transcription/index.js";
