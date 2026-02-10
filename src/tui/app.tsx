@@ -1,82 +1,48 @@
 import React, { useReducer, useEffect, useCallback, useMemo, useRef } from "react";
-import { Box, Text, useApp, useInput } from "ink";
+import { Box, useApp, useInput } from "ink";
 import path from "path";
-import fs from "fs";
 import {
   Config,
   loadAgents,
-  loadFocuses,
-  buildCoworkPrompt,
-  parseCoworkResponse,
   getAgentRole,
   createThread,
   listThreads,
   loadMessages,
   runThread,
   type AgentConfig,
-  type Focus,
   type ThreadInfo,
   type ThreadRunnerCallbacks,
-  type EditSuggestion,
 } from "#core/index.js";
 import { Chat } from "./components/chat.js";
 import { ThreadSelect } from "./components/thread-select.js";
 import { AgentSelect } from "./components/agent-select.js";
-import { FocusSelect } from "./components/focus-select.js";
-import {
-  useFileWatcher,
-  useCoordinator,
-  useSuggestionExpiration,
-  CoworkAgentSelect,
-  CoworkStatusBar,
-  SuggestionBox,
-} from "./cowork/index.js";
 import type { Message, Agent } from "./types.js";
-import type { AppMode } from "./index.js";
 
-type UIMode =
-  | "chat"
-  | "select-thread"
-  | "select-agent"
-  | "cowork-select-agent"
-  | "cowork-select-focus"
-  | "cowork";
+type UIMode = "chat" | "select-thread" | "select-agent";
 
 interface AppState {
   uiMode: UIMode;
   agents: Map<string, AgentConfig>;
   agent: Agent | null;
-  focuses: Map<string, Focus>;
-  focus: Focus | null;
   threads: ThreadInfo[];
   threadId: string | null;
   messages: Message[];
   status: string | null;
   loading: boolean;
   error: string | null;
-  minimalMode: boolean;
-  fastMode: boolean; // false = Deep Mode (opus), true = Fast Mode (haiku)
-  pendingSuggestion: EditSuggestion | null;
 }
 
 type Action =
   | { type: "SET_UI_MODE"; uiMode: UIMode }
   | { type: "SET_AGENTS"; agents: Map<string, AgentConfig> }
   | { type: "SET_AGENT"; agent: Agent }
-  | { type: "SET_FOCUSES"; focuses: Map<string, Focus> }
-  | { type: "SET_FOCUS"; focus: Focus }
   | { type: "SET_THREADS"; threads: ThreadInfo[] }
   | { type: "SET_THREAD"; threadId: string; messages: Message[] }
   | { type: "ADD_MESSAGE"; message: Message }
   | { type: "SET_STATUS"; status: string | null }
   | { type: "SET_LOADING"; loading: boolean }
   | { type: "SET_ERROR"; error: string | null }
-  | { type: "CLEAR_THREAD"; threadId: string }
-  | { type: "START_COWORK"; threadId: string; focus: Focus }
-  | { type: "TOGGLE_MINIMAL_MODE" }
-  | { type: "TOGGLE_MODE" }
-  | { type: "SET_SUGGESTION"; suggestion: EditSuggestion }
-  | { type: "CLEAR_SUGGESTION" };
+  | { type: "CLEAR_THREAD"; threadId: string };
 
 function reducer(state: AppState, action: Action): AppState {
   switch (action.type) {
@@ -86,10 +52,6 @@ function reducer(state: AppState, action: Action): AppState {
       return { ...state, agents: action.agents };
     case "SET_AGENT":
       return { ...state, agent: action.agent };
-    case "SET_FOCUSES":
-      return { ...state, focuses: action.focuses };
-    case "SET_FOCUS":
-      return { ...state, focus: action.focus };
     case "SET_THREADS":
       return { ...state, threads: action.threads };
     case "SET_THREAD":
@@ -101,29 +63,9 @@ function reducer(state: AppState, action: Action): AppState {
     case "SET_LOADING":
       return { ...state, loading: action.loading };
     case "SET_ERROR":
-      // Don't change uiMode for cowork - only reset from select modes
-      const errorUiMode = state.uiMode === "cowork" ? "cowork" : "chat";
-      return { ...state, error: action.error, uiMode: errorUiMode };
+      return { ...state, error: action.error, uiMode: "chat" };
     case "CLEAR_THREAD":
       return { ...state, threadId: action.threadId, messages: [], status: null, error: null, uiMode: "chat" };
-    case "START_COWORK":
-      return {
-        ...state,
-        threadId: action.threadId,
-        focus: action.focus,
-        messages: [],
-        status: null,
-        error: null,
-        uiMode: "cowork",
-      };
-    case "TOGGLE_MINIMAL_MODE":
-      return { ...state, minimalMode: !state.minimalMode };
-    case "TOGGLE_MODE":
-      return { ...state, fastMode: !state.fastMode };
-    case "SET_SUGGESTION":
-      return { ...state, pendingSuggestion: action.suggestion };
-    case "CLEAR_SUGGESTION":
-      return { ...state, pendingSuggestion: null };
     default:
       return state;
   }
@@ -133,209 +75,29 @@ const initialState: AppState = {
   uiMode: "chat",
   agents: new Map(),
   agent: null,
-  focuses: new Map(),
-  focus: null,
   threads: [],
   threadId: null,
   messages: [],
   status: null,
   loading: false,
   error: null,
-  minimalMode: true, // Start in minimal mode for cleaner view
-  fastMode: false, // Start in Deep Mode (opus)
-  pendingSuggestion: null,
 };
 
 interface Props {
   agentId?: string | undefined;
-  mode?: AppMode | undefined;
-  workingDir?: string | undefined;
 }
 
-export function App({ agentId: initialAgentId, mode: appMode = "chat", workingDir }: Props) {
-  const [state, dispatch] = useReducer(reducer, {
-    ...initialState,
-    uiMode: appMode === "cowork" ? "cowork-select-agent" : "chat",
-  });
+export function App({ agentId: initialAgentId }: Props) {
+  const [state, dispatch] = useReducer(reducer, initialState);
   const { exit } = useApp();
   const abortControllerRef = useRef<AbortController | null>(null);
   const greetingRunRef = useRef(false);
 
-  // Suggestion handlers (defined early so they're available in useInput)
-  const handleSuggestEdit = useCallback((suggestion: EditSuggestion) => {
-    dispatch({ type: "SET_SUGGESTION", suggestion });
-  }, []);
-
-  const handleRejectSuggestion = useCallback(() => {
-    dispatch({ type: "CLEAR_SUGGESTION" });
-  }, []);
-
-  const handleManualRun = useCallback(async () => {
-    if (!state.agent || !state.threadId || !state.focus || !workingDir) return;
-    if (state.loading) return;
-
-    dispatch({ type: "SET_LOADING", loading: true });
-    dispatch({ type: "SET_ERROR", error: null });
-
-    const agentDir = path.join(Config.workspaceDir, "agents", state.agent.id);
-
-    const callbacks: ThreadRunnerCallbacks = {
-      onThinking() {
-        dispatch({ type: "SET_STATUS", status: "Thinking…" });
-      },
-      onAssistantMessage(msg) {
-        dispatch({ type: "SET_STATUS", status: msg });
-      },
-      onToolUse(_name, _input, summary) {
-        dispatch({ type: "SET_STATUS", status: summary });
-      },
-    };
-
-    const abortController = new AbortController();
-    abortControllerRef.current = abortController;
-
-    const overrides = {
-      systemPromptSuffix: buildCoworkPrompt(state.focus, workingDir),
-      model: state.fastMode ? "haiku" as const : "opus" as const,
-      onSuggestEdit: handleSuggestEdit,
-    };
-
-    try {
-      const result = await runThread(
-        agentDir,
-        state.threadId,
-        "The user requested a manual review. Check the current state of the files and provide feedback.",
-        callbacks,
-        undefined,
-        undefined,
-        abortController,
-        overrides,
-      );
-
-      if (!abortController.signal.aborted && result.text) {
-        dispatch({
-          type: "ADD_MESSAGE",
-          message: {
-            role: "assistant",
-            text: result.text,
-            timestamp: new Date().toISOString(),
-          },
-        });
-      }
-    } catch (err) {
-      if (!abortController.signal.aborted) {
-        dispatch({ type: "SET_ERROR", error: (err as Error).message });
-      }
-    } finally {
-      abortControllerRef.current = null;
-      dispatch({ type: "SET_STATUS", status: null });
-      dispatch({ type: "SET_LOADING", loading: false });
-    }
-  }, [state.agent, state.threadId, state.focus, state.fastMode, state.loading, workingDir, handleSuggestEdit]);
-
-  const handleApplySuggestion = useCallback(async () => {
-    if (!state.pendingSuggestion || !workingDir) return;
-
-    const suggestion = state.pendingSuggestion;
-    // Handle both absolute and relative paths
-    const filePath = path.isAbsolute(suggestion.file)
-      ? suggestion.file
-      : path.join(workingDir, suggestion.file);
-
-    try {
-      const content = await fs.promises.readFile(filePath, "utf-8");
-      if (!content.includes(suggestion.oldString)) {
-        dispatch({ type: "SET_ERROR", error: "Could not find text to replace - file may have changed" });
-        dispatch({ type: "CLEAR_SUGGESTION" });
-        return;
-      }
-
-      const newContent = content.replace(suggestion.oldString, suggestion.newString);
-      await fs.promises.writeFile(filePath, newContent);
-
-      dispatch({ type: "CLEAR_SUGGESTION" });
-      dispatch({
-        type: "ADD_MESSAGE",
-        message: {
-          role: "assistant",
-          text: `Applied edit to ${suggestion.file}`,
-          timestamp: new Date().toISOString(),
-        },
-      });
-    } catch (err) {
-      dispatch({ type: "SET_ERROR", error: (err as Error).message });
-      dispatch({ type: "CLEAR_SUGGESTION" });
-    }
-  }, [state.pendingSuggestion, workingDir]);
-
-  useInput((input, key) => {
-    // Tab toggles minimal mode in cowork
-    if (key.tab && state.uiMode === "cowork") {
-      dispatch({ type: "TOGGLE_MINIMAL_MODE" });
-      return;
-    }
-
-    // Letter shortcuts only work in minimal mode (no text input)
-    if (state.uiMode === "cowork" && state.minimalMode && !state.loading) {
-      // 'm' toggles between Fast Mode (haiku) and Deep Mode (opus)
-      if (input === "m") {
-        dispatch({ type: "TOGGLE_MODE" });
-        return;
-      }
-
-      // 'f' changes focus in cowork
-      if (input === "f") {
-        dispatch({ type: "SET_UI_MODE", uiMode: "cowork-select-focus" });
-        return;
-      }
-
-      // 'a' changes agent in cowork
-      if (input === "a") {
-        dispatch({ type: "SET_UI_MODE", uiMode: "cowork-select-agent" });
-        return;
-      }
-
-      // 'y' applies pending suggestion
-      if (input === "y" && state.pendingSuggestion) {
-        handleApplySuggestion();
-        return;
-      }
-
-      // 'n' rejects pending suggestion
-      if (input === "n" && state.pendingSuggestion) {
-        handleRejectSuggestion();
-        return;
-      }
-
-      // 'r' manually triggers agent run
-      if (input === "r") {
-        handleManualRun();
-        return;
-      }
-    }
-
+  useInput((_input, key) => {
     if (key.escape) {
       // Cancel select mode
       if (state.uiMode === "select-thread" || state.uiMode === "select-agent") {
         dispatch({ type: "SET_UI_MODE", uiMode: "chat" });
-        return;
-      }
-      // Cowork agent selection: go back to cowork if mid-session, else exit
-      if (state.uiMode === "cowork-select-agent") {
-        if (state.threadId) {
-          dispatch({ type: "SET_UI_MODE", uiMode: "cowork" });
-        } else {
-          exit();
-        }
-        return;
-      }
-      // Focus selection: go back to cowork if mid-session, else agent selection
-      if (state.uiMode === "cowork-select-focus") {
-        if (state.threadId) {
-          dispatch({ type: "SET_UI_MODE", uiMode: "cowork" });
-        } else {
-          dispatch({ type: "SET_UI_MODE", uiMode: "cowork-select-agent" });
-        }
         return;
       }
       // Abort running request
@@ -410,41 +172,6 @@ export function App({ agentId: initialAgentId, mode: appMode = "chat", workingDi
       }
       dispatch({ type: "SET_AGENTS", agents });
 
-      // Cowork mode: auto-select defaults and start immediately
-      if (appMode === "cowork") {
-        const focuses = loadFocuses();
-        dispatch({ type: "SET_FOCUSES", focuses });
-
-        // Select Coworker agent, or fall back to first available
-        const agentId = agents.has("coworker") ? "coworker" : Array.from(agents.keys())[0];
-        if (!agentId) {
-          dispatch({ type: "SET_ERROR", error: "No agents found" });
-          return;
-        }
-        const agentConfig = agents.get(agentId)!;
-        const agent: Agent = {
-          id: agentId,
-          name: agentConfig.name,
-          role: getAgentRole(agentConfig),
-        };
-        dispatch({ type: "SET_AGENT", agent });
-
-        // Select Collaborator focus, or fall back to first available
-        const focusId = focuses.has("collaborator") ? "collaborator" : Array.from(focuses.keys())[0];
-        if (!focusId) {
-          dispatch({ type: "SET_ERROR", error: "No focuses found" });
-          return;
-        }
-        const focus = focuses.get(focusId)!;
-
-        // Create thread and start cowork immediately
-        const agentDir = path.join(Config.workspaceDir, "agents", agentId);
-        const threadId = createThread(agentDir, "cowork");
-        dispatch({ type: "SET_THREADS", threads: listThreads(agentDir) });
-        dispatch({ type: "START_COWORK", threadId, focus });
-        return;
-      }
-
       // Chat mode: auto-select agent
       const agentId = initialAgentId ?? "nova";
       const agentConfig = agents.get(agentId);
@@ -474,11 +201,10 @@ export function App({ agentId: initialAgentId, mode: appMode = "chat", workingDi
     } catch (err) {
       dispatch({ type: "SET_ERROR", error: (err as Error).message });
     }
-  }, [initialAgentId, appMode]);
+  }, [initialAgentId]);
 
   // Run TUI greeting when session starts
   useEffect(() => {
-    if (appMode !== "chat") return;
     if (greetingRunRef.current) return;
     if (!state.agent || !state.threadId) return;
     if (state.uiMode !== "chat") return;
@@ -496,7 +222,7 @@ export function App({ agentId: initialAgentId, mode: appMode = "chat", workingDi
       greetingMessage,
       {
         onThinking() {
-          dispatch({ type: "SET_STATUS", status: "Thinking…" });
+          dispatch({ type: "SET_STATUS", status: "Thinking..." });
         },
         onAssistantMessage(msg) {
           dispatch({ type: "SET_STATUS", status: msg });
@@ -526,59 +252,7 @@ export function App({ agentId: initialAgentId, mode: appMode = "chat", workingDi
       dispatch({ type: "SET_STATUS", status: null });
       dispatch({ type: "SET_LOADING", loading: false });
     });
-  }, [appMode, state.agent, state.threadId, state.uiMode]);
-
-  // Run cowork greeting when session starts
-  useEffect(() => {
-    if (appMode !== "cowork") return;
-    if (greetingRunRef.current) return;
-    if (!state.agent || !state.threadId || !state.focus) return;
-    if (state.uiMode !== "cowork") return;
-
-    greetingRunRef.current = true;
-
-    const agentDir = path.join(Config.workspaceDir, "agents", state.agent.id);
-    const coworkGreeting = `Cowork session started. You are watching files in ${workingDir} with the "${state.focus.name}" focus. Briefly greet the user and explain what you'll be looking for as they edit.`;
-
-    dispatch({ type: "SET_LOADING", loading: true });
-
-    runThread(
-      agentDir,
-      state.threadId,
-      coworkGreeting,
-      {
-        onThinking() {
-          dispatch({ type: "SET_STATUS", status: "Thinking…" });
-        },
-        onAssistantMessage(msg) {
-          dispatch({ type: "SET_STATUS", status: msg });
-        },
-        onToolUse(_name, _input, summary) {
-          dispatch({ type: "SET_STATUS", status: summary });
-        },
-      },
-      undefined,
-      undefined,
-      undefined,
-      { model: "haiku", maxTurns: 1, systemPromptSuffix: buildCoworkPrompt(state.focus, workingDir ?? process.cwd()) },
-    ).then((result) => {
-      if (result.text) {
-        dispatch({
-          type: "ADD_MESSAGE",
-          message: {
-            role: "assistant",
-            text: result.text,
-            timestamp: new Date().toISOString(),
-          },
-        });
-      }
-    }).catch((err) => {
-      dispatch({ type: "SET_ERROR", error: (err as Error).message });
-    }).finally(() => {
-      dispatch({ type: "SET_STATUS", status: null });
-      dispatch({ type: "SET_LOADING", loading: false });
-    });
-  }, [appMode, state.agent, state.threadId, state.focus, state.uiMode, workingDir]);
+  }, [state.agent, state.threadId, state.uiMode]);
 
   const handleSubmit = useCallback(
     async (text: string) => {
@@ -642,7 +316,7 @@ export function App({ agentId: initialAgentId, mode: appMode = "chat", workingDi
 
       const callbacks: ThreadRunnerCallbacks = {
         onThinking() {
-          dispatch({ type: "SET_STATUS", status: "Thinking…" });
+          dispatch({ type: "SET_STATUS", status: "Thinking..." });
         },
         onAssistantMessage(msg) {
           dispatch({ type: "SET_STATUS", status: msg });
@@ -655,14 +329,6 @@ export function App({ agentId: initialAgentId, mode: appMode = "chat", workingDi
       const abortController = new AbortController();
       abortControllerRef.current = abortController;
 
-      // Build cowork prompt suffix if in cowork mode
-      const overrides = state.uiMode === "cowork" && state.focus && workingDir
-        ? {
-            systemPromptSuffix: buildCoworkPrompt(state.focus, workingDir),
-            model: state.fastMode ? "haiku" as const : "opus" as const,
-          }
-        : undefined;
-
       try {
         const result = await runThread(
           agentDir,
@@ -672,7 +338,6 @@ export function App({ agentId: initialAgentId, mode: appMode = "chat", workingDi
           undefined,
           undefined,
           abortController,
-          overrides,
         );
 
         // Only add message if not aborted
@@ -697,7 +362,7 @@ export function App({ agentId: initialAgentId, mode: appMode = "chat", workingDi
         dispatch({ type: "SET_LOADING", loading: false });
       }
     },
-    [state.agent, state.threadId, state.uiMode, state.focus, state.fastMode, workingDir, exit, loadThreadsForAgent],
+    [state.agent, state.threadId, exit, loadThreadsForAgent],
   );
 
   const handleThreadSelect = useCallback((threadId: string) => {
@@ -712,187 +377,6 @@ export function App({ agentId: initialAgentId, mode: appMode = "chat", workingDi
   const handleCancel = useCallback(() => {
     dispatch({ type: "SET_UI_MODE", uiMode: "chat" });
   }, []);
-
-  const handleCoworkAgentSelect = useCallback((agentId: string) => {
-    const agentConfig = state.agents.get(agentId);
-    if (!agentConfig) return;
-
-    const agent: Agent = {
-      id: agentId,
-      name: agentConfig.name,
-      role: getAgentRole(agentConfig),
-    };
-    dispatch({ type: "SET_AGENT", agent });
-    dispatch({ type: "SET_UI_MODE", uiMode: "cowork-select-focus" });
-  }, [state.agents]);
-
-  // Run a greeting/session-start message (don't show user message, only response)
-  const runGreeting = useCallback(async (
-    agentId: string,
-    threadId: string,
-    greetingMessage: string,
-    systemPromptSuffix?: string,
-  ) => {
-    dispatch({ type: "SET_LOADING", loading: true });
-
-    const agentDir = path.join(Config.workspaceDir, "agents", agentId);
-
-    const callbacks: ThreadRunnerCallbacks = {
-      onThinking() {
-        dispatch({ type: "SET_STATUS", status: "Thinking…" });
-      },
-      onAssistantMessage(msg) {
-        dispatch({ type: "SET_STATUS", status: msg });
-      },
-      onToolUse(_name, _input, summary) {
-        dispatch({ type: "SET_STATUS", status: summary });
-      },
-    };
-
-    try {
-      const result = await runThread(
-        agentDir,
-        threadId,
-        greetingMessage,
-        callbacks,
-        undefined,
-        undefined,
-        undefined,
-        { model: "haiku", maxTurns: 1, systemPromptSuffix },
-      );
-
-      if (result.text) {
-        dispatch({
-          type: "ADD_MESSAGE",
-          message: {
-            role: "assistant",
-            text: result.text,
-            timestamp: new Date().toISOString(),
-          },
-        });
-      }
-    } catch (err) {
-      dispatch({ type: "SET_ERROR", error: (err as Error).message });
-    } finally {
-      dispatch({ type: "SET_STATUS", status: null });
-      dispatch({ type: "SET_LOADING", loading: false });
-    }
-  }, []);
-
-  const handleFocusSelect = useCallback((focusId: string) => {
-    const focus = state.focuses.get(focusId);
-    if (!focus || !state.agent) return;
-
-    // Always create a new cowork thread
-    const agentDir = path.join(Config.workspaceDir, "agents", state.agent.id);
-    const threadId = createThread(agentDir, "cowork");
-    dispatch({ type: "SET_THREADS", threads: listThreads(agentDir) });
-    dispatch({ type: "START_COWORK", threadId, focus });
-
-    // Run cowork greeting
-    const coworkGreeting = `Cowork session started. You are watching files in ${workingDir} with the "${focus.name}" focus. Briefly greet the user and explain what you'll be looking for as they edit.`;
-    runGreeting(
-      state.agent.id,
-      threadId,
-      coworkGreeting,
-      buildCoworkPrompt(focus, workingDir ?? process.cwd()),
-    );
-  }, [state.focuses, state.agent, workingDir, runGreeting]);
-
-  // Cowork: trigger callback when coordinator decides to run
-  const handleCoworkTrigger = useCallback(async (files: string[]) => {
-    if (!state.agent || !state.threadId || !state.focus || !workingDir) return;
-
-    const message = files.length === 1
-      ? `File changed: ${files[0]}`
-      : `Files changed:\n${files.map(f => `- ${f}`).join("\n")}`;
-
-    dispatch({ type: "SET_LOADING", loading: true });
-    dispatch({ type: "SET_ERROR", error: null });
-
-    const agentDir = path.join(Config.workspaceDir, "agents", state.agent.id);
-
-    const callbacks: ThreadRunnerCallbacks = {
-      onThinking() {
-        dispatch({ type: "SET_STATUS", status: "Thinking…" });
-      },
-      onAssistantMessage(msg) {
-        dispatch({ type: "SET_STATUS", status: msg });
-      },
-      onToolUse(_name, _input, summary) {
-        dispatch({ type: "SET_STATUS", status: summary });
-      },
-    };
-
-    const abortController = new AbortController();
-    abortControllerRef.current = abortController;
-
-    const overrides = {
-      systemPromptSuffix: buildCoworkPrompt(state.focus, workingDir),
-      model: state.fastMode ? "haiku" as const : "opus" as const,
-      onSuggestEdit: handleSuggestEdit,
-    };
-
-    try {
-      const result = await runThread(
-        agentDir,
-        state.threadId,
-        message,
-        callbacks,
-        undefined,
-        undefined,
-        abortController,
-        overrides,
-      );
-
-      // Only add agent response to UI (not the trigger message)
-      if (!abortController.signal.aborted && result.text) {
-        dispatch({
-          type: "ADD_MESSAGE",
-          message: {
-            role: "assistant",
-            text: result.text,
-            timestamp: new Date().toISOString(),
-          },
-        });
-      }
-    } catch (err) {
-      if (!abortController.signal.aborted) {
-        dispatch({ type: "SET_ERROR", error: (err as Error).message });
-      }
-    } finally {
-      abortControllerRef.current = null;
-      dispatch({ type: "SET_STATUS", status: null });
-      dispatch({ type: "SET_LOADING", loading: false });
-    }
-  }, [state.agent, state.threadId, state.focus, state.fastMode, workingDir, handleSuggestEdit]);
-
-  // Cowork coordinator
-  const coordinator = useCoordinator({
-    debounceMs: 4000, // Wait 4 seconds after last change before triggering
-    onTrigger: handleCoworkTrigger,
-  });
-
-  // Handle file change - invalidate suggestion if target file changed
-  const handleFileChanged = useCallback((file: string) => {
-    if (state.pendingSuggestion && state.pendingSuggestion.file === file) {
-      dispatch({ type: "CLEAR_SUGGESTION" });
-    }
-    coordinator.onFileChanged(file);
-  }, [state.pendingSuggestion, coordinator]);
-
-  // File watcher for cowork mode
-  useFileWatcher({
-    workingDir: workingDir ?? process.cwd(),
-    enabled: state.uiMode === "cowork",
-    onFileChanged: handleFileChanged,
-  });
-
-  // Auto-expire pending suggestions
-  useSuggestionExpiration({
-    suggestion: state.pendingSuggestion,
-    onExpire: handleRejectSuggestion,
-  });
 
   const threadTitle = useMemo(() => {
     if (!state.threadId) return null;
@@ -914,126 +398,6 @@ export function App({ agentId: initialAgentId, mode: appMode = "chat", workingDi
       onCancel={handleCancel}
     />
   ) : null;
-
-  // Cowork setup screens
-  if (state.uiMode === "cowork-select-agent") {
-    return (
-      <Box flexDirection="column" height="100%">
-        <CoworkAgentSelect
-          agents={state.agents}
-          workingDir={workingDir ?? process.cwd()}
-          onSelect={handleCoworkAgentSelect}
-        />
-      </Box>
-    );
-  }
-
-  if (state.uiMode === "cowork-select-focus") {
-    return (
-      <Box flexDirection="column" height="100%">
-        <FocusSelect
-          focuses={state.focuses}
-          agentName={state.agent?.name}
-          onSelect={handleFocusSelect}
-        />
-      </Box>
-    );
-  }
-
-  if (state.uiMode === "cowork") {
-    const modeLabel = state.fastMode ? " ⚡ Fast" : " 🧠 Deep";
-    // Both modes show pending at bottom, not in status bar
-    const minimalStatusBar = (
-      <CoworkStatusBar
-        workingDir={workingDir ?? process.cwd()}
-        agentName={state.agent?.name ?? null}
-        focusName={state.focus?.name ? `${state.focus.name}${modeLabel}` : null}
-        hints="Tab · r:run · m:mode · f:focus · a:agent"
-      />
-    );
-    const fullStatusBar = (
-      <CoworkStatusBar
-        workingDir={workingDir ?? process.cwd()}
-        agentName={state.agent?.name ?? null}
-        focusName={state.focus?.name ? `${state.focus.name}${modeLabel}` : null}
-        hints="Tab to minimal mode"
-      />
-    );
-
-    // Minimal mode: just status bar + latest message
-    if (state.minimalMode) {
-      const lastMessage = state.messages.filter(m => m.role === "assistant").slice(-1)[0];
-      const pendingCount = coordinator.pendingFiles.length;
-
-      // Parse importance from message
-      const parsed = lastMessage ? parseCoworkResponse(lastMessage.text) : null;
-      const importanceColor = parsed?.importance === "low" ? "gray"
-        : parsed?.importance === "high" ? "green"
-        : undefined; // medium = default white
-
-      return (
-        <Box flexDirection="column" height="100%">
-          {minimalStatusBar}
-          <Box flexDirection="column" flexGrow={1} paddingX={2} paddingTop={2} marginBottom={2}>
-            {state.loading ? (
-              <Text dimColor>{state.status ?? "Thinking..."}</Text>
-            ) : parsed ? (
-              importanceColor ? (
-                <Text bold color={importanceColor}>{parsed.message}</Text>
-              ) : (
-                <Text bold>{parsed.message}</Text>
-              )
-            ) : (
-              <Text dimColor>Watching for changes...</Text>
-            )}
-            {state.error && (
-              <Box marginTop={1}>
-                <Text color="red">Error: {state.error}</Text>
-              </Box>
-            )}
-          </Box>
-          {state.pendingSuggestion && (
-            <SuggestionBox suggestion={state.pendingSuggestion} />
-          )}
-          {pendingCount > 0 && !state.loading && (
-            <Box paddingX={2} marginBottom={1}>
-              <Text color="yellow">
-                {pendingCount === 1 ? "1 change pending..." : `${pendingCount} changes pending...`}
-              </Text>
-            </Box>
-          )}
-        </Box>
-      );
-    }
-
-    const pendingCount = coordinator.pendingFiles.length;
-
-    return (
-      <Box flexDirection="column" height="100%">
-        {fullStatusBar}
-        {state.pendingSuggestion && (
-          <SuggestionBox suggestion={state.pendingSuggestion} />
-        )}
-        <Chat
-          agent={state.agent}
-          threadTitle={null}
-          messages={state.messages}
-          status={state.status}
-          loading={state.loading}
-          error={state.error}
-          onSubmit={handleSubmit}
-          selectComponent={null}
-        />
-        {pendingCount > 0 && !state.loading && (
-          <Box paddingX={1} marginBottom={1}>
-            <Text color="yellow">
-              {pendingCount === 1 ? "1 change pending..." : `${pendingCount} changes pending...`}
-            </Text>
-          </Box>
-        )}
-      </Box>
-    );
-  }
 
   return (
     <Box flexDirection="column" height="100%">
