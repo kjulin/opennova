@@ -60,6 +60,30 @@ switch (command) {
     run();
     break;
   }
+  case "transcription": {
+    const os = await import("os");
+    const { Config } = await import("#core/index.js");
+    Config.workspaceDir = path.join(os.homedir(), ".nova");
+
+    const subcommand = process.argv[3];
+    const { transcriptionSetup, transcriptionStatus, transcriptionModels } = await import("./commands/transcription.js");
+
+    if (subcommand === "setup") {
+      const model = process.argv[4];
+      await transcriptionSetup(model);
+    } else if (subcommand === "status") {
+      await transcriptionStatus();
+    } else if (subcommand === "models") {
+      transcriptionModels();
+    } else {
+      console.log("Usage: nova transcription <command>\n");
+      console.log("Commands:");
+      console.log("  setup [model]   Set up transcription (default: large-v3)");
+      console.log("  status          Show transcription status");
+      console.log("  models          List available models");
+    }
+    break;
+  }
   case "chat": {
     const os = await import("os");
     const { Config, setLogger } = await import("#core/index.js");
@@ -172,6 +196,9 @@ switch (command) {
     console.log("  agent <id> telegram remove    Remove agent's dedicated bot");
     console.log("  status                        Show workspace and configuration status");
     console.log("  usage [--today|--week|--month] Show usage statistics");
+    console.log("  transcription setup [model]   Set up local voice transcription");
+    console.log("  transcription status          Show transcription status");
+    console.log("  transcription models          List available Whisper models");
     console.log("  backup                        Back up workspace");
     console.log("  restore                       Restore workspace from backup");
     console.log("  uninstall                     Remove workspace and data");
