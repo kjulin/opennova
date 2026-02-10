@@ -3,6 +3,9 @@
   "version": "0.2.0",
   "description": "AI agent daemon powered by Claude",
   "type": "module",
+  "workspaces": [
+    "packages/*"
+  ],
   "main": "dist/daemon/index.js",
   "bin": {
     "nova": "dist/daemon/cli.js"
@@ -19,6 +22,7 @@
   "scripts": {
     "dev": "tsx watch src/daemon/cli.ts daemon",
     "build": "tsc",
+    "build:obsidian": "npm run build --workspace=@opennova/obsidian-plugin",
     "start": "node dist/daemon/index.js",
     "test": "vitest run",
     "test:watch": "vitest",
