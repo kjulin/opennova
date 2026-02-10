@@ -36,7 +36,38 @@ interface CoworkStatus {
   pendingFiles?: string[];
 }
 
-type ServerMessage = CoworkMessage | CoworkSuggestion | CoworkStatus | { type: "connected" };
+interface CoworkStarted {
+  type: "cowork:started";
+  threadId: string;
+  agentId: string;
+  focusId: string;
+}
+
+interface CoworkAgents {
+  type: "cowork:agents";
+  agents: Array<{ id: string; name: string; description?: string }>;
+}
+
+interface CoworkFocuses {
+  type: "cowork:focuses";
+  focuses: Array<{ id: string; name: string; description?: string }>;
+}
+
+interface CoworkError {
+  type: "cowork:error";
+  error: string;
+}
+
+type ServerMessage =
+  | CoworkMessage
+  | CoworkSuggestion
+  | CoworkStatus
+  | CoworkStarted
+  | CoworkAgents
+  | CoworkFocuses
+  | CoworkError
+  | { type: "connected" }
+  | { type: "cowork:stopped" };
 
 export default class NovaPlugin extends Plugin {
   settings: NovaPluginSettings;
@@ -71,6 +102,18 @@ export default class NovaPlugin extends Plugin {
       id: "disconnect-nova",
       name: "Disconnect from Nova daemon",
       callback: () => this.disconnect(),
+    });
+
+    this.addCommand({
+      id: "start-cowork",
+      name: "Start cowork session",
+      callback: () => this.startCowork(),
+    });
+
+    this.addCommand({
+      id: "stop-cowork",
+      name: "Stop cowork session",
+      callback: () => this.stopCowork(),
     });
 
     this.addSettingTab(new NovaSettingTab(this.app, this));
@@ -114,10 +157,14 @@ export default class NovaPlugin extends Plugin {
     this.ws.onopen = () => {
       new Notice("Connected to Nova daemon");
       this.view?.setConnected(true);
+      // Request current agents and focuses
+      this.send({ type: "cowork:list-agents" });
+      this.send({ type: "cowork:list-focuses" });
     };
 
     this.ws.onclose = () => {
       this.view?.setConnected(false);
+      this.view?.setSessionActive(false);
     };
 
     this.ws.onerror = () => {
@@ -140,6 +187,7 @@ export default class NovaPlugin extends Plugin {
       this.ws.close();
       this.ws = null;
       this.view?.setConnected(false);
+      this.view?.setSessionActive(false);
     }
   }
 
@@ -163,7 +211,52 @@ export default class NovaPlugin extends Plugin {
       case "cowork:status":
         this.view?.setStatus(msg.status, msg.pendingFiles);
         break;
+      case "cowork:started":
+        this.view?.setSessionActive(true, msg.agentId, msg.focusId);
+        new Notice("Cowork session started");
+        break;
+      case "cowork:stopped":
+        this.view?.setSessionActive(false);
+        new Notice("Cowork session stopped");
+        break;
+      case "cowork:agents":
+        this.view?.setAgents(msg.agents);
+        break;
+      case "cowork:focuses":
+        this.view?.setFocuses(msg.focuses);
+        break;
+      case "cowork:error":
+        new Notice(`Nova error: ${msg.error}`);
+        break;
     }
+  }
+
+  getVaultPath(): string {
+    // Get the vault's base path
+    const adapter = this.app.vault.adapter;
+    if ("basePath" in adapter) {
+      return (adapter as any).basePath;
+    }
+    // Fallback - try to get from vault name
+    return this.app.vault.getName();
+  }
+
+  startCowork(agentId?: string, focusId?: string) {
+    const vaultPath = this.getVaultPath();
+    this.send({
+      type: "cowork:start",
+      vaultPath,
+      ...(agentId ? { agentId } : {}),
+      ...(focusId ? { focusId } : {}),
+    });
+  }
+
+  stopCowork() {
+    this.send({ type: "cowork:stop" });
+  }
+
+  manualRun() {
+    this.send({ type: "cowork:run" });
   }
 
   async applySuggestion(suggestion: CoworkSuggestion) {
@@ -205,13 +298,30 @@ export default class NovaPlugin extends Plugin {
   }
 }
 
+interface AgentInfo {
+  id: string;
+  name: string;
+  description?: string;
+}
+
+interface FocusInfo {
+  id: string;
+  name: string;
+  description?: string;
+}
+
 class NovaCoworkView extends ItemView {
   plugin: NovaPlugin;
   connected = false;
+  sessionActive = false;
+  currentAgentId: string | null = null;
+  currentFocusId: string | null = null;
   status: "thinking" | "working" | "idle" = "idle";
   pendingFiles: string[] = [];
   messages: Array<{ text: string; importance: "high" | "low"; time: Date }> = [];
   currentSuggestion: CoworkSuggestion | null = null;
+  agents: AgentInfo[] = [];
+  focuses: FocusInfo[] = [];
 
   constructor(leaf: WorkspaceLeaf, plugin: NovaPlugin) {
     super(leaf);
@@ -240,6 +350,32 @@ class NovaCoworkView extends ItemView {
 
   setConnected(connected: boolean) {
     this.connected = connected;
+    if (!connected) {
+      this.sessionActive = false;
+      this.agents = [];
+      this.focuses = [];
+    }
+    this.render();
+  }
+
+  setSessionActive(active: boolean, agentId?: string, focusId?: string) {
+    this.sessionActive = active;
+    this.currentAgentId = agentId ?? null;
+    this.currentFocusId = focusId ?? null;
+    if (!active) {
+      this.messages = [];
+      this.currentSuggestion = null;
+    }
+    this.render();
+  }
+
+  setAgents(agents: AgentInfo[]) {
+    this.agents = agents;
+    this.render();
+  }
+
+  setFocuses(focuses: FocusInfo[]) {
+    this.focuses = focuses;
     this.render();
   }
 
@@ -275,20 +411,67 @@ class NovaCoworkView extends ItemView {
 
     // Header with connection status
     const header = container.createDiv({ cls: "nova-header" });
-    const statusDot = header.createSpan({ cls: `nova-status-dot ${this.connected ? "connected" : "disconnected"}` });
+    header.createSpan({ cls: `nova-status-dot ${this.connected ? "connected" : "disconnected"}` });
     header.createSpan({ text: this.connected ? "Connected" : "Disconnected", cls: "nova-status-text" });
 
     if (!this.connected) {
       const connectBtn = header.createEl("button", { text: "Connect", cls: "nova-connect-btn" });
       connectBtn.onclick = () => this.plugin.connect();
+      return; // Don't render anything else if disconnected
     }
 
-    // Status bar
-    if (this.connected) {
+    // Session controls
+    const controls = container.createDiv({ cls: "nova-controls" });
+
+    if (this.sessionActive) {
+      // Active session info
+      const sessionInfo = controls.createDiv({ cls: "nova-session-info" });
+      const agentName = this.agents.find(a => a.id === this.currentAgentId)?.name ?? this.currentAgentId;
+      const focusName = this.focuses.find(f => f.id === this.currentFocusId)?.name ?? this.currentFocusId;
+      sessionInfo.createSpan({ text: `${agentName} / ${focusName}`, cls: "nova-session-label" });
+
+      const btnGroup = controls.createDiv({ cls: "nova-btn-group" });
+
+      const runBtn = btnGroup.createEl("button", { text: "Run", cls: "nova-btn nova-btn-run" });
+      runBtn.onclick = () => this.plugin.manualRun();
+
+      const stopBtn = btnGroup.createEl("button", { text: "Stop", cls: "nova-btn nova-btn-stop" });
+      stopBtn.onclick = () => this.plugin.stopCowork();
+    } else {
+      // Session start controls
+      const startControls = controls.createDiv({ cls: "nova-start-controls" });
+
+      // Agent dropdown
+      const agentGroup = startControls.createDiv({ cls: "nova-select-group" });
+      agentGroup.createEl("label", { text: "Agent", cls: "nova-select-label" });
+      const agentSelect = agentGroup.createEl("select", { cls: "nova-select" });
+      for (const agent of this.agents) {
+        const option = agentSelect.createEl("option", { text: agent.name, value: agent.id });
+        if (agent.id === "coworker") option.selected = true;
+      }
+
+      // Focus dropdown
+      const focusGroup = startControls.createDiv({ cls: "nova-select-group" });
+      focusGroup.createEl("label", { text: "Focus", cls: "nova-select-label" });
+      const focusSelect = focusGroup.createEl("select", { cls: "nova-select" });
+      for (const focus of this.focuses) {
+        const option = focusSelect.createEl("option", { text: focus.name, value: focus.id });
+        if (focus.id === "collaborator") option.selected = true;
+      }
+
+      // Start button
+      const startBtn = startControls.createEl("button", { text: "Start Cowork", cls: "nova-btn nova-btn-start" });
+      startBtn.onclick = () => {
+        this.plugin.startCowork(agentSelect.value, focusSelect.value);
+      };
+    }
+
+    // Status bar (only when session is active)
+    if (this.sessionActive) {
       const statusBar = container.createDiv({ cls: "nova-status-bar" });
-      const statusText = this.status === "thinking" ? "Thinking…"
-        : this.status === "working" ? "Working…"
-        : "Idle";
+      const statusText = this.status === "thinking" ? "Thinking..."
+        : this.status === "working" ? "Working..."
+        : "Watching";
       statusBar.createSpan({ text: statusText, cls: `nova-status nova-status-${this.status}` });
 
       if (this.pendingFiles.length > 0) {
@@ -306,20 +489,28 @@ class NovaCoworkView extends ItemView {
 
     // Messages
     const messagesContainer = container.createDiv({ cls: "nova-messages" });
-    for (const msg of this.messages) {
-      const msgEl = messagesContainer.createDiv({
-        cls: `nova-message nova-message-${msg.importance}`
-      });
-      msgEl.createDiv({ text: msg.text, cls: "nova-message-text" });
-      msgEl.createDiv({
-        text: this.formatTime(msg.time),
-        cls: "nova-message-time"
-      });
-    }
 
-    if (this.messages.length === 0 && this.connected) {
+    if (this.sessionActive) {
+      for (const msg of this.messages) {
+        const msgEl = messagesContainer.createDiv({
+          cls: `nova-message nova-message-${msg.importance}`
+        });
+        msgEl.createDiv({ text: msg.text, cls: "nova-message-text" });
+        msgEl.createDiv({
+          text: this.formatTime(msg.time),
+          cls: "nova-message-time"
+        });
+      }
+
+      if (this.messages.length === 0) {
+        messagesContainer.createDiv({
+          text: "Watching for file changes...",
+          cls: "nova-empty-state"
+        });
+      }
+    } else {
       messagesContainer.createDiv({
-        text: "Waiting for Nova messages…",
+        text: "Start a cowork session to begin",
         cls: "nova-empty-state"
       });
     }

@@ -24,6 +24,15 @@ interface DaemonEvents {
     status: "thinking" | "working" | "idle";
     pendingFiles?: string[];
   }];
+  "cowork:started": [payload: {
+    threadId: string;
+    agentId: string;
+    focusId: string;
+  }];
+  "cowork:stopped": [payload: Record<string, never>];
+  "cowork:error": [payload: {
+    error: string;
+  }];
 }
 
 class TypedEmitter extends EventEmitter {

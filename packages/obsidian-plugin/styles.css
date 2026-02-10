@@ -41,6 +41,79 @@
   font-size: 0.85em;
 }
 
+/* Session controls */
+.nova-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.nova-session-info {
+  flex: 1;
+}
+
+.nova-session-label {
+  font-weight: 600;
+  font-size: 0.9em;
+  color: var(--text-normal);
+}
+
+.nova-btn-group {
+  display: flex;
+  gap: 8px;
+}
+
+.nova-start-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px;
+  width: 100%;
+}
+
+.nova-select-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+  min-width: 100px;
+}
+
+.nova-select-label {
+  font-size: 0.75em;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.nova-select {
+  padding: 4px 8px;
+  border-radius: 4px;
+  background: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  color: var(--text-normal);
+  font-size: 0.9em;
+}
+
+.nova-btn-start {
+  background: var(--interactive-accent);
+  color: var(--text-on-accent);
+  white-space: nowrap;
+}
+
+.nova-btn-run {
+  background: var(--interactive-accent);
+  color: var(--text-on-accent);
+}
+
+.nova-btn-stop {
+  background: var(--background-modifier-border);
+  color: var(--text-normal);
+}
+
 /* Status bar */
 .nova-status-bar {
   display: flex;
