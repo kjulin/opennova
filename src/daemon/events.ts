@@ -1,5 +1,5 @@
 import { EventEmitter } from "events";
-import type { ChannelType } from "#core/index.js";
+import type { ChannelType, EditSuggestion } from "#core/index.js";
 
 interface DaemonEvents {
   "thread:response": [payload: {
@@ -13,6 +13,16 @@ interface DaemonEvents {
     threadId: string;
     channel: ChannelType;
     error: string;
+  }];
+  // Cowork events for WebSocket clients
+  "cowork:message": [payload: {
+    text: string;
+    importance: "high" | "low";
+  }];
+  "cowork:suggestion": [payload: EditSuggestion];
+  "cowork:status": [payload: {
+    status: "thinking" | "working" | "idle";
+    pendingFiles?: string[];
   }];
 }
 

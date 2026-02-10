@@ -3,6 +3,7 @@ import path from "path";
 import { init } from "./init.js";
 import { loadChannels } from "./channels.js";
 import { startTriggerScheduler } from "./triggers.js";
+import { startWebSocketServer } from "./websocket.js";
 import { ensureAuth } from "./auth.js";
 import { Config, loadSettings } from "#core/index.js";
 import { log } from "./logger.js";
@@ -37,11 +38,13 @@ export function start() {
   }
 
   const triggerInterval = startTriggerScheduler();
+  const wsServer = startWebSocketServer();
   log.info("daemon", "nova daemon started");
 
   function handleSignal(signal: string) {
     log.info("daemon", `received ${signal}, shutting down…`);
     clearInterval(triggerInterval);
+    wsServer.shutdown();
     shutdown();
     log.info("daemon", "nova daemon stopped");
     log.close();
