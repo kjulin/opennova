@@ -121,3 +121,19 @@ export {
   type EditSuggestion,
   type SuggestEditCallback,
 } from "./suggest-edit.js";
+
+// Transcription
+export {
+  transcribe,
+  loadTranscriptionConfig,
+  saveTranscriptionConfig,
+  checkDependencies as checkTranscriptionDependencies,
+  downloadModel,
+  MODEL_URLS,
+  MODEL_SIZES,
+  checkFfmpeg,
+  checkWhisper,
+  type TranscriptionConfig,
+  type TranscriptionResult,
+  type TranscriptionOptions,
+} from "./transcription/index.js";

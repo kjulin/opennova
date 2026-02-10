@@ -1,5 +1,6 @@
 import fs from "fs";
 import path from "path";
+import os from "os";
 import { Bot, InlineKeyboard } from "grammy";
 import {
   Config,
@@ -10,6 +11,8 @@ import {
   threadPath,
   TelegramConfigSchema,
   safeParseJsonFile,
+  transcribe,
+  checkTranscriptionDependencies,
   type TelegramConfig,
 } from "#core/index.js";
 import { bus } from "../events.js";
@@ -291,6 +294,135 @@ export function startTelegram() {
       clearInterval(typingInterval);
       deleteStatus();
     });
+  });
+
+  // Voice message handler
+  bot.on("message:voice", async (ctx) => {
+    const chatId = ctx.chat.id;
+    if (String(chatId) !== config.chatId) return;
+
+    const agents = loadAgents();
+    const agentId = config.activeAgentId;
+    const agent = agents.get(agentId);
+    if (!agent) {
+      await ctx.reply(`Agent "${agentId}" not found. Use /agent to switch.`);
+      return;
+    }
+
+    const voice = ctx.message.voice;
+    const duration = voice.duration;
+
+    log.info("telegram", `[${chatId}] [${agent.id}] voice message (${duration}s)`);
+
+    // Check transcription dependencies
+    const deps = await checkTranscriptionDependencies();
+    if (!deps.ffmpeg || !deps.whisper || !deps.model) {
+      const missing = [];
+      if (!deps.ffmpeg) missing.push("ffmpeg");
+      if (!deps.whisper) missing.push("whisper-cpp");
+      if (!deps.model) missing.push(`model at ${deps.modelPath}`);
+      await ctx.reply(`❌ Transcription not available. Missing: ${missing.join(", ")}\n\nRun \`nova transcription setup\` to configure.`);
+      return;
+    }
+
+    const statusMsg = await ctx.reply("🎙️ Transcribing...");
+
+    try {
+      // Download voice file
+      const file = await bot.api.getFile(voice.file_id);
+      if (!file.file_path) throw new Error("Failed to get file path");
+
+      const url = `https://api.telegram.org/file/bot${config.token}/${file.file_path}`;
+      const response = await fetch(url);
+      if (!response.ok) throw new Error(`Failed to download: ${response.statusText}`);
+
+      const buffer = Buffer.from(await response.arrayBuffer());
+      const tempPath = path.join(os.tmpdir(), `nova-voice-${Date.now()}.ogg`);
+      fs.writeFileSync(tempPath, buffer);
+
+      // Transcribe
+      const result = await transcribe(tempPath);
+
+      // Save to file
+      const agentDir = path.join(Config.workspaceDir, "agents", agent.id);
+      const voiceDir = path.join(agentDir, "voice");
+      fs.mkdirSync(voiceDir, { recursive: true });
+
+      const timestamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
+      const mdPath = path.join(voiceDir, `${timestamp}.md`);
+      const mdContent = `# Voice Memo - ${new Date().toLocaleString()}
+
+Duration: ${duration}s
+Language: ${result.language}
+
+---
+
+${result.text}
+`;
+      fs.writeFileSync(mdPath, mdContent);
+
+      // Update status
+      await bot.api.editMessageText(
+        chatId,
+        statusMsg.message_id,
+        `🎙️ Transcribed (${duration}s)`
+      );
+
+      // Cleanup temp file
+      try { fs.unlinkSync(tempPath); } catch {}
+
+      // Invoke agent
+      const threadId = resolveThreadId(config, agentDir);
+      const prompt = `I just sent you a voice memo (${duration}s). The transcript is saved at:
+${mdPath}
+
+Please read it and respond to what I said.`;
+
+      const abortController = new AbortController();
+      activeAbortController = abortController;
+
+      const typingInterval = setInterval(() => {
+        bot.api.sendChatAction(chatId, "typing").catch(() => {});
+      }, 4000);
+      bot.api.sendChatAction(chatId, "typing").catch(() => {});
+
+      runThread(
+        agentDir, threadId, prompt,
+        {
+          onThinking() {
+            // Status already shown
+          },
+          onAssistantMessage(text) {
+            bot.api.sendChatAction(chatId, "typing").catch(() => {});
+          },
+          onToolUse(_toolName, _input, summary) {
+            bot.api.sendChatAction(chatId, "typing").catch(() => {});
+          },
+          onToolUseSummary(summary) {
+            bot.api.sendChatAction(chatId, "typing").catch(() => {});
+          },
+        },
+        { triggers: createTriggerMcpServer(agentDir, "telegram") },
+        undefined,
+        abortController,
+      ).catch((err) => {
+        if (!abortController.signal.aborted) {
+          log.error("telegram", `voice message error for ${agent.id}:`, (err as Error).message);
+          bot.api.sendMessage(chatId, "Something went wrong processing the voice message.").catch(() => {});
+        }
+      }).finally(() => {
+        if (activeAbortController === abortController) activeAbortController = null;
+        clearInterval(typingInterval);
+      });
+
+    } catch (err) {
+      log.error("telegram", `transcription failed:`, (err as Error).message);
+      await bot.api.editMessageText(
+        chatId,
+        statusMsg.message_id,
+        `❌ Transcription failed: ${(err as Error).message}`
+      );
+    }
   });
 
   bot.on("callback_query:data", async (ctx) => {
