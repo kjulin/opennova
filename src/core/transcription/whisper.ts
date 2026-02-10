@@ -54,7 +54,7 @@ export async function runWhisper(
 
     log.debug("transcription", `whisper args: ${args.join(" ")}`);
 
-    const proc = spawn("whisper-cpp", args, {
+    const proc = spawn("whisper-cli", args, {
       stdio: ["ignore", "pipe", "pipe"],
     });
 
@@ -85,7 +85,7 @@ export async function runWhisper(
     });
 
     proc.on("error", (err) => {
-      reject(new Error(`whisper-cpp not found: ${err.message}. Install with: brew install whisper-cpp`));
+      reject(new Error(`whisper-cli not found: ${err.message}. Install with: brew install whisper-cpp`));
     });
   });
 }
@@ -95,7 +95,7 @@ export async function runWhisper(
  */
 export async function checkWhisper(): Promise<boolean> {
   return new Promise((resolve) => {
-    const proc = spawn("whisper-cpp", ["--help"], { stdio: "ignore" });
+    const proc = spawn("whisper-cli", ["--help"], { stdio: "ignore" });
     proc.on("close", (code) => resolve(code === 0));
     proc.on("error", () => resolve(false));
   });

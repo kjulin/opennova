@@ -61,6 +61,10 @@ switch (command) {
     break;
   }
   case "transcription": {
+    const os = await import("os");
+    const { Config } = await import("#core/index.js");
+    Config.workspaceDir = path.join(os.homedir(), ".nova");
+
     const subcommand = process.argv[3];
     const { transcriptionSetup, transcriptionStatus, transcriptionModels } = await import("./commands/transcription.js");
 

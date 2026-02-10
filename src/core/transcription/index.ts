@@ -136,6 +136,7 @@ export async function checkDependencies(): Promise<{
 
 /**
  * Download a Whisper model.
+ * Streams directly to disk to handle large files (>2GB).
  */
 export async function downloadModel(
   model: string,
@@ -163,23 +164,36 @@ export async function downloadModel(
     throw new Error("Failed to read response body");
   }
 
-  const chunks: Uint8Array[] = [];
+  // Stream directly to file to handle large models (>2GB)
+  const tempPath = `${modelPath}.tmp`;
+  const writeStream = fs.createWriteStream(tempPath);
   let receivedLength = 0;
 
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
 
-    chunks.push(value);
-    receivedLength += value.length;
+      writeStream.write(value);
+      receivedLength += value.length;
 
-    if (contentLength > 0 && onProgress) {
-      onProgress(Math.round((receivedLength / contentLength) * 100));
+      if (contentLength > 0 && onProgress) {
+        onProgress(Math.round((receivedLength / contentLength) * 100));
+      }
     }
-  }
 
-  const buffer = Buffer.concat(chunks);
-  fs.writeFileSync(modelPath, buffer);
+    await new Promise<void>((resolve, reject) => {
+      writeStream.end(() => resolve());
+      writeStream.on("error", reject);
+    });
+
+    // Rename temp file to final path
+    fs.renameSync(tempPath, modelPath);
+  } catch (err) {
+    // Cleanup temp file on error
+    try { fs.unlinkSync(tempPath); } catch {}
+    throw err;
+  }
 
   log.info("transcription", `model saved to ${modelPath}`);
   return modelPath;
@@ -189,12 +203,3 @@ export async function downloadModel(
 export { MODEL_URLS, MODEL_SIZES } from "./whisper.js";
 export { checkFfmpeg } from "./convert.js";
 export { checkWhisper } from "./whisper.js";
-
-// TTS
-export {
-  textToSpeech,
-  listVoices,
-  checkTTS,
-  type TTSOptions,
-  type TTSResult,
-} from "./tts.js";
