@@ -1,5 +1,4 @@
 import fs from "fs";
-import { execSync } from "child_process";
 import { resolveWorkspace } from "../workspace.js";
 import { Config, loadUsageRecords, type UsageRecord } from "#core/index.js";
 
@@ -101,41 +100,6 @@ function aggregateRecords(records: UsageRecord[]): PeriodStats {
   return stats;
 }
 
-interface CcusageTotals {
-  inputTokens: number;
-  outputTokens: number;
-  cacheReadTokens: number;
-}
-
-function getCcusageTotals(start: Date, end: Date): CcusageTotals | null {
-  try {
-    const since = formatYYYYMMDD(start);
-    const until = formatYYYYMMDD(end);
-    const result = execSync(`ccusage daily --json --offline --since ${since} --until ${until} 2>/dev/null`, {
-      encoding: "utf-8",
-      timeout: 5000,
-    });
-
-    const data = JSON.parse(result) as {
-      daily: Array<{
-        inputTokens: number;
-        outputTokens: number;
-        cacheReadTokens: number;
-      }>;
-    };
-
-    const totals: CcusageTotals = { inputTokens: 0, outputTokens: 0, cacheReadTokens: 0 };
-    for (const day of data.daily) {
-      totals.inputTokens += day.inputTokens;
-      totals.outputTokens += day.outputTokens;
-      totals.cacheReadTokens += day.cacheReadTokens;
-    }
-    return totals;
-  } catch {
-    return null;
-  }
-}
-
 function runCurrentPeriod(period: "today" | "week" | "month") {
   const { start, end, label } = getCalendarPeriod(period);
   const records = loadUsageRecords(start);
@@ -199,26 +163,13 @@ function runCurrentPeriod(period: "today" | "week" | "month") {
   const totals = aggregateRecords(records);
   console.log(sep);
   console.log([
-    "Nova Total".padEnd(agentCol),
+    "Total".padEnd(agentCol),
     totals.msgs.toString().padStart(cols.msgs),
     formatTokens(totals.inputTokens).padStart(cols.input),
     formatTokens(totals.outputTokens).padStart(cols.output),
     formatTokens(totals.cacheReadTokens).padStart(cols.cache),
     formatDuration(totals.durationMs).padStart(cols.dur),
   ].join("  "));
-
-  // Claude Code comparison
-  const ccTotals = getCcusageTotals(start, end);
-  if (ccTotals) {
-    console.log([
-      "Claude Code".padEnd(agentCol),
-      "".padStart(cols.msgs),
-      formatTokens(ccTotals.inputTokens).padStart(cols.input),
-      formatTokens(ccTotals.outputTokens).padStart(cols.output),
-      formatTokens(ccTotals.cacheReadTokens).padStart(cols.cache),
-      "".padStart(cols.dur),
-    ].join("  "));
-  }
 
   console.log();
 }
