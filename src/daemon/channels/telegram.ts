@@ -161,7 +161,7 @@ export function startTelegram() {
   // Create persistent reply keyboard with Tasks button if Tailscale is configured
   const replyKeyboard = tailscaleHostname
     ? new Keyboard()
-        .webApp("Tasks", `https://${tailscaleHostname}:3838`)
+        .webApp("Tasks", `https://${tailscaleHostname}:3838/web/tasklist/`)
         .resized()
         .persistent()
     : null;

@@ -1,0 +1,164 @@
+import { useState, useRef, useEffect } from 'react'
+import type { Task } from '../api'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Button } from '@/components/ui/button'
+
+interface TaskItemProps {
+  task: Task
+  assigneeName: string
+  creatorName: string
+  onToggle: (id: string) => void
+  onDismiss: (id: string) => void
+  onRemarks: (id: string, remarks: string) => void
+}
+
+export function TaskItem({ task, assigneeName, creatorName, onToggle, onDismiss, onRemarks }: TaskItemProps) {
+  const [isOpen, setIsOpen] = useState(false)
+  const [remarks, setRemarks] = useState(task.remarks ?? '')
+  const [isEditingRemarks, setIsEditingRemarks] = useState(false)
+  const remarksRef = useRef<HTMLTextAreaElement>(null)
+
+  useEffect(() => {
+    if (isEditingRemarks && remarksRef.current) {
+      const textarea = remarksRef.current
+      textarea.focus()
+      textarea.setSelectionRange(textarea.value.length, textarea.value.length)
+    }
+  }, [isEditingRemarks])
+
+  useEffect(() => {
+    setRemarks(task.remarks ?? '')
+  }, [task.remarks])
+  const isCompleted = task.status === 'done'
+  const isDismissed = task.status === 'dismissed'
+  const isResolved = isCompleted || isDismissed
+
+  return (
+    <div
+      className={`rounded-xl border border-white/5 bg-[#161b22] transition-all hover:border-white/10 hover:bg-[#1c2129] ${
+        isResolved ? 'opacity-60' : ''
+      }`}
+    >
+      <div
+        className="flex cursor-pointer items-center gap-4 px-4 py-3.5"
+        onClick={() => setIsOpen(!isOpen)}
+      >
+        <div onClick={e => e.stopPropagation()}>
+          <Checkbox
+            checked={isCompleted}
+            disabled={isDismissed}
+            onCheckedChange={() => onToggle(task.id)}
+            className="h-5 w-5 rounded-md border-gray-600 data-[state=checked]:border-emerald-500 data-[state=checked]:bg-emerald-500 disabled:opacity-40"
+          />
+        </div>
+
+        <div className="min-w-0 flex-1">
+          <p
+            className={`text-sm font-medium leading-tight ${
+              isCompleted
+                ? 'text-gray-400 line-through'
+                : isDismissed
+                  ? 'text-gray-500 line-through'
+                  : 'text-gray-100'
+            }`}
+          >
+            {task.title}
+          </p>
+        </div>
+
+        {isDismissed && (
+          <span className="rounded-md bg-red-500/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-red-400">
+            Dismissed
+          </span>
+        )}
+
+        <span className="text-xs text-gray-500">{assigneeName}</span>
+
+        <svg
+          className={`h-4 w-4 shrink-0 text-gray-500 transition-transform ${isOpen ? 'rotate-180' : ''}`}
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+          strokeWidth={2}
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+        </svg>
+      </div>
+
+      {isOpen && (
+        <div className="border-t border-[#2d333b] px-4 pb-4 pt-3 space-y-3">
+          <p className="text-xs text-gray-500">
+            From {creatorName}
+          </p>
+          <div>
+            <label className="mb-1.5 block text-xs font-medium uppercase tracking-wider text-[#8b949e]">
+              Rationale
+            </label>
+            <p className="rounded-lg bg-[#0d1117] px-3 py-2.5 text-sm leading-relaxed text-[#c9d1d9] whitespace-pre-wrap">
+              {task.rationale}
+            </p>
+          </div>
+          <div>
+            <label className="mb-1.5 block text-xs font-medium uppercase tracking-wider text-[#8b949e]">
+              Instructions
+            </label>
+            <p className="rounded-lg bg-[#0d1117] px-3 py-2.5 text-sm leading-relaxed text-[#c9d1d9] whitespace-pre-wrap">
+              {task.instructions}
+            </p>
+          </div>
+          <div>
+            <label className="mb-1.5 block text-xs font-medium uppercase tracking-wider text-[#8b949e]">
+              Remarks
+            </label>
+            {isEditingRemarks ? (
+              <textarea
+                ref={remarksRef}
+                value={remarks}
+                onChange={e => setRemarks(e.target.value)}
+                onClick={e => e.stopPropagation()}
+                onBlur={() => {
+                  if (remarks !== (task.remarks ?? '')) {
+                    onRemarks(task.id, remarks)
+                  }
+                  setIsEditingRemarks(false)
+                }}
+                className="w-full rounded-lg bg-[#0d1117] border border-blue-500 px-3 py-2.5 text-sm leading-relaxed text-[#c9d1d9] focus:outline-none resize-none"
+                rows={3}
+                placeholder="Add remarks..."
+              />
+            ) : (
+              <div
+                onClick={e => {
+                  e.stopPropagation()
+                  setIsEditingRemarks(true)
+                }}
+                className="rounded-lg bg-[#0d1117] px-3 py-2.5 text-sm leading-relaxed text-[#c9d1d9] cursor-pointer border border-transparent hover:border-[#30363d] min-h-[2.5rem] whitespace-pre-wrap"
+              >
+                {task.remarks || <span className="text-gray-500 italic">Click to add remarks...</span>}
+              </div>
+            )}
+          </div>
+          {!isCompleted && (
+            <div className="flex justify-end">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={e => {
+                  e.stopPropagation()
+                  onDismiss(task.id)
+                }}
+                className={`mt-1 text-xs ${
+                  isDismissed
+                    ? 'text-blue-400 hover:text-blue-300 hover:bg-blue-500/10'
+                    : 'text-red-400 hover:text-red-300 hover:bg-red-500/10'
+                }`}
+              >
+                {isDismissed ? 'Restore task' : 'Dismiss task'}
+              </Button>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}

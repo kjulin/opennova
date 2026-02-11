@@ -1,8 +1,10 @@
 import https from "https";
-import http from "http";
 import fs from "fs";
 import path from "path";
 import os from "os";
+import { Hono, type Context } from "hono";
+import { serve } from "@hono/node-server";
+import { createTasklistRouter } from "#tasklist/index.js";
 import { log } from "./logger.js";
 
 const PORT = 3838;
@@ -11,6 +13,49 @@ export interface HttpsServer {
   port: number;
   hostname: string;
   shutdown: () => void;
+}
+
+function getMimeType(ext: string): string {
+  const types: Record<string, string> = {
+    ".html": "text/html",
+    ".css": "text/css",
+    ".js": "application/javascript",
+    ".json": "application/json",
+    ".png": "image/png",
+    ".jpg": "image/jpeg",
+    ".svg": "image/svg+xml",
+  };
+  return types[ext] || "application/octet-stream";
+}
+
+function createStaticHandler(baseDir: string, basePath: string) {
+  return (c: Context) => {
+    let filePath = c.req.path;
+
+    if (filePath.startsWith(basePath)) {
+      filePath = filePath.slice(basePath.length);
+    }
+
+    if (filePath === "" || filePath === "/") {
+      filePath = "/index.html";
+    }
+
+    const fullPath = path.join(baseDir, filePath);
+
+    if (!fullPath.startsWith(baseDir)) {
+      return c.notFound();
+    }
+
+    if (!fs.existsSync(fullPath) || fs.statSync(fullPath).isDirectory()) {
+      return c.notFound();
+    }
+
+    const ext = path.extname(fullPath).toLowerCase();
+    const content = fs.readFileSync(fullPath);
+    c.header("Content-Type", getMimeType(ext));
+    // Use slice to get only the file data, not the entire underlying ArrayBuffer
+    return c.body(content.buffer.slice(content.byteOffset, content.byteOffset + content.byteLength));
+  };
 }
 
 export function startHttpsServer(workspaceDir: string): HttpsServer | null {
@@ -40,32 +85,62 @@ export function startHttpsServer(workspaceDir: string): HttpsServer | null {
   const cert = fs.readFileSync(certPath);
   const key = fs.readFileSync(keyPath);
 
-  // Locate webapp directory
-  const webappDir = path.join(workspaceDir, "webapp");
-  if (!fs.existsSync(webappDir) || fs.readdirSync(webappDir).length === 0) {
-    // Copy from template if it exists (go up two levels: dist/daemon -> dist -> root)
+  // Locate webapp directories
+  const workspaceWebappDir = path.join(workspaceDir, "webapp");
+  if (!fs.existsSync(workspaceWebappDir) || fs.readdirSync(workspaceWebappDir).length === 0) {
     const templateWebapp = path.resolve(import.meta.dirname, "..", "..", "workspace-template", "webapp");
     if (fs.existsSync(templateWebapp)) {
-      fs.mkdirSync(webappDir, { recursive: true });
-      fs.cpSync(templateWebapp, webappDir, { recursive: true });
+      fs.mkdirSync(workspaceWebappDir, { recursive: true });
+      fs.cpSync(templateWebapp, workspaceWebappDir, { recursive: true });
       log.info("https", "copied webapp template to workspace");
     } else {
-      fs.mkdirSync(webappDir, { recursive: true });
+      fs.mkdirSync(workspaceWebappDir, { recursive: true });
       log.warn("https", "no webapp directory found, serving empty");
     }
   }
 
-  const server = https.createServer({ cert, key }, (req, res) => {
-    handleRequest(req, res, webappDir);
+  // Tasklist webapp - check both dist (built) and workspace-template (fallback)
+  const tasklistDistDir = path.resolve(import.meta.dirname, "..", "..", "web", "tasklist", "dist");
+  const tasklistTemplateDir = path.resolve(import.meta.dirname, "..", "..", "workspace-template", "tasklist");
+  const tasklistDir = fs.existsSync(tasklistDistDir) ? tasklistDistDir :
+                      fs.existsSync(tasklistTemplateDir) ? tasklistTemplateDir : null;
+
+  const app = new Hono();
+
+  // CORS middleware
+  app.use("*", async (c, next) => {
+    c.header("Access-Control-Allow-Origin", "*");
+    c.header("Access-Control-Allow-Methods", "GET, POST, PATCH, OPTIONS");
+    c.header("Access-Control-Allow-Headers", "Content-Type");
+
+    if (c.req.method === "OPTIONS") {
+      return c.body(null, 204);
+    }
+
+    await next();
   });
 
-  server.listen(PORT, () => {
-    log.info("https", `server listening on https://${certName}:${PORT}`);
+  // API routes
+  app.get("/api/health", (c) => c.json({ ok: true }));
+  app.route("/api/tasklist", createTasklistRouter(workspaceDir));
+
+  // Tasklist webapp
+  if (tasklistDir) {
+    app.get("/web/tasklist", (c) => c.redirect("/web/tasklist/"));
+    app.get("/web/tasklist/*", createStaticHandler(tasklistDir, "/web/tasklist"));
+  }
+
+  // Root webapp (backwards compat)
+  app.get("/*", createStaticHandler(workspaceWebappDir, ""));
+
+  const server = serve({
+    fetch: app.fetch,
+    port: PORT,
+    createServer: https.createServer,
+    serverOptions: { cert, key },
   });
 
-  server.on("error", (err) => {
-    log.error("https", "server error:", err);
-  });
+  log.info("https", `server listening on https://${certName}:${PORT}`);
 
   return {
     port: PORT,
@@ -74,67 +149,4 @@ export function startHttpsServer(workspaceDir: string): HttpsServer | null {
       server.close();
     },
   };
-}
-
-function handleRequest(
-  req: http.IncomingMessage,
-  res: http.ServerResponse,
-  webappDir: string
-): void {
-  const url = req.url ?? "/";
-  const method = req.method ?? "GET";
-
-  // CORS headers for all responses
-  const corsHeaders = {
-    "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type",
-  };
-
-  // Handle preflight
-  if (method === "OPTIONS") {
-    res.writeHead(204, corsHeaders);
-    res.end();
-    return;
-  }
-
-  // API routes
-  if (url === "/api/health") {
-    res.writeHead(200, { "Content-Type": "application/json", ...corsHeaders });
-    res.end(JSON.stringify({ ok: true }));
-    return;
-  }
-
-  // Static file serving
-  let filePath = url === "/" ? "/index.html" : url;
-  filePath = path.join(webappDir, filePath);
-
-  // Prevent directory traversal
-  if (!filePath.startsWith(webappDir)) {
-    res.writeHead(403, corsHeaders);
-    res.end("Forbidden");
-    return;
-  }
-
-  if (!fs.existsSync(filePath)) {
-    res.writeHead(404, corsHeaders);
-    res.end("Not Found");
-    return;
-  }
-
-  const ext = path.extname(filePath).toLowerCase();
-  const contentTypes: Record<string, string> = {
-    ".html": "text/html",
-    ".css": "text/css",
-    ".js": "application/javascript",
-    ".json": "application/json",
-    ".png": "image/png",
-    ".jpg": "image/jpeg",
-    ".svg": "image/svg+xml",
-  };
-  const contentType = contentTypes[ext] || "application/octet-stream";
-
-  const content = fs.readFileSync(filePath);
-  res.writeHead(200, { "Content-Type": contentType, ...corsHeaders });
-  res.end(content);
 }
