@@ -78,10 +78,13 @@ export function run() {
 
   // Claude Code stats (total usage)
   if (claudeStats) {
+    // Claude Code messageCount includes both user and assistant messages
+    // Estimate user messages as half of total for fair comparison
+    const estimatedUserMessages = Math.round(claudeStats.totals.messages / 2);
+
     console.log("Claude Code (total):");
-    const msgWord = claudeStats.totals.messages === 1 ? "message" : "messages";
     const sessWord = claudeStats.totals.sessions === 1 ? "session" : "sessions";
-    console.log(`  ${claudeStats.totals.messages.toLocaleString()} ${msgWord}, ${claudeStats.totals.sessions.toLocaleString()} ${sessWord}`);
+    console.log(`  ~${estimatedUserMessages.toLocaleString()} user messages, ${claudeStats.totals.sessions.toLocaleString()} ${sessWord}`);
     console.log(`  ${claudeStats.totals.toolCalls.toLocaleString()} tool calls`);
 
     // Token usage
@@ -105,13 +108,13 @@ export function run() {
       }
     }
 
-    // OpenNova breakdown (percentage of total)
+    // OpenNova breakdown (percentage of total user messages)
     if (stats.totals.userMessages > 0) {
-      const novaPercent = claudeStats.totals.messages > 0
-        ? ((stats.totals.userMessages / claudeStats.totals.messages) * 100).toFixed(1)
+      const novaPercent = estimatedUserMessages > 0
+        ? ((stats.totals.userMessages / estimatedUserMessages) * 100).toFixed(1)
         : "0";
       console.log();
-      console.log(`  Via OpenNova: ${stats.totals.userMessages.toLocaleString()} messages (${novaPercent}%)`);
+      console.log(`  Via OpenNova: ${stats.totals.userMessages.toLocaleString()} user messages (${novaPercent}%)`);
       console.log(`    ${formatDuration(stats.totals.durationMs)} agent work time`);
 
       // Sort by duration (agent work time)
@@ -135,9 +138,9 @@ export function run() {
     // All-time stats
     console.log();
     console.log("All-time:");
-    const allMsgWord = claudeStats.allTime.totalMessages === 1 ? "message" : "messages";
+    const allEstimatedUserMessages = Math.round(claudeStats.allTime.totalMessages / 2);
     const allSessWord = claudeStats.allTime.totalSessions === 1 ? "session" : "sessions";
-    console.log(`  ${claudeStats.allTime.totalMessages.toLocaleString()} ${allMsgWord}, ${claudeStats.allTime.totalSessions.toLocaleString()} ${allSessWord}`);
+    console.log(`  ~${allEstimatedUserMessages.toLocaleString()} user messages, ${claudeStats.allTime.totalSessions.toLocaleString()} ${allSessWord}`);
     console.log(`  Since ${formatDate(claudeStats.allTime.firstSessionDate)}`);
     console.log();
   } else if (stats.totals.userMessages > 0) {
