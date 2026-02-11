@@ -76,34 +76,9 @@ export function run() {
   console.log(`Usage for ${periodLabel(period)} (${dateRange}):`);
   console.log();
 
-  // OpenNova stats
-  if (stats.totals.userMessages > 0) {
-    console.log("OpenNova:");
-    const totalMsgWord = stats.totals.userMessages === 1 ? "message" : "messages";
-    console.log(`  ${stats.totals.userMessages.toLocaleString()} ${totalMsgWord}, ${formatDuration(stats.totals.durationMs)} agent work time`);
-
-    // Sort by duration (agent work time)
-    const agents = Object.entries(stats.byAgent).sort((a, b) => b[1].durationMs - a[1].durationMs);
-
-    if (agents.length > 0) {
-      const maxNameLen = Math.max(...agents.map(([id]) => id.length));
-      const maxDurLen = Math.max(...agents.map(([, s]) => formatDuration(s.durationMs).length));
-
-      console.log("  By agent:");
-      for (const [agentId, agentStats] of agents) {
-        const agentTokens = formatTokens(agentStats.inputTokens + agentStats.outputTokens);
-        const agentDuration = formatDuration(agentStats.durationMs);
-        const paddedId = agentId.padEnd(maxNameLen);
-        const paddedDur = agentDuration.padStart(maxDurLen);
-        console.log(`    ${paddedId} — ${paddedDur} (${agentTokens} tokens)`);
-      }
-    }
-    console.log();
-  }
-
-  // Claude Code stats
+  // Claude Code stats (total usage)
   if (claudeStats) {
-    console.log("Claude Code:");
+    console.log("Claude Code (total):");
     const msgWord = claudeStats.totals.messages === 1 ? "message" : "messages";
     const sessWord = claudeStats.totals.sessions === 1 ? "session" : "sessions";
     console.log(`  ${claudeStats.totals.messages.toLocaleString()} ${msgWord}, ${claudeStats.totals.sessions.toLocaleString()} ${sessWord}`);
@@ -130,15 +105,63 @@ export function run() {
       }
     }
 
+    // OpenNova breakdown (percentage of total)
+    if (stats.totals.userMessages > 0) {
+      const novaPercent = claudeStats.totals.messages > 0
+        ? ((stats.totals.userMessages / claudeStats.totals.messages) * 100).toFixed(1)
+        : "0";
+      console.log();
+      console.log(`  Via OpenNova: ${stats.totals.userMessages.toLocaleString()} messages (${novaPercent}%)`);
+      console.log(`    ${formatDuration(stats.totals.durationMs)} agent work time`);
+
+      // Sort by duration (agent work time)
+      const agents = Object.entries(stats.byAgent).sort((a, b) => b[1].durationMs - a[1].durationMs);
+
+      if (agents.length > 0) {
+        const maxNameLen = Math.max(...agents.map(([id]) => id.length));
+        const maxDurLen = Math.max(...agents.map(([, s]) => formatDuration(s.durationMs).length));
+
+        console.log("    By agent:");
+        for (const [agentId, agentStats] of agents) {
+          const agentTokens = formatTokens(agentStats.inputTokens + agentStats.outputTokens);
+          const agentDuration = formatDuration(agentStats.durationMs);
+          const paddedId = agentId.padEnd(maxNameLen);
+          const paddedDur = agentDuration.padStart(maxDurLen);
+          console.log(`      ${paddedId} — ${paddedDur} (${agentTokens} tokens)`);
+        }
+      }
+    }
+
     // All-time stats
     console.log();
-    console.log("Claude Code all-time:");
+    console.log("All-time:");
     const allMsgWord = claudeStats.allTime.totalMessages === 1 ? "message" : "messages";
     const allSessWord = claudeStats.allTime.totalSessions === 1 ? "session" : "sessions";
     console.log(`  ${claudeStats.allTime.totalMessages.toLocaleString()} ${allMsgWord}, ${claudeStats.allTime.totalSessions.toLocaleString()} ${allSessWord}`);
     console.log(`  Since ${formatDate(claudeStats.allTime.firstSessionDate)}`);
     console.log();
-  } else if (stats.totals.userMessages === 0) {
+  } else if (stats.totals.userMessages > 0) {
+    // Only OpenNova stats available (no Claude Code stats file)
+    console.log("OpenNova:");
+    const totalMsgWord = stats.totals.userMessages === 1 ? "message" : "messages";
+    console.log(`  ${stats.totals.userMessages.toLocaleString()} ${totalMsgWord}, ${formatDuration(stats.totals.durationMs)} agent work time`);
+
+    const agents = Object.entries(stats.byAgent).sort((a, b) => b[1].durationMs - a[1].durationMs);
+    if (agents.length > 0) {
+      const maxNameLen = Math.max(...agents.map(([id]) => id.length));
+      const maxDurLen = Math.max(...agents.map(([, s]) => formatDuration(s.durationMs).length));
+
+      console.log("  By agent:");
+      for (const [agentId, agentStats] of agents) {
+        const agentTokens = formatTokens(agentStats.inputTokens + agentStats.outputTokens);
+        const agentDuration = formatDuration(agentStats.durationMs);
+        const paddedId = agentId.padEnd(maxNameLen);
+        const paddedDur = agentDuration.padStart(maxDurLen);
+        console.log(`    ${paddedId} — ${paddedDur} (${agentTokens} tokens)`);
+      }
+    }
+    console.log();
+  } else {
     console.log("No activity recorded.");
     console.log();
   }
