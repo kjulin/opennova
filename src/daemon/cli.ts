@@ -148,7 +148,9 @@ switch (command) {
     console.log("  agent <id> telegram           Set up a dedicated Telegram bot");
     console.log("  agent <id> telegram remove    Remove agent's dedicated bot");
     console.log("  status                        Show workspace and configuration status");
-    console.log("  usage [--today|--week|--month] Show usage statistics");
+    console.log("  usage [--today|--week|--month] Show current period usage by agent");
+    console.log("  usage weekly                  Show week-by-week usage");
+    console.log("  usage monthly                 Show month-by-month usage");
     console.log("  transcription setup [model]   Set up local voice transcription");
     console.log("  transcription status          Show transcription status");
     console.log("  transcription models          List available Whisper models");
