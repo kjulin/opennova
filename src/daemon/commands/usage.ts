@@ -78,9 +78,11 @@ export function run() {
 
   // Claude Code stats (total usage)
   if (claudeStats) {
-    // Claude Code messageCount includes both user and assistant messages
-    // Estimate user messages as half of total for fair comparison
-    const estimatedUserMessages = Math.round(claudeStats.totals.messages / 2);
+    // Claude Code messageCount includes user, assistant, tool_use, and tool_result messages
+    // Estimate user messages: subtract tool message pairs, then halve for user/assistant
+    const toolMessages = claudeStats.totals.toolCalls * 2; // tool_use + tool_result per call
+    const nonToolMessages = Math.max(0, claudeStats.totals.messages - toolMessages);
+    const estimatedUserMessages = Math.round(nonToolMessages / 2);
 
     console.log("Claude Code (total):");
     const sessWord = claudeStats.totals.sessions === 1 ? "session" : "sessions";
@@ -135,13 +137,11 @@ export function run() {
       }
     }
 
-    // All-time stats
+    // All-time stats (no tool call data available, so just show sessions)
     console.log();
     console.log("All-time:");
-    const allEstimatedUserMessages = Math.round(claudeStats.allTime.totalMessages / 2);
     const allSessWord = claudeStats.allTime.totalSessions === 1 ? "session" : "sessions";
-    console.log(`  ~${allEstimatedUserMessages.toLocaleString()} user messages, ${claudeStats.allTime.totalSessions.toLocaleString()} ${allSessWord}`);
-    console.log(`  Since ${formatDate(claudeStats.allTime.firstSessionDate)}`);
+    console.log(`  ${claudeStats.allTime.totalSessions.toLocaleString()} ${allSessWord} since ${formatDate(claudeStats.allTime.firstSessionDate)}`);
     console.log();
   } else if (stats.totals.userMessages > 0) {
     // Only OpenNova stats available (no Claude Code stats file)
