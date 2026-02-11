@@ -1,8 +1,9 @@
 import fs from "fs";
 import { resolveWorkspace } from "../workspace.js";
-import { Config, getUsageStats } from "#core/index.js";
+import { Config, getUsageStats, getClaudeCodeStats } from "#core/index.js";
 
 function formatTokens(n: number): string {
+  if (n >= 1_000_000_000) return `${(n / 1_000_000_000).toFixed(1)}B`;
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
   if (n >= 1_000) return `${(n / 1_000).toFixed(0)}k`;
   return n.toString();
@@ -37,6 +38,18 @@ function periodLabel(period: "today" | "week" | "month"): string {
   }
 }
 
+function formatModelName(model: string): string {
+  // Shorten model names for display
+  if (model.includes("opus-4-5")) return "Opus 4.5";
+  if (model.includes("opus-4-6")) return "Opus 4.6";
+  if (model.includes("sonnet-4-5")) return "Sonnet 4.5";
+  if (model.includes("haiku-4-5")) return "Haiku 4.5";
+  if (model.includes("opus")) return "Opus";
+  if (model.includes("sonnet")) return "Sonnet";
+  if (model.includes("haiku")) return "Haiku";
+  return model;
+}
+
 export function run() {
   const args = process.argv.slice(3);
 
@@ -53,6 +66,7 @@ export function run() {
   Config.workspaceDir = workspaceDir;
 
   const stats = getUsageStats(period);
+  const claudeStats = getClaudeCodeStats(period);
 
   const startDate = formatDate(stats.period.start);
   const endDate = formatDate(stats.period.end);
@@ -62,31 +76,72 @@ export function run() {
   console.log(`Usage for ${periodLabel(period)} (${dateRange}):`);
   console.log();
 
-  const totalTokens = stats.totals.inputTokens + stats.totals.outputTokens;
-  const totalMsgWord = stats.totals.userMessages === 1 ? "message" : "messages";
-  console.log(`You sent ${stats.totals.userMessages.toLocaleString()} ${totalMsgWord}. Agents worked for ${formatDuration(stats.totals.durationMs)}.`);
-  console.log();
+  // OpenNova stats
+  if (stats.totals.userMessages > 0) {
+    console.log("OpenNova:");
+    const totalMsgWord = stats.totals.userMessages === 1 ? "message" : "messages";
+    console.log(`  ${stats.totals.userMessages.toLocaleString()} ${totalMsgWord}, ${formatDuration(stats.totals.durationMs)} agent work time`);
 
-  // Sort by duration (agent work time)
-  const agents = Object.entries(stats.byAgent).sort((a, b) => b[1].durationMs - a[1].durationMs);
+    // Sort by duration (agent work time)
+    const agents = Object.entries(stats.byAgent).sort((a, b) => b[1].durationMs - a[1].durationMs);
 
-  if (agents.length === 0) {
-    console.log("No activity recorded.");
-  } else {
-    const maxNameLen = Math.max(...agents.map(([id]) => id.length));
-    const maxDurLen = Math.max(...agents.map(([, s]) => formatDuration(s.durationMs).length));
+    if (agents.length > 0) {
+      const maxNameLen = Math.max(...agents.map(([id]) => id.length));
+      const maxDurLen = Math.max(...agents.map(([, s]) => formatDuration(s.durationMs).length));
 
-    console.log("By agent:");
-    for (const [agentId, agentStats] of agents) {
-      const agentTokens = formatTokens(agentStats.inputTokens + agentStats.outputTokens);
-      const agentDuration = formatDuration(agentStats.durationMs);
-      const paddedId = agentId.padEnd(maxNameLen);
-      const paddedDur = agentDuration.padStart(maxDurLen);
-      console.log(`  ${paddedId} — ${paddedDur} (${agentTokens} tokens)`);
+      console.log("  By agent:");
+      for (const [agentId, agentStats] of agents) {
+        const agentTokens = formatTokens(agentStats.inputTokens + agentStats.outputTokens);
+        const agentDuration = formatDuration(agentStats.durationMs);
+        const paddedId = agentId.padEnd(maxNameLen);
+        const paddedDur = agentDuration.padStart(maxDurLen);
+        console.log(`    ${paddedId} — ${paddedDur} (${agentTokens} tokens)`);
+      }
     }
+    console.log();
   }
 
-  console.log();
+  // Claude Code stats
+  if (claudeStats) {
+    console.log("Claude Code:");
+    const msgWord = claudeStats.totals.messages === 1 ? "message" : "messages";
+    const sessWord = claudeStats.totals.sessions === 1 ? "session" : "sessions";
+    console.log(`  ${claudeStats.totals.messages.toLocaleString()} ${msgWord}, ${claudeStats.totals.sessions.toLocaleString()} ${sessWord}`);
+    console.log(`  ${claudeStats.totals.toolCalls.toLocaleString()} tool calls`);
+
+    // Token usage
+    const totalTokens = claudeStats.totals.inputTokens + claudeStats.totals.outputTokens;
+    const cacheTokens = claudeStats.totals.cacheReadTokens + claudeStats.totals.cacheCreationTokens;
+    if (totalTokens > 0 || cacheTokens > 0) {
+      console.log(`  ${formatTokens(totalTokens)} tokens (${formatTokens(cacheTokens)} cached)`);
+    }
+
+    // By model breakdown
+    const models = Object.entries(claudeStats.byModel)
+      .filter(([, m]) => m.inputTokens + m.outputTokens > 0)
+      .sort((a, b) => (b[1].inputTokens + b[1].outputTokens) - (a[1].inputTokens + a[1].outputTokens));
+
+    if (models.length > 0) {
+      console.log("  By model:");
+      for (const [model, usage] of models) {
+        const modelTokens = formatTokens(usage.inputTokens + usage.outputTokens);
+        const modelName = formatModelName(model);
+        console.log(`    ${modelName}: ${modelTokens} tokens`);
+      }
+    }
+
+    // All-time stats
+    console.log();
+    console.log("Claude Code all-time:");
+    const allMsgWord = claudeStats.allTime.totalMessages === 1 ? "message" : "messages";
+    const allSessWord = claudeStats.allTime.totalSessions === 1 ? "session" : "sessions";
+    console.log(`  ${claudeStats.allTime.totalMessages.toLocaleString()} ${allMsgWord}, ${claudeStats.allTime.totalSessions.toLocaleString()} ${allSessWord}`);
+    console.log(`  Since ${formatDate(claudeStats.allTime.firstSessionDate)}`);
+    console.log();
+  } else if (stats.totals.userMessages === 0) {
+    console.log("No activity recorded.");
+    console.log();
+  }
 
   const otherPeriods = (["today", "week", "month"] as const).filter((p) => p !== period);
   console.log(`Tip: nova usage --${otherPeriods[0]} or --${otherPeriods[1]}`);

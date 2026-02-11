@@ -103,9 +103,13 @@ export {
   appendUsage,
   loadUsageRecords,
   getUsageStats,
+  loadClaudeCodeStats,
+  getClaudeCodeStats,
   createUsageMcpServer,
   type UsageRecord,
   type UsageStats,
+  type ClaudeCodeStats,
+  type ClaudeCodePeriodStats,
 } from "./usage.js";
 
 // Transcription
