@@ -9,7 +9,6 @@ import { createMemoryMcpServer } from "./memory.js";
 import { createAgentManagementMcpServer, createSelfManagementMcpServer } from "./agent-management.js";
 import { createAskAgentMcpServer } from "./ask-agent.js";
 import { appendUsage, createUsageMcpServer } from "./usage.js";
-import { createSuggestEditMcpServer, type SuggestEditCallback } from "./suggest-edit.js";
 import {
   threadPath,
   loadManifest,
@@ -24,7 +23,6 @@ export interface RunThreadOverrides {
   model?: Model | undefined;
   maxTurns?: number | undefined;
   systemPromptSuffix?: string | undefined;
-  onSuggestEdit?: SuggestEditCallback | undefined;
 }
 
 export interface ThreadRunnerCallbacks extends EngineCallbacks {
@@ -118,7 +116,6 @@ export function createThreadRunner(runtime: Runtime = defaultRuntime): ThreadRun
               ...(agentId === "agent-builder" ? { agents: createAgentManagementMcpServer() } : {}),
               ...(agentId === "nova" ? { usage: createUsageMcpServer() } : {}),
               ...(agent.allowedAgents && security !== "sandbox" ? { "ask-agent": createAskAgentMcpServer(agent, askAgentDepth ?? 0, runThreadForAskAgent) } : {}),
-              ...(overrides?.onSuggestEdit ? { "suggest-edit": createSuggestEditMcpServer(overrides.onSuggestEdit) } : {}),
             },
           },
           security,

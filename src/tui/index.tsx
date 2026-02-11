@@ -2,12 +2,8 @@ import React from "react";
 import { render } from "ink";
 import { App } from "./app.js";
 
-export type AppMode = "chat" | "cowork";
-
 interface Options {
   agentId?: string | undefined;
-  mode?: AppMode | undefined;
-  workingDir?: string | undefined;
 }
 
 export function run(options: Options = {}) {
@@ -16,11 +12,7 @@ export function run(options: Options = {}) {
   process.stdout.write("\x1b[H");
 
   const { waitUntilExit } = render(
-    <App
-      agentId={options.agentId}
-      mode={options.mode ?? "chat"}
-      workingDir={options.workingDir}
-    />
+    <App agentId={options.agentId} />
   );
 
   waitUntilExit().then(() => {

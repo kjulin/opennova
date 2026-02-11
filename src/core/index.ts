@@ -95,15 +95,6 @@ export {
   type RunThreadOverrides,
 } from "./thread-runner.js";
 
-// Focus (for cowork mode)
-export {
-  loadFocuses,
-  getFocus,
-  buildCoworkPrompt,
-  parseCoworkResponse,
-  type Focus,
-} from "./focus.js";
-
 // MCP Servers
 export { createMemoryMcpServer } from "./memory.js";
 export { createAgentManagementMcpServer, createSelfManagementMcpServer } from "./agent-management.js";
@@ -116,11 +107,6 @@ export {
   type UsageRecord,
   type UsageStats,
 } from "./usage.js";
-export {
-  createSuggestEditMcpServer,
-  type EditSuggestion,
-  type SuggestEditCallback,
-} from "./suggest-edit.js";
 
 // Transcription
 export {
