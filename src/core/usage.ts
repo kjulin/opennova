@@ -160,8 +160,10 @@ function getPeriodBounds(period: "today" | "week" | "month"): { start: Date; end
   return { start, end };
 }
 
-export function getUsageStats(period: "today" | "week" | "month"): UsageStats {
-  const { start, end } = getPeriodBounds(period);
+export function getUsageStats(period: "today" | "week" | "month", customStart?: Date): UsageStats {
+  const { start, end } = customStart
+    ? { start: customStart, end: new Date() }
+    : getPeriodBounds(period);
   const records = loadUsageRecords(start);
 
   const totals = {

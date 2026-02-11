@@ -1,4 +1,5 @@
 import fs from "fs";
+import { execSync } from "child_process";
 import { resolveWorkspace } from "../workspace.js";
 import { Config, getUsageStats } from "#core/index.js";
 
@@ -22,19 +23,90 @@ function formatDuration(ms: number): string {
   return `${seconds.toFixed(0)}s`;
 }
 
-function formatDate(iso: string): string {
-  const d = new Date(iso);
+function formatDate(d: Date): string {
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
-function periodLabel(period: "today" | "week" | "month"): string {
+function formatYYYYMMDD(d: Date): string {
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${year}${month}${day}`;
+}
+
+function getCalendarPeriod(period: "today" | "week" | "month"): { start: Date; end: Date; label: string } {
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
   switch (period) {
-    case "today":
-      return "Today";
-    case "week":
-      return "Past Week";
-    case "month":
-      return "Past Month";
+    case "today": {
+      return {
+        start: today,
+        end: today,
+        label: "Today",
+      };
+    }
+    case "week": {
+      // Calendar week starting Sunday (to match ccusage)
+      const dayOfWeek = today.getDay(); // 0 = Sunday
+      const weekStart = new Date(today);
+      weekStart.setDate(today.getDate() - dayOfWeek);
+      return {
+        start: weekStart,
+        end: today,
+        label: "This Week",
+      };
+    }
+    case "month": {
+      // Calendar month
+      const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+      return {
+        start: monthStart,
+        end: today,
+        label: "This Month",
+      };
+    }
+  }
+}
+
+interface CcusageTotals {
+  inputTokens: number;
+  outputTokens: number;
+  cacheReadTokens: number;
+}
+
+function getCcusageTotals(start: Date, end: Date): CcusageTotals | null {
+  try {
+    const since = formatYYYYMMDD(start);
+    const until = formatYYYYMMDD(end);
+    const result = execSync(`ccusage daily --json --offline --since ${since} --until ${until} 2>/dev/null`, {
+      encoding: "utf-8",
+      timeout: 5000,
+    });
+
+    const data = JSON.parse(result) as {
+      daily: Array<{
+        inputTokens: number;
+        outputTokens: number;
+        cacheReadTokens: number;
+      }>;
+    };
+
+    const totals: CcusageTotals = {
+      inputTokens: 0,
+      outputTokens: 0,
+      cacheReadTokens: 0,
+    };
+
+    for (const day of data.daily) {
+      totals.inputTokens += day.inputTokens;
+      totals.outputTokens += day.outputTokens;
+      totals.cacheReadTokens += day.cacheReadTokens;
+    }
+
+    return totals;
+  } catch {
+    return null;
   }
 }
 
@@ -53,14 +125,15 @@ export function run() {
   }
   Config.workspaceDir = workspaceDir;
 
-  const stats = getUsageStats(period);
+  const { start, end, label } = getCalendarPeriod(period);
+  const stats = getUsageStats(period, start);
 
-  const startDate = formatDate(stats.period.start);
-  const endDate = formatDate(stats.period.end);
-  const dateRange = period === "today" ? startDate : `${startDate} - ${endDate}`;
+  const dateRange = period === "today"
+    ? formatDate(start)
+    : `${formatDate(start)} - ${formatDate(end)}`;
 
   console.log();
-  console.log(`OpenNova Usage - ${periodLabel(period)} (${dateRange})`);
+  console.log(`OpenNova Usage - ${label} (${dateRange})`);
   console.log();
 
   if (stats.totals.userMessages === 0) {
@@ -75,7 +148,7 @@ export function run() {
   const agents = Object.entries(stats.byAgent).sort((a, b) => b[1].durationMs - a[1].durationMs);
 
   // Calculate column widths
-  const agentCol = Math.max(5, ...agents.map(([id]) => id.length));
+  const agentCol = Math.max(10, ...agents.map(([id]) => id.length));
   const msgsCol = 4;
   const inputCol = 6;
   const outputCol = 6;
@@ -110,10 +183,10 @@ export function run() {
     console.log(row);
   }
 
-  // Total row
+  // Nova total row
   console.log(separator);
   const totalRow = [
-    "Total".padEnd(agentCol),
+    "Nova Total".padEnd(agentCol),
     stats.totals.userMessages.toString().padStart(msgsCol),
     formatTokens(stats.totals.inputTokens).padStart(inputCol),
     formatTokens(stats.totals.outputTokens).padStart(outputCol),
@@ -122,9 +195,22 @@ export function run() {
   ].join("  ");
   console.log(totalRow);
 
+  // Claude Code total from ccusage
+  const ccTotals = getCcusageTotals(start, end);
+  if (ccTotals) {
+    const ccRow = [
+      "Claude Code".padEnd(agentCol),
+      "".padStart(msgsCol),
+      formatTokens(ccTotals.inputTokens).padStart(inputCol),
+      formatTokens(ccTotals.outputTokens).padStart(outputCol),
+      formatTokens(ccTotals.cacheReadTokens).padStart(cacheCol),
+      "".padStart(durCol),
+    ].join("  ");
+    console.log(ccRow);
+  }
+
   console.log();
   const otherPeriods = (["today", "week", "month"] as const).filter((p) => p !== period);
   console.log(`Tip: nova usage --${otherPeriods[0]} | --${otherPeriods[1]}`);
-  console.log("     ccusage for total Claude Code usage");
   console.log();
 }
