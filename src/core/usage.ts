@@ -84,6 +84,7 @@ export interface UsageStats {
     agentMessages: number;
     inputTokens: number;
     outputTokens: number;
+    cacheReadTokens: number;
     durationMs: number;
   };
   byAgent: Record<
@@ -93,6 +94,7 @@ export interface UsageStats {
       agentMessages: number;
       inputTokens: number;
       outputTokens: number;
+      cacheReadTokens: number;
       durationMs: number;
     }
   >;
@@ -167,6 +169,7 @@ export function getUsageStats(period: "today" | "week" | "month"): UsageStats {
     agentMessages: 0,
     inputTokens: 0,
     outputTokens: 0,
+    cacheReadTokens: 0,
     durationMs: 0,
   };
 
@@ -178,6 +181,7 @@ export function getUsageStats(period: "today" | "week" | "month"): UsageStats {
     totals.agentMessages++;
     totals.inputTokens += record.inputTokens;
     totals.outputTokens += record.outputTokens;
+    totals.cacheReadTokens += record.cacheReadTokens;
     totals.durationMs += record.durationMs;
 
     let agentStats = byAgent[record.agentId];
@@ -187,6 +191,7 @@ export function getUsageStats(period: "today" | "week" | "month"): UsageStats {
         agentMessages: 0,
         inputTokens: 0,
         outputTokens: 0,
+        cacheReadTokens: 0,
         durationMs: 0,
       };
       byAgent[record.agentId] = agentStats;
@@ -196,6 +201,7 @@ export function getUsageStats(period: "today" | "week" | "month"): UsageStats {
     agentStats.agentMessages++;
     agentStats.inputTokens += record.inputTokens;
     agentStats.outputTokens += record.outputTokens;
+    agentStats.cacheReadTokens += record.cacheReadTokens;
     agentStats.durationMs += record.durationMs;
   }
 
