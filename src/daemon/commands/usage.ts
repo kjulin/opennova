@@ -44,8 +44,10 @@ function formatMonthDate(d: Date): string {
 
 function getWeekStart(d: Date): Date {
   const date = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-  const dayOfWeek = date.getDay(); // 0 = Sunday
-  date.setDate(date.getDate() - dayOfWeek);
+  const dayOfWeek = date.getDay(); // 0 = Sunday, 1 = Monday, ...
+  // Adjust to Monday start: Sunday (0) -> go back 6 days, otherwise go back (day - 1)
+  const daysToSubtract = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+  date.setDate(date.getDate() - daysToSubtract);
   return date;
 }
 
@@ -62,6 +64,7 @@ function getCalendarPeriod(period: "today" | "week" | "month"): { start: Date; e
       return { start: today, end: today, label: "Today" };
     }
     case "week": {
+      // Calendar week starting Monday
       const weekStart = getWeekStart(today);
       return { start: weekStart, end: today, label: "This Week" };
     }
