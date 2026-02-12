@@ -167,7 +167,7 @@ export function TaskItem({ task, assigneeName, creatorName, onToggle, onDismiss,
                     action: 'chat',
                     agentId: task.assignee,
                     threadId: task.threadId,
-                    taskId: task.id
+                    taskTitle: task.title
                   })
                   window.Telegram?.WebApp?.sendData(data)
                 }}
