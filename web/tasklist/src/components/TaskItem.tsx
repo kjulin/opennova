@@ -49,7 +49,7 @@ export function TaskItem({ task, assigneeName, creatorName, onToggle, onDismiss,
         className="flex cursor-pointer items-center gap-4 px-4 py-3.5"
         onClick={() => setIsOpen(!isOpen)}
       >
-        <div onClick={e => e.stopPropagation()}>
+        <div onClick={e => e.stopPropagation()} className="flex items-center">
           <Checkbox
             checked={isCompleted}
             disabled={isDismissed || isInProgress || isFailed}
@@ -91,6 +91,18 @@ export function TaskItem({ task, assigneeName, creatorName, onToggle, onDismiss,
         )}
 
         <span className="text-xs text-gray-500">{assigneeName}</span>
+
+        {isCompleted && (
+          <button
+            onClick={e => {
+              e.stopPropagation()
+              onArchive(task.id)
+            }}
+            className="rounded-md px-2 py-1 text-xs text-gray-500 hover:text-gray-300 hover:bg-gray-500/10 transition-colors"
+          >
+            Archive
+          </button>
+        )}
 
         <svg
           className={`h-4 w-4 shrink-0 text-gray-500 transition-transform ${isOpen ? 'rotate-180' : ''}`}
