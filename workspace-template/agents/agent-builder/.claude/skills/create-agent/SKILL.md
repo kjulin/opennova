@@ -35,6 +35,7 @@ Ask about HOW this agent should operate:
 - Any hard constraints or things they should never do?
 - Should they be proactive or reactive?
 - Any recurring tasks or triggers? (daily summaries, weekly reviews)
+- Should the agent do a nightly review? Most specialist agents should. Utility agents (like agent-builder) should not. If yes, ask what domain-specific focus the nightly review should have — this goes into the working arrangement. The shared nightly-review skill handles the rest.
 
 ## Phase 5: Build Working Arrangement
 
@@ -42,7 +43,7 @@ Delegate to the **working-arrangement-builder** subagent with requirements + the
 
 Review the returned working arrangement and triggers. Iterate if needed.
 
-## Phase 4: Create the Agent
+## Phase 6: Create the Agent
 
 Present the complete agent configuration to the user:
 - Name and ID
@@ -54,5 +55,9 @@ Present the complete agent configuration to the user:
 Once approved, use the MCP tools to:
 1. Call `create_agent` with identity and working_arrangement
 2. Call `write_triggers` if triggers were defined
+3. If the agent has a nightly review, add a trigger:
+   - Prompt: `/nightly-review`
+   - Cron: stagger 10 min after the last existing agent's nightly slot, starting from `0 1 * * *` (01:00 local). Check other agents' triggers via `read_triggers` to find the next available slot.
+   - Nova (chief of staff) always runs last — if adding a non-Nova agent, slot it before Nova's trigger time.
 
 Confirm creation and tell the user how to start chatting with their new agent.
