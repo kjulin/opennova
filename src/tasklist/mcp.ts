@@ -8,7 +8,7 @@ import {
   loadTasks,
   createTask,
   updateTask,
-  deleteTask,
+  archiveTask,
   getTask,
 } from "./storage.js";
 import type { Task } from "./types.js";
@@ -170,10 +170,10 @@ export function createTasklistMcpServer(
         }
       ),
       tool(
-        "delete_task",
-        "Delete a task you created",
+        "archive_task",
+        "Archive a task you created. Use for completed tasks or tasks no longer relevant. Moves it to history.",
         {
-          id: z.string().describe("Task ID to delete"),
+          id: z.string().describe("Task ID to archive"),
         },
         async (args) => {
           const task = getTask(workspaceDir, args.id);
@@ -188,16 +188,16 @@ export function createTasklistMcpServer(
               content: [
                 {
                   type: "text" as const,
-                  text: "You can only delete tasks you created",
+                  text: "You can only archive tasks you created",
                 },
               ],
               isError: true,
             };
           }
-          deleteTask(workspaceDir, args.id);
+          archiveTask(workspaceDir, args.id);
           return {
             content: [
-              { type: "text" as const, text: `Deleted task: ${task.title}` },
+              { type: "text" as const, text: `Archived task: ${task.title}` },
             ],
           };
         }
