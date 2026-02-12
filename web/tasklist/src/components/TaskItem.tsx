@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import type { Task } from '../api'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Button } from '@/components/ui/button'
+import { Markdown } from './Markdown'
 
 interface TaskItemProps {
   task: Task
@@ -109,17 +110,17 @@ export function TaskItem({ task, assigneeName, creatorName, onToggle, onDismiss,
             <label className="mb-1.5 block text-xs font-medium uppercase tracking-wider text-[#8b949e]">
               Rationale
             </label>
-            <p className="rounded-lg bg-[#0d1117] px-3 py-2.5 text-sm leading-relaxed text-[#c9d1d9] whitespace-pre-wrap">
-              {task.rationale}
-            </p>
+            <div className="rounded-lg bg-[#0d1117] px-3 py-2.5 text-sm text-[#c9d1d9]">
+              <Markdown>{task.rationale}</Markdown>
+            </div>
           </div>
           <div>
             <label className="mb-1.5 block text-xs font-medium uppercase tracking-wider text-[#8b949e]">
               Instructions
             </label>
-            <p className="rounded-lg bg-[#0d1117] px-3 py-2.5 text-sm leading-relaxed text-[#c9d1d9] whitespace-pre-wrap">
-              {task.instructions}
-            </p>
+            <div className="rounded-lg bg-[#0d1117] px-3 py-2.5 text-sm text-[#c9d1d9]">
+              <Markdown>{task.instructions}</Markdown>
+            </div>
           </div>
           <div>
             <label className="mb-1.5 block text-xs font-medium uppercase tracking-wider text-[#8b949e]">
@@ -147,9 +148,9 @@ export function TaskItem({ task, assigneeName, creatorName, onToggle, onDismiss,
                   e.stopPropagation()
                   setIsEditingRemarks(true)
                 }}
-                className="rounded-lg bg-[#0d1117] px-3 py-2.5 text-sm leading-relaxed text-[#c9d1d9] cursor-pointer border border-transparent hover:border-[#30363d] min-h-[2.5rem] whitespace-pre-wrap"
+                className="rounded-lg bg-[#0d1117] px-3 py-2.5 text-sm text-[#c9d1d9] cursor-pointer border border-transparent hover:border-[#30363d] min-h-[2.5rem]"
               >
-                {task.remarks || <span className="text-gray-500 italic">Click to add remarks...</span>}
+                {task.remarks ? <Markdown>{task.remarks}</Markdown> : <span className="text-gray-500 italic">Click to add remarks...</span>}
               </div>
             )}
           </div>
