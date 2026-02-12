@@ -133,3 +133,31 @@ export function archiveTask(workspaceDir: string, id: string): boolean {
 
   return true;
 }
+
+export interface ArchivedTask extends Task {
+  archivedAt: string;
+}
+
+export function loadArchivedTasks(workspaceDir: string, days: number = 7): ArchivedTask[] {
+  const filePath = historyPath(workspaceDir);
+  if (!fs.existsSync(filePath)) return [];
+
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - days);
+
+  const tasks: ArchivedTask[] = [];
+  const lines = fs.readFileSync(filePath, "utf-8").split("\n").filter(Boolean);
+
+  for (const line of lines) {
+    try {
+      const task = JSON.parse(line) as ArchivedTask;
+      if (new Date(task.archivedAt) >= cutoff) {
+        tasks.push(task);
+      }
+    } catch {
+      // Skip invalid lines
+    }
+  }
+
+  return tasks.sort((a, b) => b.archivedAt.localeCompare(a.archivedAt));
+}

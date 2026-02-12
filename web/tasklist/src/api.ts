@@ -12,6 +12,10 @@ export interface Task {
   updatedAt: string;
 }
 
+export interface ArchivedTask extends Task {
+  archivedAt: string;
+}
+
 export interface Agent {
   id: string;
   name: string;
@@ -85,4 +89,11 @@ export async function deleteTask(id: string): Promise<void> {
     method: "DELETE",
   });
   if (!res.ok) throw new Error("Failed to delete task");
+}
+
+export async function fetchArchivedTasks(days: number = 7): Promise<ArchivedTask[]> {
+  const res = await fetch(`${API_BASE}/archived?days=${days}`);
+  if (!res.ok) throw new Error("Failed to fetch archived tasks");
+  const data = await res.json();
+  return data.tasks;
 }
