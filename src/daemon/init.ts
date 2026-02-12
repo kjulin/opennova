@@ -9,7 +9,8 @@ export function init(): void {
   Config.workspaceDir = workspaceDir;
 
   if (!fs.existsSync(workspaceDir)) {
-    const templateDir = path.resolve(import.meta.dirname, "..", "workspace-template");
+    // Go up two levels: dist/daemon -> dist -> root
+    const templateDir = path.resolve(import.meta.dirname, "..", "..", "workspace-template");
     fs.cpSync(templateDir, workspaceDir, { recursive: true });
   }
 

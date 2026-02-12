@@ -6,7 +6,8 @@
     "paths": {
       "#core/*": ["./src/core/*"],
       "#daemon/*": ["./src/daemon/*"],
-      "#tui/*": ["./src/tui/*"]
+      "#tui/*": ["./src/tui/*"],
+      "#tasklist/*": ["./src/tasklist/*"]
     },
 
     "module": "nodenext",

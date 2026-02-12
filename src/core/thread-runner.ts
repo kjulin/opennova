@@ -4,12 +4,14 @@ import { runtime as defaultRuntime, type Runtime } from "./runtime.js";
 import type { Model } from "./models.js";
 import { generateThreadTitle, type EngineCallbacks } from "./engine/index.js";
 import { loadAgents, getAgentCwd, getAgentDirectories, resolveSecurityLevel } from "./agents.js";
+import { Config } from "./config.js";
 import { buildSystemPrompt } from "./prompts/index.js";
 import { createMemoryMcpServer } from "./memory.js";
 import { createAgentManagementMcpServer, createSelfManagementMcpServer } from "./agent-management.js";
 import { createAskAgentMcpServer } from "./ask-agent.js";
 import { createFileSendMcpServer, type FileType } from "./file-send.js";
 import { appendUsage, createUsageMcpServer } from "./usage.js";
+import { createTasklistMcpServer } from "#tasklist/index.js";
 import {
   threadPath,
   loadManifest,
@@ -113,6 +115,7 @@ export function createThreadRunner(runtime: Runtime = defaultRuntime): ThreadRun
             ...(agent.subagents ? { agents: agent.subagents } : {}),
             mcpServers: {
               memory: createMemoryMcpServer(agentDir),
+              tasklist: createTasklistMcpServer(agentId, Config.workspaceDir),
               ...(security !== "sandbox" ? { self: createSelfManagementMcpServer(agentDir) } : {}),
               ...(security !== "sandbox" ? {
                 "file-send": createFileSendMcpServer(agentDir, directories, (filePath, caption, fileType) => {

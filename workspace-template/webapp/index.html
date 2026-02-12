@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>OpenNova</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      padding: 20px;
+      margin: 0;
+      background: var(--tg-theme-bg-color, #ffffff);
+      color: var(--tg-theme-text-color, #000000);
+    }
+    h1 {
+      margin-top: 0;
+      font-size: 24px;
+    }
+    .status {
+      margin: 12px 0;
+      padding: 12px;
+      border-radius: 8px;
+      background: var(--tg-theme-secondary-bg-color, #f0f0f0);
+      font-size: 14px;
+    }
+    .success {
+      background: #d4edda;
+      color: #155724;
+    }
+    .error {
+      background: #f8d7da;
+      color: #721c24;
+    }
+    .info-block {
+      margin-top: 20px;
+      padding: 12px;
+      background: var(--tg-theme-secondary-bg-color, #f5f5f5);
+      border-radius: 8px;
+      font-size: 12px;
+      word-break: break-all;
+    }
+    .info-block h3 {
+      margin: 0 0 8px 0;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+  <h1>OpenNova</h1>
+
+  <div class="status" id="telegram-status">Checking Telegram SDK...</div>
+  <div class="status" id="api-status">Checking API...</div>
+
+  <div class="info-block" id="init-data-block">
+    <h3>Init Data</h3>
+    <div id="init-data">Loading...</div>
+  </div>
+
+  <div class="info-block" id="user-block" style="display: none;">
+    <h3>User Info</h3>
+    <div id="user-info"></div>
+  </div>
+
+  <script>
+    // Check Telegram SDK
+    const tgStatus = document.getElementById('telegram-status');
+    const initDataEl = document.getElementById('init-data');
+    const userBlock = document.getElementById('user-block');
+    const userInfo = document.getElementById('user-info');
+
+    if (window.Telegram?.WebApp) {
+      const webapp = Telegram.WebApp;
+
+      tgStatus.textContent = 'Telegram SDK: Available';
+      tgStatus.className = 'status success';
+
+      // Show init data
+      initDataEl.textContent = webapp.initData || '(empty - not opened from Telegram)';
+
+      // Show user info if available
+      if (webapp.initDataUnsafe?.user) {
+        const user = webapp.initDataUnsafe.user;
+        userBlock.style.display = 'block';
+        userInfo.innerHTML = [
+          `ID: ${user.id}`,
+          `Name: ${user.first_name} ${user.last_name || ''}`,
+          user.username ? `Username: @${user.username}` : null,
+        ].filter(Boolean).join('<br>');
+      }
+
+      // Apply Telegram theme
+      webapp.expand();
+      webapp.ready();
+    } else {
+      tgStatus.textContent = 'Telegram SDK: Not available (open from Telegram)';
+      tgStatus.className = 'status error';
+      initDataEl.textContent = '(not in Telegram context)';
+    }
+
+    // Check API
+    const apiStatus = document.getElementById('api-status');
+    fetch('/api/health')
+      .then(r => r.json())
+      .then(data => {
+        apiStatus.textContent = 'API: ' + JSON.stringify(data);
+        apiStatus.className = 'status success';
+      })
+      .catch(err => {
+        apiStatus.textContent = 'API Error: ' + err.message;
+        apiStatus.className = 'status error';
+      });
+  </script>
+</body>
+</html>
