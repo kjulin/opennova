@@ -8,6 +8,7 @@ import {
   listThreads,
   createThread,
   loadManifest,
+  saveManifest,
   threadPath,
   TelegramConfigSchema,
   safeParseJsonFile,
@@ -659,10 +660,24 @@ You can read, process, or move this file as needed.`;
         config.activeThreadId = data.threadId;
         saveTelegramConfig(config);
 
+        // Update thread channel to telegram so responses are delivered here
+        const agentDir = path.join(Config.workspaceDir, "agents", data.agentId);
+        const filePath = threadPath(agentDir, data.threadId);
+        try {
+          const manifest = loadManifest(filePath);
+          if (manifest.channel !== "telegram") {
+            manifest.channel = "telegram";
+            saveManifest(filePath, manifest);
+            log.info("telegram", `updated thread ${data.threadId} channel to telegram`);
+          }
+        } catch {
+          // Thread might not exist yet, that's fine
+        }
+
         log.info("telegram", `switched to agent=${data.agentId} thread=${data.threadId} via Mini App`);
 
-        const taskInfo = data.taskId ? ` (task ${data.taskId})` : "";
-        await ctx.reply(`_Switched to ${agent.name}${taskInfo}. You can now continue the conversation._`, {
+        const taskInfo = data.taskTitle ? ` (task: ${data.taskTitle})` : "";
+        await ctx.reply(`_Switched to ${agent.name}${taskInfo}_`, {
           parse_mode: "Markdown",
         });
       }
