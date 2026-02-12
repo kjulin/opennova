@@ -4,6 +4,7 @@ import {
   fetchArchivedTasks,
   updateTaskStatus,
   updateTaskRemarks,
+  updateTaskTitle,
   createTask,
   archiveTask,
   deleteTask,
@@ -105,6 +106,15 @@ export default function App() {
   const handleRemarks = async (id: string, remarks: string) => {
     try {
       await updateTaskRemarks(id, remarks);
+      await loadTasks();
+    } catch (err) {
+      setError((err as Error).message);
+    }
+  };
+
+  const handleTitle = async (id: string, title: string) => {
+    try {
+      await updateTaskTitle(id, title);
       await loadTasks();
     } catch (err) {
       setError((err as Error).message);
@@ -245,6 +255,7 @@ export default function App() {
               onToggle={handleToggle}
               onDismiss={handleDismiss}
               onRemarks={handleRemarks}
+              onTitle={handleTitle}
               onArchive={handleArchive}
               onDelete={handleDelete}
             />

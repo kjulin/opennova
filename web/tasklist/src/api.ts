@@ -77,6 +77,19 @@ export async function updateTaskRemarks(
   return res.json();
 }
 
+export async function updateTaskTitle(
+  id: string,
+  title: string
+): Promise<Task> {
+  const res = await fetch(`${API_BASE}/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ title }),
+  });
+  if (!res.ok) throw new Error("Failed to update title");
+  return res.json();
+}
+
 export async function archiveTask(id: string): Promise<void> {
   const res = await fetch(`${API_BASE}/${id}/archive`, {
     method: "POST",
