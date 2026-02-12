@@ -8,9 +8,10 @@ interface TaskListProps {
   onDismiss: (id: string) => void
   onRemarks: (id: string, remarks: string) => void
   onArchive: (id: string) => void
+  onDelete: (id: string) => void
 }
 
-export function TaskList({ tasks, agents, onToggle, onDismiss, onRemarks, onArchive }: TaskListProps) {
+export function TaskList({ tasks, agents, onToggle, onDismiss, onRemarks, onArchive, onDelete }: TaskListProps) {
   const pending = tasks.filter(t => t.status === 'open')
   const inProgress = tasks.filter(t => t.status === 'in_progress')
   const completed = tasks.filter(t => t.status === 'done')
@@ -33,6 +34,7 @@ export function TaskList({ tasks, agents, onToggle, onDismiss, onRemarks, onArch
       onDismiss={onDismiss}
       onRemarks={onRemarks}
       onArchive={onArchive}
+      onDelete={onDelete}
     />
   )
 

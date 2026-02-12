@@ -5,6 +5,7 @@ import {
   updateTaskRemarks,
   createTask,
   archiveTask,
+  deleteTask,
   type Task,
   type Agent,
 } from "./api";
@@ -103,6 +104,15 @@ export default function App() {
   const handleArchive = async (id: string) => {
     try {
       await archiveTask(id);
+      await loadTasks();
+    } catch (err) {
+      setError((err as Error).message);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    try {
+      await deleteTask(id);
       await loadTasks();
     } catch (err) {
       setError((err as Error).message);
@@ -214,6 +224,7 @@ export default function App() {
           onDismiss={handleDismiss}
           onRemarks={handleRemarks}
           onArchive={handleArchive}
+          onDelete={handleDelete}
         />
 
         {lastUpdated && (

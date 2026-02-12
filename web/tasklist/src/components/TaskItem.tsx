@@ -12,12 +12,14 @@ interface TaskItemProps {
   onDismiss: (id: string) => void
   onRemarks: (id: string, remarks: string) => void
   onArchive: (id: string) => void
+  onDelete: (id: string) => void
 }
 
-export function TaskItem({ task, assigneeName, creatorName, onToggle, onDismiss, onRemarks, onArchive }: TaskItemProps) {
+export function TaskItem({ task, assigneeName, creatorName, onToggle, onDismiss, onRemarks, onArchive, onDelete }: TaskItemProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [remarks, setRemarks] = useState(task.remarks ?? '')
   const [isEditingRemarks, setIsEditingRemarks] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
   const remarksRef = useRef<HTMLTextAreaElement>(null)
 
   useEffect(() => {
@@ -202,6 +204,44 @@ export function TaskItem({ task, assigneeName, creatorName, onToggle, onDismiss,
                 className="mt-1 text-xs text-gray-400 hover:text-gray-300 hover:bg-gray-500/10"
               >
                 Archive
+              </Button>
+            )}
+            {confirmDelete ? (
+              <>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={e => {
+                    e.stopPropagation()
+                    setConfirmDelete(false)
+                  }}
+                  className="mt-1 text-xs text-gray-400 hover:text-gray-300 hover:bg-gray-500/10"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={e => {
+                    e.stopPropagation()
+                    onDelete(task.id)
+                  }}
+                  className="mt-1 text-xs text-red-500 hover:text-red-400 hover:bg-red-500/10"
+                >
+                  Confirm delete
+                </Button>
+              </>
+            ) : (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={e => {
+                  e.stopPropagation()
+                  setConfirmDelete(true)
+                }}
+                className="mt-1 text-xs text-gray-500 hover:text-gray-400 hover:bg-gray-500/10"
+              >
+                Delete
               </Button>
             )}
           </div>
