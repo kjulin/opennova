@@ -100,7 +100,7 @@ export function createThreadRunner(runtime: Runtime = defaultRuntime): ThreadRun
       try {
         const cwd = getAgentCwd(agent);
         const directories = getAgentDirectories(agent);
-        const baseSystemPrompt = buildSystemPrompt(agent, agentDir, manifest.channel, security, cwd, directories);
+        const baseSystemPrompt = buildSystemPrompt(agent, manifest.channel, security, cwd, directories);
         const systemPrompt = overrides?.systemPromptSuffix
           ? `${baseSystemPrompt}\n\n${overrides.systemPromptSuffix}`
           : baseSystemPrompt;
@@ -114,7 +114,7 @@ export function createThreadRunner(runtime: Runtime = defaultRuntime): ThreadRun
             ...(overrides?.maxTurns ? { maxTurns: overrides.maxTurns } : {}),
             ...(agent.subagents ? { agents: agent.subagents } : {}),
             mcpServers: {
-              memory: createMemoryMcpServer(agentDir),
+              memory: createMemoryMcpServer(),
               tasklist: createTasklistMcpServer(agentId, Config.workspaceDir),
               ...(security !== "sandbox" ? { self: createSelfManagementMcpServer(agentDir) } : {}),
               ...(security !== "sandbox" ? {

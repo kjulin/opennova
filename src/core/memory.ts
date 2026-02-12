@@ -19,68 +19,43 @@ function saveMemories(filePath: string, memories: string[]): void {
   fs.writeFileSync(filePath, JSON.stringify(memories, null, 2));
 }
 
-export function createMemoryMcpServer(
-  agentDir: string,
-): McpSdkServerConfigWithInstance {
-  const agentMemoriesPath = path.join(agentDir, "memories.json");
-  const globalMemoriesPath = path.join(Config.workspaceDir, "memories.json");
-
-  function getPath(scope: "agent" | "global"): string {
-    return scope === "global" ? globalMemoriesPath : agentMemoriesPath;
-  }
+export function createMemoryMcpServer(): McpSdkServerConfigWithInstance {
+  const memoriesPath = path.join(Config.workspaceDir, "memories.json");
 
   return createSdkMcpServer({
     name: "memory",
     tools: [
       tool(
         "save_memory",
-        "Save a new memory. Use agent scope for agent-specific preferences, global scope for facts that apply across all agents.",
+        "Save a global memory visible to all agents. Use for cross-agent facts (user's name, timezone, preferences).",
         {
           memory: z.string().describe("The memory text to save"),
-          scope: z
-            .enum(["agent", "global"])
-            .optional()
-            .default("agent")
-            .describe("Where to store the memory"),
         },
         async (args) => {
-          const filePath = getPath(args.scope);
-          const memories = loadMemories(filePath);
+          const memories = loadMemories(memoriesPath);
           if (memories.includes(args.memory)) {
             return {
               content: [{ type: "text" as const, text: "Memory already exists" }],
             };
           }
           memories.push(args.memory);
-          saveMemories(filePath, memories);
+          saveMemories(memoriesPath, memories);
           return {
             content: [
-              { type: "text" as const, text: `Saved ${args.scope} memory: ${args.memory}` },
+              { type: "text" as const, text: `Saved memory: ${args.memory}` },
             ],
           };
         },
       ),
       tool(
         "list_memories",
-        "List saved memories",
-        {
-          scope: z
-            .enum(["agent", "global", "all"])
-            .optional()
-            .default("all")
-            .describe("Which memories to list"),
-        },
-        async (args) => {
-          const result: Record<string, string[]> = {};
-          if (args.scope === "agent" || args.scope === "all") {
-            result.agent = loadMemories(agentMemoriesPath);
-          }
-          if (args.scope === "global" || args.scope === "all") {
-            result.global = loadMemories(globalMemoriesPath);
-          }
+        "List saved global memories",
+        {},
+        async () => {
+          const memories = loadMemories(memoriesPath);
           return {
             content: [
-              { type: "text" as const, text: JSON.stringify(result, null, 2) },
+              { type: "text" as const, text: JSON.stringify(memories, null, 2) },
             ],
           };
         },
@@ -90,15 +65,9 @@ export function createMemoryMcpServer(
         "Delete a memory by exact text",
         {
           memory: z.string().describe("The exact memory text to delete"),
-          scope: z
-            .enum(["agent", "global"])
-            .optional()
-            .default("agent")
-            .describe("Which scope to delete from"),
         },
         async (args) => {
-          const filePath = getPath(args.scope);
-          const memories = loadMemories(filePath);
+          const memories = loadMemories(memoriesPath);
           const index = memories.indexOf(args.memory);
           if (index === -1) {
             return {
@@ -107,10 +76,10 @@ export function createMemoryMcpServer(
             };
           }
           memories.splice(index, 1);
-          saveMemories(filePath, memories);
+          saveMemories(memoriesPath, memories);
           return {
             content: [
-              { type: "text" as const, text: `Deleted ${args.scope} memory: ${args.memory}` },
+              { type: "text" as const, text: `Deleted memory: ${args.memory}` },
             ],
           };
         },
