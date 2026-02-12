@@ -29,6 +29,7 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
   const [showMyTasksOnly, setShowMyTasksOnly] = useState(false);
   const [showNewForm, setShowNewForm] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
   const loadTasks = useCallback(async () => {
     try {
@@ -36,6 +37,7 @@ export default function App() {
       const data = await fetchTasks();
       setTasks(data.tasks);
       setAgents(data.agents);
+      setLastUpdated(new Date());
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -47,6 +49,10 @@ export default function App() {
     window.Telegram?.WebApp?.ready();
     window.Telegram?.WebApp?.expand();
     loadTasks();
+
+    // Poll for updates every minute
+    const interval = setInterval(loadTasks, 60000);
+    return () => clearInterval(interval);
   }, [loadTasks]);
 
   const handleToggle = async (id: string) => {
@@ -209,6 +215,12 @@ export default function App() {
           onRemarks={handleRemarks}
           onArchive={handleArchive}
         />
+
+        {lastUpdated && (
+          <p className="mt-8 text-center text-xs text-gray-500">
+            Last updated {lastUpdated.toLocaleTimeString()}
+          </p>
+        )}
       </div>
     </div>
   );
