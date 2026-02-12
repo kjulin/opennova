@@ -79,3 +79,10 @@ export async function archiveTask(id: string): Promise<void> {
   });
   if (!res.ok) throw new Error("Failed to archive task");
 }
+
+export async function deleteTask(id: string): Promise<void> {
+  const res = await fetch(`${API_BASE}/${id}`, {
+    method: "DELETE",
+  });
+  if (!res.ok) throw new Error("Failed to delete task");
+}

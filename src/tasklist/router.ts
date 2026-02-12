@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { loadTasks, createTask, updateTask, getTask, archiveTask } from "./storage.js";
+import { loadTasks, createTask, updateTask, getTask, archiveTask, deleteTask } from "./storage.js";
 import { loadAgents } from "#core/agents.js";
 
 export function createTasklistRouter(workspaceDir: string): Hono {
@@ -75,6 +75,22 @@ export function createTasklistRouter(workspaceDir: string): Hono {
     const archived = archiveTask(workspaceDir, id);
     if (!archived) {
       return c.json({ error: "Failed to archive task" }, 500);
+    }
+
+    return c.json({ success: true });
+  });
+
+  app.delete("/:id", (c) => {
+    const id = c.req.param("id");
+    const task = getTask(workspaceDir, id);
+
+    if (!task) {
+      return c.json({ error: "Task not found" }, 404);
+    }
+
+    const deleted = deleteTask(workspaceDir, id);
+    if (!deleted) {
+      return c.json({ error: "Failed to delete task" }, 500);
     }
 
     return c.json({ success: true });
