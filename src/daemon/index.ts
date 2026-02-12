@@ -6,11 +6,13 @@ import { startTriggerScheduler } from "./triggers.js";
 import { startHttpsServer, type HttpsServer } from "./https.js";
 import { ensureAuth } from "./auth.js";
 import { Config, loadSettings } from "#core/index.js";
+import { syncSharedSkills } from "#core/skills.js";
 import { startTasklistScheduler } from "#tasklist/index.js";
 import { log } from "./logger.js";
 
 export function start() {
   init();
+  syncSharedSkills(Config.workspaceDir);
 
   log.info("daemon", `workspace: ${Config.workspaceDir}`);
   log.info("daemon", `node: ${process.version}, platform: ${process.platform}`);
