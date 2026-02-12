@@ -29,13 +29,12 @@ function buildRoleBlock(agent: AgentConfig): string {
 
 export function buildSystemPrompt(
   agent: AgentConfig,
-  agentDir: string,
   channel: ChannelType,
   security: SecurityLevel,
   cwd: string,
   directories: string[]
 ): string {
-  const memories = buildMemoryPrompt(agentDir);
+  const memories = buildMemoryPrompt();
   const dirBlock = buildDirectoriesBlock(cwd, directories, security);
   const formatting = getFormattingInstructions(channel);
   const storageInstructions = security !== "sandbox" ? STORAGE_INSTRUCTIONS : "";

@@ -13,40 +13,31 @@ You have four ways to persist information. Choose the right one:
 - User preferences about your workflow
 - Patterns that work well
 - Constraints you should follow
+- Domain-specific knowledge you need to remember
 Changes take effect next conversation. Your identity stays fixed; your working arrangement evolves.
 
-**Memory** (save_memory) — for facts to remember across conversations:
-- Agent scope: Your domain knowledge (user's preferences in your area, past decisions)
-- Global scope: Cross-agent facts (user's name, timezone, communication style)
+**Memory** (save_memory) — for facts that ALL agents should know:
+- User's name, timezone, communication preferences
+- Cross-agent decisions or context
+- NOT for agent-specific knowledge (use working arrangement for that)
 
 **Triggers** — for recurring scheduled tasks (managed via agent-builder).
 
 Quick guide:
 - "User should see this" → File
 - "I should work differently" → Working Arrangement
-- "I need to remember this fact" → Memory
+- "All agents should know this" → Memory
+- "I need to remember this for my domain" → Working Arrangement
 </Storage>`;
 
-export function buildMemoryPrompt(agentDir: string): string {
-  const agentMemoriesPath = path.join(agentDir, "memories.json");
-  const globalMemoriesPath = path.join(Config.workspaceDir, "memories.json");
+export function buildMemoryPrompt(): string {
+  const memoriesPath = path.join(Config.workspaceDir, "memories.json");
 
-  const agentMemories: string[] = fs.existsSync(agentMemoriesPath)
-    ? JSON.parse(fs.readFileSync(agentMemoriesPath, "utf-8"))
-    : [];
-  const globalMemories: string[] = fs.existsSync(globalMemoriesPath)
-    ? JSON.parse(fs.readFileSync(globalMemoriesPath, "utf-8"))
+  const memories: string[] = fs.existsSync(memoriesPath)
+    ? JSON.parse(fs.readFileSync(memoriesPath, "utf-8"))
     : [];
 
-  if (agentMemories.length === 0 && globalMemories.length === 0) return "";
+  if (memories.length === 0) return "";
 
-  const sections: string[] = [];
-  if (agentMemories.length > 0) {
-    sections.push(`Agent memories:\n${agentMemories.map((m) => `- ${m}`).join("\n")}`);
-  }
-  if (globalMemories.length > 0) {
-    sections.push(`Global memories:\n${globalMemories.map((m) => `- ${m}`).join("\n")}`);
-  }
-
-  return `\n<Memories>\n${sections.join("\n\n")}\n</Memories>`;
+  return `\n<Memories>\n${memories.map((m) => `- ${m}`).join("\n")}\n</Memories>`;
 }
