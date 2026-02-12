@@ -4,6 +4,7 @@ import {
   updateTaskStatus,
   updateTaskRemarks,
   createTask,
+  archiveTask,
   type Task,
   type Agent,
 } from "./api";
@@ -88,6 +89,15 @@ export default function App() {
       await createTask(data);
       await loadTasks();
       setShowNewForm(false);
+    } catch (err) {
+      setError((err as Error).message);
+    }
+  };
+
+  const handleArchive = async (id: string) => {
+    try {
+      await archiveTask(id);
+      await loadTasks();
     } catch (err) {
       setError((err as Error).message);
     }
@@ -197,6 +207,7 @@ export default function App() {
           onToggle={handleToggle}
           onDismiss={handleDismiss}
           onRemarks={handleRemarks}
+          onArchive={handleArchive}
         />
       </div>
     </div>

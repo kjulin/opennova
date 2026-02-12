@@ -10,9 +10,10 @@ interface TaskItemProps {
   onToggle: (id: string) => void
   onDismiss: (id: string) => void
   onRemarks: (id: string, remarks: string) => void
+  onArchive: (id: string) => void
 }
 
-export function TaskItem({ task, assigneeName, creatorName, onToggle, onDismiss, onRemarks }: TaskItemProps) {
+export function TaskItem({ task, assigneeName, creatorName, onToggle, onDismiss, onRemarks, onArchive }: TaskItemProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [remarks, setRemarks] = useState(task.remarks ?? '')
   const [isEditingRemarks, setIsEditingRemarks] = useState(false)
@@ -31,7 +32,9 @@ export function TaskItem({ task, assigneeName, creatorName, onToggle, onDismiss,
   }, [task.remarks])
   const isCompleted = task.status === 'done'
   const isDismissed = task.status === 'dismissed'
-  const isResolved = isCompleted || isDismissed
+  const isInProgress = task.status === 'in_progress'
+  const isFailed = task.status === 'failed'
+  const isResolved = isCompleted || isDismissed || isFailed
 
   return (
     <div
@@ -46,7 +49,7 @@ export function TaskItem({ task, assigneeName, creatorName, onToggle, onDismiss,
         <div onClick={e => e.stopPropagation()}>
           <Checkbox
             checked={isCompleted}
-            disabled={isDismissed}
+            disabled={isDismissed || isInProgress || isFailed}
             onCheckedChange={() => onToggle(task.id)}
             className="h-5 w-5 rounded-md border-gray-600 data-[state=checked]:border-emerald-500 data-[state=checked]:bg-emerald-500 disabled:opacity-40"
           />
@@ -57,7 +60,7 @@ export function TaskItem({ task, assigneeName, creatorName, onToggle, onDismiss,
             className={`text-sm font-medium leading-tight ${
               isCompleted
                 ? 'text-gray-400 line-through'
-                : isDismissed
+                : isDismissed || isFailed
                   ? 'text-gray-500 line-through'
                   : 'text-gray-100'
             }`}
@@ -65,6 +68,18 @@ export function TaskItem({ task, assigneeName, creatorName, onToggle, onDismiss,
             {task.title}
           </p>
         </div>
+
+        {isInProgress && (
+          <span className="rounded-md bg-blue-500/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-blue-400">
+            In Progress
+          </span>
+        )}
+
+        {isFailed && (
+          <span className="rounded-md bg-orange-500/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-orange-400">
+            Failed
+          </span>
+        )}
 
         {isDismissed && (
           <span className="rounded-md bg-red-500/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-red-400">
@@ -138,8 +153,8 @@ export function TaskItem({ task, assigneeName, creatorName, onToggle, onDismiss,
               </div>
             )}
           </div>
-          {!isCompleted && (
-            <div className="flex justify-end">
+          <div className="flex justify-end gap-2">
+            {!isCompleted && (
               <Button
                 variant="ghost"
                 size="sm"
@@ -155,8 +170,21 @@ export function TaskItem({ task, assigneeName, creatorName, onToggle, onDismiss,
               >
                 {isDismissed ? 'Restore task' : 'Dismiss task'}
               </Button>
-            </div>
-          )}
+            )}
+            {isCompleted && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={e => {
+                  e.stopPropagation()
+                  onArchive(task.id)
+                }}
+                className="mt-1 text-xs text-gray-400 hover:text-gray-300 hover:bg-gray-500/10"
+              >
+                Archive
+              </Button>
+            )}
+          </div>
         </div>
       )}
     </div>

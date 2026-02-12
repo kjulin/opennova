@@ -6,7 +6,7 @@ export interface Task {
   rationale: string;
   instructions: string;
   remarks?: string;
-  status: "open" | "done" | "dismissed";
+  status: "open" | "in_progress" | "done" | "failed" | "dismissed";
   createdAt: string;
   updatedAt: string;
 }
@@ -70,4 +70,11 @@ export async function updateTaskRemarks(
   });
   if (!res.ok) throw new Error("Failed to update remarks");
   return res.json();
+}
+
+export async function archiveTask(id: string): Promise<void> {
+  const res = await fetch(`${API_BASE}/${id}/archive`, {
+    method: "POST",
+  });
+  if (!res.ok) throw new Error("Failed to archive task");
 }

@@ -7,11 +7,14 @@ interface TaskListProps {
   onToggle: (id: string) => void
   onDismiss: (id: string) => void
   onRemarks: (id: string, remarks: string) => void
+  onArchive: (id: string) => void
 }
 
-export function TaskList({ tasks, agents, onToggle, onDismiss, onRemarks }: TaskListProps) {
+export function TaskList({ tasks, agents, onToggle, onDismiss, onRemarks, onArchive }: TaskListProps) {
   const pending = tasks.filter(t => t.status === 'open')
+  const inProgress = tasks.filter(t => t.status === 'in_progress')
   const completed = tasks.filter(t => t.status === 'done')
+  const failed = tasks.filter(t => t.status === 'failed')
   const dismissed = tasks.filter(t => t.status === 'dismissed')
 
   const getAgentName = (agentId: string) => {
@@ -29,11 +32,25 @@ export function TaskList({ tasks, agents, onToggle, onDismiss, onRemarks }: Task
       onToggle={onToggle}
       onDismiss={onDismiss}
       onRemarks={onRemarks}
+      onArchive={onArchive}
     />
   )
 
   return (
     <div className="space-y-6">
+      {inProgress.length > 0 && (
+        <section>
+          <h2 className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-gray-400">
+            <span className="h-1.5 w-1.5 rounded-full bg-blue-400 animate-pulse" />
+            In Progress
+            <span className="text-gray-500">({inProgress.length})</span>
+          </h2>
+          <div className="space-y-2">
+            {inProgress.map(renderTaskItem)}
+          </div>
+        </section>
+      )}
+
       {pending.length > 0 && (
         <section>
           <h2 className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-gray-400">
@@ -56,6 +73,19 @@ export function TaskList({ tasks, agents, onToggle, onDismiss, onRemarks }: Task
           </h2>
           <div className="space-y-2">
             {completed.map(renderTaskItem)}
+          </div>
+        </section>
+      )}
+
+      {failed.length > 0 && (
+        <section>
+          <h2 className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-gray-400">
+            <span className="h-1.5 w-1.5 rounded-full bg-orange-400" />
+            Failed
+            <span className="text-gray-500">({failed.length})</span>
+          </h2>
+          <div className="space-y-2">
+            {failed.map(renderTaskItem)}
           </div>
         </section>
       )}

@@ -67,7 +67,8 @@ export interface UpdateTaskData {
   rationale?: string | undefined;
   instructions?: string | undefined;
   remarks?: string | undefined;
-  status?: "open" | "done" | "dismissed" | undefined;
+  status?: "open" | "in_progress" | "done" | "failed" | "dismissed" | undefined;
+  threadId?: string | undefined;
 }
 
 export function updateTask(
@@ -85,6 +86,7 @@ export function updateTask(
   if (updates.instructions !== undefined) task.instructions = updates.instructions;
   if (updates.remarks !== undefined) task.remarks = updates.remarks;
   if (updates.status !== undefined) task.status = updates.status;
+  if (updates.threadId !== undefined) task.threadId = updates.threadId;
   task.updatedAt = new Date().toISOString();
 
   saveTasks(workspaceDir, tasks);
@@ -104,4 +106,30 @@ export function deleteTask(workspaceDir: string, id: string): boolean {
 export function getTask(workspaceDir: string, id: string): Task | null {
   const tasks = loadTasks(workspaceDir);
   return tasks.find((t) => t.id === id) ?? null;
+}
+
+function historyPath(workspaceDir: string): string {
+  return path.join(tasksDir(workspaceDir), "history.jsonl");
+}
+
+export function archiveTask(workspaceDir: string, id: string): boolean {
+  const tasks = loadTasks(workspaceDir);
+  const index = tasks.findIndex((t) => t.id === id);
+  if (index === -1) return false;
+
+  const task = tasks[index]!;
+  const archivedTask = { ...task, archivedAt: new Date().toISOString() };
+
+  // Append to history.jsonl
+  const dir = tasksDir(workspaceDir);
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+  }
+  fs.appendFileSync(historyPath(workspaceDir), JSON.stringify(archivedTask) + "\n");
+
+  // Remove from tasks
+  tasks.splice(index, 1);
+  saveTasks(workspaceDir, tasks);
+
+  return true;
 }

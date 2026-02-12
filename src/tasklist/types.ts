@@ -8,7 +8,8 @@ export const TaskSchema = z.object({
   rationale: z.string(),
   instructions: z.string(),
   remarks: z.string().optional(),
-  status: z.enum(["open", "done", "dismissed"]),
+  status: z.enum(["open", "in_progress", "done", "failed", "dismissed"]),
+  threadId: z.string().optional(),
   createdAt: z.string(),
   updatedAt: z.string(),
 });
