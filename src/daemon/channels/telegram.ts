@@ -72,6 +72,39 @@ export function relativeTime(iso: string): string {
   return new Date(iso).toLocaleDateString("en", { month: "short", day: "numeric" });
 }
 
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+}
+
+async function downloadTelegramFile(
+  bot: Bot,
+  token: string,
+  fileId: string,
+  agentDir: string,
+  originalName: string,
+): Promise<string> {
+  const file = await bot.api.getFile(fileId);
+  if (!file.file_path) throw new Error("Failed to get file path");
+
+  const url = `https://api.telegram.org/file/bot${token}/${file.file_path}`;
+  const response = await fetch(url);
+  if (!response.ok) throw new Error(`Download failed: ${response.statusText}`);
+
+  const buffer = Buffer.from(await response.arrayBuffer());
+
+  const inboxDir = path.join(agentDir, "inbox");
+  fs.mkdirSync(inboxDir, { recursive: true });
+
+  const timestamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
+  const safeName = originalName.replace(/[^a-zA-Z0-9._-]/g, "_");
+  const filePath = path.join(inboxDir, `${timestamp}-${safeName}`);
+
+  fs.writeFileSync(filePath, buffer);
+  return filePath;
+}
+
 function agentKeyboard(agents: Map<string, { id: string; name: string }>, activeId: string): InlineKeyboard {
   const keyboard = new InlineKeyboard();
   for (const a of agents.values()) {
@@ -454,6 +487,121 @@ Please read it and respond to what I said.`;
         `❌ Transcription failed: ${(err as Error).message}`
       );
     }
+  });
+
+  // Generic file handler for documents, photos, audio, video
+  async function handleIncomingFile(
+    ctx: { chat: { id: number }; reply: (text: string) => Promise<unknown> },
+    fileId: string,
+    fileName: string,
+    fileSize: number | undefined,
+    mimeType: string | undefined,
+    fileType: string,
+  ) {
+    const chatId = ctx.chat.id;
+    if (!config || String(chatId) !== config.chatId) return;
+
+    const agents = loadAgents();
+    const agentId = config.activeAgentId;
+    const agent = agents.get(agentId);
+    if (!agent) {
+      await ctx.reply(`Agent "${agentId}" not found. Use /agent to switch.`);
+      return;
+    }
+
+    // Telegram bot API download limit is 20MB
+    if (fileSize && fileSize > 20 * 1024 * 1024) {
+      await ctx.reply(`File too large (${formatFileSize(fileSize)}). Maximum: 20MB`);
+      return;
+    }
+
+    log.info("telegram", `[${chatId}] [${agent.id}] ${fileType}: ${fileName}`);
+
+    const statusMsg = await ctx.reply(`Receiving ${fileType}...`);
+    const agentDir = path.join(Config.workspaceDir, "agents", agent.id);
+
+    try {
+      const filePath = await downloadTelegramFile(bot, config.token, fileId, agentDir, fileName);
+
+      await bot.api.editMessageText(chatId, (statusMsg as { message_id: number }).message_id, `Received: ${fileName}`);
+
+      const threadId = resolveThreadId(config, agentDir);
+      const prompt = `The user sent you a file:
+- Name: ${fileName}
+- Type: ${mimeType || "unknown"}
+- Size: ${fileSize ? formatFileSize(fileSize) : "unknown"}
+- Saved at: ${filePath}
+
+You can read, process, or move this file as needed.`;
+
+      const abortController = new AbortController();
+      activeAbortController = abortController;
+
+      const typingInterval = setInterval(() => {
+        bot.api.sendChatAction(chatId, "typing").catch(() => {});
+      }, 4000);
+      bot.api.sendChatAction(chatId, "typing").catch(() => {});
+
+      runThread(
+        agentDir, threadId, prompt,
+        {
+          onThinking() {},
+          onAssistantMessage() {
+            bot.api.sendChatAction(chatId, "typing").catch(() => {});
+          },
+          onToolUse() {
+            bot.api.sendChatAction(chatId, "typing").catch(() => {});
+          },
+          onToolUseSummary() {
+            bot.api.sendChatAction(chatId, "typing").catch(() => {});
+          },
+        },
+        { triggers: createTriggerMcpServer(agentDir, "telegram") },
+        undefined,
+        abortController,
+      ).catch((err) => {
+        if (!abortController.signal.aborted) {
+          log.error("telegram", `file handling error for ${agent.id}:`, (err as Error).message);
+          bot.api.sendMessage(chatId, "Something went wrong processing the file.").catch(() => {});
+        }
+      }).finally(() => {
+        if (activeAbortController === abortController) activeAbortController = null;
+        clearInterval(typingInterval);
+      });
+
+    } catch (err) {
+      log.error("telegram", `file download failed:`, (err as Error).message);
+      await bot.api.editMessageText(
+        chatId,
+        (statusMsg as { message_id: number }).message_id,
+        `Failed to receive file: ${(err as Error).message}`
+      );
+    }
+  }
+
+  bot.on("message:document", async (ctx) => {
+    const doc = ctx.message.document;
+    await handleIncomingFile(ctx, doc.file_id, doc.file_name || "document", doc.file_size, doc.mime_type, "document");
+  });
+
+  bot.on("message:photo", async (ctx) => {
+    // Telegram sends multiple sizes, get the largest
+    const photos = ctx.message.photo;
+    const largest = photos[photos.length - 1]!;
+    const timestamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
+    await handleIncomingFile(ctx, largest.file_id, `photo-${timestamp}.jpg`, largest.file_size, "image/jpeg", "photo");
+  });
+
+  bot.on("message:audio", async (ctx) => {
+    const audio = ctx.message.audio;
+    const name = audio.file_name || audio.title || `audio-${Date.now()}.mp3`;
+    await handleIncomingFile(ctx, audio.file_id, name, audio.file_size, audio.mime_type, "audio");
+  });
+
+  bot.on("message:video", async (ctx) => {
+    const video = ctx.message.video;
+    const name = video.file_name || `video-${Date.now()}.mp4`;
+    await handleIncomingFile(ctx, video.file_id, name, video.file_size, video.mime_type, "video");
   });
 
   bot.on("callback_query:data", async (ctx) => {
