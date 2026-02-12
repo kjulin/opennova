@@ -637,6 +637,40 @@ You can read, process, or move this file as needed.`;
     await handleIncomingFile(ctx, video.file_id, name, video.file_size, video.mime_type, "video");
   });
 
+  // Handle Mini App data (from sendData)
+  bot.on("message:web_app_data", async (ctx) => {
+    const chatId = ctx.chat.id;
+    if (String(chatId) !== config.chatId) return;
+
+    try {
+      const data = JSON.parse(ctx.message.web_app_data.data);
+
+      if (data.action === "chat" && data.agentId && data.threadId) {
+        const agents = loadAgents();
+        const agent = agents.get(data.agentId);
+
+        if (!agent) {
+          await ctx.reply(`Agent "${data.agentId}" not found.`);
+          return;
+        }
+
+        // Switch to the agent and thread
+        config.activeAgentId = data.agentId;
+        config.activeThreadId = data.threadId;
+        saveTelegramConfig(config);
+
+        log.info("telegram", `switched to agent=${data.agentId} thread=${data.threadId} via Mini App`);
+
+        const taskInfo = data.taskId ? ` (task ${data.taskId})` : "";
+        await ctx.reply(`_Switched to ${agent.name}${taskInfo}. You can now continue the conversation._`, {
+          parse_mode: "Markdown",
+        });
+      }
+    } catch (err) {
+      log.error("telegram", "failed to parse Mini App data:", err);
+    }
+  });
+
   bot.on("callback_query:data", async (ctx) => {
     const chatId = ctx.callbackQuery.message?.chat.id;
     if (!chatId || String(chatId) !== config.chatId) return;

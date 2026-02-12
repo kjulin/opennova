@@ -154,6 +154,25 @@ export function TaskItem({ task, assigneeName, creatorName, onToggle, onDismiss,
             )}
           </div>
           <div className="flex justify-end gap-2">
+            {task.threadId && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={e => {
+                  e.stopPropagation()
+                  const data = JSON.stringify({
+                    action: 'chat',
+                    agentId: task.assignee,
+                    threadId: task.threadId,
+                    taskId: task.id
+                  })
+                  window.Telegram?.WebApp?.sendData(data)
+                }}
+                className="mt-1 text-xs text-blue-400 hover:text-blue-300 hover:bg-blue-500/10"
+              >
+                Chat about this
+              </Button>
+            )}
             {!isCompleted && (
               <Button
                 variant="ghost"

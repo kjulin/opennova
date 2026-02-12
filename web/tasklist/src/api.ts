@@ -7,6 +7,7 @@ export interface Task {
   instructions: string;
   remarks?: string;
   status: "open" | "in_progress" | "done" | "failed" | "dismissed";
+  threadId?: string;
   createdAt: string;
   updatedAt: string;
 }
