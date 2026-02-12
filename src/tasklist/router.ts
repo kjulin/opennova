@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { loadTasks, createTask, updateTask, getTask, archiveTask, deleteTask } from "./storage.js";
+import { loadTasks, createTask, updateTask, getTask, archiveTask, deleteTask, loadArchivedTasks } from "./storage.js";
 import { loadAgents } from "#core/agents.js";
 
 export function createTasklistRouter(workspaceDir: string): Hono {
@@ -13,6 +13,12 @@ export function createTasklistRouter(workspaceDir: string): Hono {
       name: a.name,
     }));
     return c.json({ tasks, agents: agentList });
+  });
+
+  app.get("/archived", (c) => {
+    const days = parseInt(c.req.query("days") || "7", 10);
+    const tasks = loadArchivedTasks(workspaceDir, days);
+    return c.json({ tasks });
   });
 
   app.post("/", async (c) => {

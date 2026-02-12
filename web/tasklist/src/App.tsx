@@ -1,15 +1,18 @@
 import { useState, useEffect, useCallback } from "react";
 import {
   fetchTasks,
+  fetchArchivedTasks,
   updateTaskStatus,
   updateTaskRemarks,
   createTask,
   archiveTask,
   deleteTask,
   type Task,
+  type ArchivedTask,
   type Agent,
 } from "./api";
 import { TaskList } from "./components/TaskList";
+import { ArchivedTaskList } from "./components/ArchivedTaskList";
 import { NewTaskForm } from "./components/NewTaskForm";
 
 declare global {
@@ -25,11 +28,13 @@ declare global {
 
 export default function App() {
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [archivedTasks, setArchivedTasks] = useState<ArchivedTask[]>([]);
   const [agents, setAgents] = useState<Agent[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showMyTasksOnly, setShowMyTasksOnly] = useState(false);
   const [showNewForm, setShowNewForm] = useState(false);
+  const [showArchived, setShowArchived] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
   const loadTasks = useCallback(async () => {
@@ -46,6 +51,15 @@ export default function App() {
     }
   }, []);
 
+  const loadArchivedTasks = useCallback(async () => {
+    try {
+      const archived = await fetchArchivedTasks(7);
+      setArchivedTasks(archived);
+    } catch (err) {
+      setError((err as Error).message);
+    }
+  }, []);
+
   useEffect(() => {
     window.Telegram?.WebApp?.ready();
     window.Telegram?.WebApp?.expand();
@@ -55,6 +69,12 @@ export default function App() {
     const interval = setInterval(loadTasks, 60000);
     return () => clearInterval(interval);
   }, [loadTasks]);
+
+  useEffect(() => {
+    if (showArchived) {
+      loadArchivedTasks();
+    }
+  }, [showArchived, loadArchivedTasks]);
 
   const handleToggle = async (id: string) => {
     const task = tasks.find(t => t.id === id);
@@ -168,64 +188,93 @@ export default function App() {
           </div>
         )}
 
-        <div className="mb-6 flex items-center gap-3">
-          <div className="flex flex-1 items-center rounded-xl bg-[#161b22] p-1">
-            <button
-              onClick={() => setShowMyTasksOnly(false)}
-              className={`flex-1 rounded-lg px-4 py-2.5 text-sm font-medium transition-all ${
-                !showMyTasksOnly
-                  ? 'bg-blue-600 text-white shadow-md shadow-blue-600/20'
-                  : 'text-gray-400 hover:text-gray-200'
-              }`}
-            >
-              All Tasks
-              <span className="ml-2 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-white/15 px-1.5 text-xs">
-                {totalCount}
-              </span>
-            </button>
-            <button
-              onClick={() => setShowMyTasksOnly(true)}
-              className={`flex-1 rounded-lg px-4 py-2.5 text-sm font-medium transition-all ${
-                showMyTasksOnly
-                  ? 'bg-blue-600 text-white shadow-md shadow-blue-600/20'
-                  : 'text-gray-400 hover:text-gray-200'
-              }`}
-            >
-              My Tasks
-              <span className="ml-2 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-white/15 px-1.5 text-xs">
-                {myTaskCount}
-              </span>
-            </button>
-          </div>
-          <button
-            onClick={() => setShowNewForm(!showNewForm)}
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-white hover:bg-blue-700 transition-colors"
-          >
-            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d={showNewForm ? 'M6 18L18 6M6 6l12 12' : 'M12 4v16m8-8H4'} />
-            </svg>
-          </button>
-        </div>
+        {!showArchived ? (
+          <>
+            <div className="mb-6 flex items-center gap-3">
+              <div className="flex flex-1 items-center rounded-xl bg-[#161b22] p-1">
+                <button
+                  onClick={() => setShowMyTasksOnly(false)}
+                  className={`flex-1 rounded-lg px-4 py-2.5 text-sm font-medium transition-all ${
+                    !showMyTasksOnly
+                      ? 'bg-blue-600 text-white shadow-md shadow-blue-600/20'
+                      : 'text-gray-400 hover:text-gray-200'
+                  }`}
+                >
+                  All Tasks
+                  <span className="ml-2 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-white/15 px-1.5 text-xs">
+                    {totalCount}
+                  </span>
+                </button>
+                <button
+                  onClick={() => setShowMyTasksOnly(true)}
+                  className={`flex-1 rounded-lg px-4 py-2.5 text-sm font-medium transition-all ${
+                    showMyTasksOnly
+                      ? 'bg-blue-600 text-white shadow-md shadow-blue-600/20'
+                      : 'text-gray-400 hover:text-gray-200'
+                  }`}
+                >
+                  My Tasks
+                  <span className="ml-2 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-white/15 px-1.5 text-xs">
+                    {myTaskCount}
+                  </span>
+                </button>
+              </div>
+              <button
+                onClick={() => setShowNewForm(!showNewForm)}
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+              >
+                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d={showNewForm ? 'M6 18L18 6M6 6l12 12' : 'M12 4v16m8-8H4'} />
+                </svg>
+              </button>
+            </div>
 
-        {showNewForm && (
-          <div className="mb-6">
-            <NewTaskForm
+            {showNewForm && (
+              <div className="mb-6">
+                <NewTaskForm
+                  agents={agents}
+                  onAdd={handleAddTask}
+                  onCancel={() => setShowNewForm(false)}
+                />
+              </div>
+            )}
+
+            <TaskList
+              tasks={filteredTasks}
               agents={agents}
-              onAdd={handleAddTask}
-              onCancel={() => setShowNewForm(false)}
+              onToggle={handleToggle}
+              onDismiss={handleDismiss}
+              onRemarks={handleRemarks}
+              onArchive={handleArchive}
+              onDelete={handleDelete}
             />
-          </div>
-        )}
 
-        <TaskList
-          tasks={filteredTasks}
-          agents={agents}
-          onToggle={handleToggle}
-          onDismiss={handleDismiss}
-          onRemarks={handleRemarks}
-          onArchive={handleArchive}
-          onDelete={handleDelete}
-        />
+            <button
+              onClick={() => setShowArchived(true)}
+              className="mt-6 w-full text-center text-sm text-gray-500 hover:text-gray-400 transition-colors"
+            >
+              View archived tasks (last 7 days)
+            </button>
+          </>
+        ) : (
+          <>
+            <div className="mb-6 flex items-center gap-3">
+              <button
+                onClick={() => setShowArchived(false)}
+                className="flex items-center gap-2 text-sm text-gray-400 hover:text-gray-200 transition-colors"
+              >
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+                </svg>
+                Back to tasks
+              </button>
+            </div>
+
+            <h2 className="mb-4 text-lg font-semibold text-gray-300">Archived Tasks (Last 7 Days)</h2>
+
+            <ArchivedTaskList tasks={archivedTasks} agents={agents} />
+          </>
+        )}
 
         {lastUpdated && (
           <p className="mt-8 text-center text-xs text-gray-500">
