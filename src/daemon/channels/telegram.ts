@@ -1,7 +1,7 @@
 import fs from "fs";
 import path from "path";
 import os from "os";
-import { Bot, InlineKeyboard } from "grammy";
+import { Bot, InlineKeyboard, InputFile } from "grammy";
 import {
   Config,
   loadAgents,
@@ -137,6 +137,37 @@ export function startTelegram() {
     bot.api.sendMessage(Number(config.chatId), "Something went wrong. Check the logs for details.").catch((err) => {
       log.error("telegram", "failed to deliver thread:error:", err);
     });
+  });
+
+  bus.on("thread:file", async (payload) => {
+    if (payload.channel !== "telegram") return;
+    const chatId = Number(config.chatId);
+
+    try {
+      const file = new InputFile(payload.filePath);
+      const options = payload.caption ? { caption: payload.caption } : {};
+
+      switch (payload.fileType) {
+        case "photo":
+          await bot.api.sendPhoto(chatId, file, options);
+          break;
+        case "audio":
+          await bot.api.sendAudio(chatId, file, options);
+          break;
+        case "video":
+          await bot.api.sendVideo(chatId, file, options);
+          break;
+        case "document":
+        default:
+          await bot.api.sendDocument(chatId, file, options);
+          break;
+      }
+
+      log.info("telegram", `sent file: ${path.basename(payload.filePath)}`);
+    } catch (err) {
+      log.error("telegram", `failed to send file ${payload.filePath}:`, (err as Error).message);
+      bot.api.sendMessage(chatId, `Failed to send file: ${(err as Error).message}`).catch(() => {});
+    }
   });
 
   bot.on("message:text", async (ctx) => {

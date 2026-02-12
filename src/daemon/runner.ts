@@ -31,6 +31,16 @@ export async function runThread(
       onThreadError(agentId, threadId, channel, error) {
         bus.emit("thread:error", { agentId, threadId, channel, error });
       },
+      onFileSend(agentId, threadId, channel, filePath, caption, fileType) {
+        bus.emit("thread:file", {
+          agentId,
+          threadId,
+          channel,
+          filePath,
+          ...(caption !== undefined ? { caption } : {}),
+          fileType,
+        });
+      },
     },
     extraMcpServers,
     askAgentDepth,

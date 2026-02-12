@@ -99,6 +99,7 @@ export {
 export { createMemoryMcpServer } from "./memory.js";
 export { createAgentManagementMcpServer, createSelfManagementMcpServer } from "./agent-management.js";
 export { createAskAgentMcpServer, type RunThreadFn } from "./ask-agent.js";
+export { createFileSendMcpServer, type FileType, type OnFileSendCallback } from "./file-send.js";
 export {
   appendUsage,
   loadUsageRecords,

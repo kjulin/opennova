@@ -14,6 +14,14 @@ interface DaemonEvents {
     channel: ChannelType;
     error: string;
   }];
+  "thread:file": [payload: {
+    agentId: string;
+    threadId: string;
+    channel: ChannelType;
+    filePath: string;
+    caption?: string;
+    fileType?: "document" | "photo" | "audio" | "video";
+  }];
 }
 
 class TypedEmitter extends EventEmitter {

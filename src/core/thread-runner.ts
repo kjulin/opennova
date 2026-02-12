@@ -8,6 +8,7 @@ import { buildSystemPrompt } from "./prompts/index.js";
 import { createMemoryMcpServer } from "./memory.js";
 import { createAgentManagementMcpServer, createSelfManagementMcpServer } from "./agent-management.js";
 import { createAskAgentMcpServer } from "./ask-agent.js";
+import { createFileSendMcpServer, type FileType } from "./file-send.js";
 import { appendUsage, createUsageMcpServer } from "./usage.js";
 import {
   threadPath,
@@ -28,6 +29,7 @@ export interface RunThreadOverrides {
 export interface ThreadRunnerCallbacks extends EngineCallbacks {
   onThreadResponse?: (agentId: string, threadId: string, channel: string, text: string) => void;
   onThreadError?: (agentId: string, threadId: string, channel: string, error: string) => void;
+  onFileSend?: (agentId: string, threadId: string, channel: string, filePath: string, caption: string | undefined, fileType: FileType) => void;
 }
 
 export interface ThreadRunner {
@@ -112,6 +114,11 @@ export function createThreadRunner(runtime: Runtime = defaultRuntime): ThreadRun
             mcpServers: {
               memory: createMemoryMcpServer(agentDir),
               ...(security !== "sandbox" ? { self: createSelfManagementMcpServer(agentDir) } : {}),
+              ...(security !== "sandbox" ? {
+                "file-send": createFileSendMcpServer(agentDir, directories, (filePath, caption, fileType) => {
+                  callbacks?.onFileSend?.(agentId, threadId, manifest.channel, filePath, caption, fileType);
+                }),
+              } : {}),
               ...extraMcpServers,
               ...(agentId === "agent-builder" ? { agents: createAgentManagementMcpServer() } : {}),
               ...(agentId === "nova" ? { usage: createUsageMcpServer() } : {}),
