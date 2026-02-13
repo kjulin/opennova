@@ -11,16 +11,20 @@ interface TaskItemProps {
   onToggle: (id: string) => void
   onDismiss: (id: string) => void
   onRemarks: (id: string, remarks: string) => void
+  onTitle: (id: string, title: string) => void
   onArchive: (id: string) => void
   onDelete: (id: string) => void
 }
 
-export function TaskItem({ task, assigneeName, creatorName, onToggle, onDismiss, onRemarks, onArchive, onDelete }: TaskItemProps) {
+export function TaskItem({ task, assigneeName, creatorName, onToggle, onDismiss, onRemarks, onTitle, onArchive, onDelete }: TaskItemProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [remarks, setRemarks] = useState(task.remarks ?? '')
+  const [title, setTitle] = useState(task.title)
   const [isEditingRemarks, setIsEditingRemarks] = useState(false)
+  const [isEditingTitle, setIsEditingTitle] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const remarksRef = useRef<HTMLTextAreaElement>(null)
+  const titleRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     if (isEditingRemarks && remarksRef.current) {
@@ -31,13 +35,35 @@ export function TaskItem({ task, assigneeName, creatorName, onToggle, onDismiss,
   }, [isEditingRemarks])
 
   useEffect(() => {
+    if (isEditingTitle && titleRef.current) {
+      titleRef.current.focus()
+      titleRef.current.select()
+    }
+  }, [isEditingTitle])
+
+  useEffect(() => {
     setRemarks(task.remarks ?? '')
   }, [task.remarks])
+
+  useEffect(() => {
+    setTitle(task.title)
+  }, [task.title])
+
   const isCompleted = task.status === 'done'
   const isDismissed = task.status === 'dismissed'
   const isInProgress = task.status === 'in_progress'
   const isFailed = task.status === 'failed'
   const isResolved = isCompleted || isDismissed || isFailed
+
+  const saveTitle = () => {
+    const trimmed = title.trim()
+    if (trimmed && trimmed !== task.title) {
+      onTitle(task.id, trimmed)
+    } else {
+      setTitle(task.title)
+    }
+    setIsEditingTitle(false)
+  }
 
   return (
     <div
@@ -47,7 +73,7 @@ export function TaskItem({ task, assigneeName, creatorName, onToggle, onDismiss,
     >
       <div
         className="flex cursor-pointer items-center gap-4 px-4 py-3.5"
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={() => !isEditingTitle && setIsOpen(!isOpen)}
       >
         <div onClick={e => e.stopPropagation()} className="flex items-center">
           <Checkbox
@@ -59,17 +85,42 @@ export function TaskItem({ task, assigneeName, creatorName, onToggle, onDismiss,
         </div>
 
         <div className="min-w-0 flex-1">
-          <p
-            className={`text-sm font-medium leading-tight ${
-              isCompleted
-                ? 'text-gray-400 line-through'
-                : isDismissed || isFailed
-                  ? 'text-gray-500 line-through'
-                  : 'text-gray-100'
-            }`}
-          >
-            {task.title}
-          </p>
+          {isEditingTitle ? (
+            <input
+              ref={titleRef}
+              type="text"
+              value={title}
+              onChange={e => setTitle(e.target.value)}
+              onClick={e => e.stopPropagation()}
+              onBlur={saveTitle}
+              onKeyDown={e => {
+                if (e.key === 'Enter') {
+                  saveTitle()
+                } else if (e.key === 'Escape') {
+                  setTitle(task.title)
+                  setIsEditingTitle(false)
+                }
+              }}
+              className="w-full bg-transparent text-sm font-medium text-gray-100 border-b border-blue-500 outline-none py-0.5"
+            />
+          ) : (
+            <p
+              onDoubleClick={e => {
+                e.stopPropagation()
+                setIsEditingTitle(true)
+              }}
+              className={`text-sm font-medium leading-tight ${
+                isCompleted
+                  ? 'text-gray-400 line-through'
+                  : isDismissed || isFailed
+                    ? 'text-gray-500 line-through'
+                    : 'text-gray-100'
+              }`}
+              title="Double-click to edit"
+            >
+              {task.title}
+            </p>
+          )}
         </div>
 
         {isInProgress && (
