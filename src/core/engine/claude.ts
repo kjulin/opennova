@@ -97,6 +97,14 @@ async function execQuery(
   for await (const event of result) {
     log.debug("engine", `event: ${event.type}${("subtype" in event && event.subtype) ? `:${event.subtype}` : ""}`);
 
+    // Log model info from init event
+    if (event.type === "system" && "subtype" in event && event.subtype === "init") {
+      const initEvent = event as { model?: string };
+      if (initEvent.model) {
+        log.info("engine", `model: ${initEvent.model}`);
+      }
+    }
+
     // Clear any pending thinking timeout on new events
     if (thinkingTimeout) {
       clearTimeout(thinkingTimeout);
