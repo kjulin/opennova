@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import path from "path";
 import { loadTasks, createTask, updateTask, getTask, archiveTask, deleteTask, loadArchivedTasks } from "./storage.js";
 import { loadAgents } from "#core/agents.js";
-import { createThread } from "#core/index.js";
+import { createThread, findThread } from "#core/index.js";
 import { runTask, getRunningTasks } from "./scheduler.js";
 
 export function createTasklistRouter(workspaceDir: string): Hono {
@@ -111,9 +111,13 @@ export function createTasklistRouter(workspaceDir: string): Hono {
       return c.json({ error: "Task not found" }, 404);
     }
 
-    // If task already has a thread, return it
+    // If task already has a thread, find it and return
     if (task.threadId) {
-      return c.json({ threadId: task.threadId, task });
+      const manifest = findThread(workspaceDir, task.threadId);
+      if (!manifest?.agentId) {
+        return c.json({ error: "Thread not found" }, 404);
+      }
+      return c.json({ threadId: task.threadId, agentId: manifest.agentId, task });
     }
 
     try {
@@ -131,7 +135,7 @@ export function createTasklistRouter(workspaceDir: string): Hono {
       // Update task with threadId
       const updated = updateTask(workspaceDir, id, { threadId });
 
-      return c.json({ threadId, task: updated });
+      return c.json({ threadId, agentId, task: updated });
     } catch {
       return c.json({ error: "Invalid request body" }, 400);
     }

@@ -201,11 +201,11 @@ export default function App() {
     }
   };
 
-  const handleChat = async (taskId: string, agentId: string): Promise<{ threadId: string } | null> => {
+  const handleChat = async (taskId: string, agentId: string): Promise<{ threadId: string; agentId: string } | null> => {
     try {
       const result = await getOrCreateTaskThread(taskId, agentId);
       await loadTasks(); // Refresh to get updated task with threadId
-      return { threadId: result.threadId };
+      return { threadId: result.threadId, agentId: result.agentId };
     } catch (err) {
       setError((err as Error).message);
       return null;

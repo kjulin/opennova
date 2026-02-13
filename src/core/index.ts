@@ -37,6 +37,7 @@ export {
   deleteThread,
   appendMessage,
   withThreadLock,
+  findThread,
   type ChannelType,
   type ThreadManifest,
   type ThreadMessage,
