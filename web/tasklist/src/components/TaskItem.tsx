@@ -15,9 +15,10 @@ interface TaskItemProps {
   onTitle: (id: string, title: string) => void
   onArchive: (id: string) => void
   onDelete: (id: string) => void
+  onChat?: (taskId: string, agentId: string) => Promise<{ threadId: string } | null>
 }
 
-export function TaskItem({ task, assigneeName, creatorName, onToggle, onDismiss, onStatusChange, onRemarks, onTitle, onArchive, onDelete }: TaskItemProps) {
+export function TaskItem({ task, assigneeName, creatorName, onToggle, onDismiss, onStatusChange, onRemarks, onTitle, onArchive, onDelete, onChat }: TaskItemProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [remarks, setRemarks] = useState(task.remarks ?? '')
   const [title, setTitle] = useState(task.title)
@@ -228,25 +229,53 @@ export function TaskItem({ task, assigneeName, creatorName, onToggle, onDismiss,
             )}
           </div>
           <div className="flex justify-end gap-2">
-            {task.threadId && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={e => {
-                  e.stopPropagation()
-                  const data = JSON.stringify({
-                    action: 'chat',
-                    agentId: task.assignee,
-                    threadId: task.threadId,
-                    taskTitle: task.title
-                  })
-                  window.Telegram?.WebApp?.sendData(data)
-                }}
-                className="mt-1 text-xs text-blue-400 hover:text-blue-300 hover:bg-blue-500/10"
-              >
-                Chat about this
-              </Button>
-            )}
+            {(() => {
+              // Determine if chat is available and who to chat with
+              const userIsOwner = task.agentId === 'user'
+              const userIsAssignee = task.assignee === 'user'
+
+              // Not available if user is both owner and assignee
+              if (userIsOwner && userIsAssignee) return null
+
+              // Available for pending tasks or tasks with existing thread
+              const canChat = task.status === 'open' || task.threadId
+              if (!canChat) return null
+
+              // Chat target: if user is owner, chat with assignee; else chat with creator
+              const chatTarget = userIsOwner ? task.assignee : task.agentId
+
+              return (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={async e => {
+                    e.stopPropagation()
+
+                    let threadId = task.threadId
+
+                    // Create thread if needed
+                    if (!threadId && onChat) {
+                      const result = await onChat(task.id, chatTarget)
+                      if (!result) return
+                      threadId = result.threadId
+                    }
+
+                    if (!threadId) return
+
+                    const data = JSON.stringify({
+                      action: 'chat',
+                      agentId: chatTarget,
+                      threadId,
+                      taskTitle: task.title
+                    })
+                    window.Telegram?.WebApp?.sendData(data)
+                  }}
+                  className="mt-1 text-xs text-blue-400 hover:text-blue-300 hover:bg-blue-500/10"
+                >
+                  Chat about this
+                </Button>
+              )
+            })()}
             {isReview && onStatusChange && (
               <>
                 <Button

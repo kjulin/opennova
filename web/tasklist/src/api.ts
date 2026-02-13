@@ -92,6 +92,19 @@ export async function updateTaskTitle(
   return res.json();
 }
 
+export async function getOrCreateTaskThread(
+  id: string,
+  agentId: string
+): Promise<{ threadId: string; task: Task }> {
+  const res = await fetch(`${API_BASE}/${id}/thread`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ agentId }),
+  });
+  if (!res.ok) throw new Error("Failed to get/create task thread");
+  return res.json();
+}
+
 export async function archiveTask(id: string): Promise<void> {
   const res = await fetch(`${API_BASE}/${id}/archive`, {
     method: "POST",

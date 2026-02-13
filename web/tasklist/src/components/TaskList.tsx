@@ -11,9 +11,10 @@ interface TaskListProps {
   onTitle: (id: string, title: string) => void
   onArchive: (id: string) => void
   onDelete: (id: string) => void
+  onChat?: (taskId: string, agentId: string) => Promise<{ threadId: string } | null>
 }
 
-export function TaskList({ tasks, agents, onToggle, onDismiss, onStatusChange, onRemarks, onTitle, onArchive, onDelete }: TaskListProps) {
+export function TaskList({ tasks, agents, onToggle, onDismiss, onStatusChange, onRemarks, onTitle, onArchive, onDelete, onChat }: TaskListProps) {
   const pending = tasks.filter(t => t.status === 'open')
   const inProgress = tasks.filter(t => t.status === 'in_progress')
   const review = tasks.filter(t => t.status === 'review')
@@ -40,6 +41,7 @@ export function TaskList({ tasks, agents, onToggle, onDismiss, onStatusChange, o
       onTitle={onTitle}
       onArchive={onArchive}
       onDelete={onDelete}
+      onChat={onChat}
     />
   )
 

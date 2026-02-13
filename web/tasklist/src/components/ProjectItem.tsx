@@ -18,9 +18,10 @@ interface ProjectItemProps {
   onTitleTask?: (id: string, title: string) => void
   onArchiveTask?: (id: string) => void
   onDeleteTask?: (id: string) => void
+  onChatTask?: (taskId: string, agentId: string) => Promise<{ threadId: string } | null>
 }
 
-export function ProjectItem({ project, tasks, agents, onUpdateProjectStatus, onUpdatePhaseStatus, onEditProject, onToggleTask, onDismissTask, onStatusChangeTask, onRemarksTask, onTitleTask, onArchiveTask, onDeleteTask }: ProjectItemProps) {
+export function ProjectItem({ project, tasks, agents, onUpdateProjectStatus, onUpdatePhaseStatus, onEditProject, onToggleTask, onDismissTask, onStatusChangeTask, onRemarksTask, onTitleTask, onArchiveTask, onDeleteTask, onChatTask }: ProjectItemProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [expandedPhases, setExpandedPhases] = useState<Set<string>>(new Set())
 
@@ -159,7 +160,7 @@ export function ProjectItem({ project, tasks, agents, onUpdateProjectStatus, onU
                                 key={task.id}
                                 task={task}
                                 assigneeName={getAgentName(task.assignee)}
-                                creatorName={getAgentName(task.creator)}
+                                creatorName={getAgentName(task.agentId)}
                                 onToggle={onToggleTask ?? (() => {})}
                                 onDismiss={onDismissTask ?? (() => {})}
                                 onStatusChange={onStatusChangeTask}
@@ -167,6 +168,7 @@ export function ProjectItem({ project, tasks, agents, onUpdateProjectStatus, onU
                                 onTitle={onTitleTask ?? (() => {})}
                                 onArchive={onArchiveTask ?? (() => {})}
                                 onDelete={onDeleteTask ?? (() => {})}
+                                onChat={onChatTask}
                               />
                             ))}
                           </div>

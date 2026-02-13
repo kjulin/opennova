@@ -63,14 +63,16 @@ async function runAssignedTasks() {
     }
 
     try {
-      // Create thread and mark task as in_progress
-      const threadId = createThread(agentDir, "system");
+      // Use existing thread if available, otherwise create new one
+      const threadId = task.threadId ?? createThread(agentDir, "system");
+      const isExistingThread = !!task.threadId;
+
       updateTask(Config.workspaceDir, task.id, {
         status: "in_progress",
         threadId
       });
 
-      log.info("tasklist", `starting task ${task.id} for ${task.assignee} (thread: ${threadId})`);
+      log.info("tasklist", `starting task ${task.id} for ${task.assignee} (thread: ${threadId}${isExistingThread ? ", continuing existing" : ""})`);
 
       // Run agent and wait for completion
       await runThread(agentDir, threadId, `Complete task ${task.id}`);

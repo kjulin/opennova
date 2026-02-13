@@ -13,6 +13,7 @@ import {
   createProject,
   archiveTask,
   deleteTask,
+  getOrCreateTaskThread,
   type Task,
   type ArchivedTask,
   type Agent,
@@ -191,6 +192,17 @@ export default function App() {
       await loadTasks();
     } catch (err) {
       setError((err as Error).message);
+    }
+  };
+
+  const handleChat = async (taskId: string, agentId: string): Promise<{ threadId: string } | null> => {
+    try {
+      const result = await getOrCreateTaskThread(taskId, agentId);
+      await loadTasks(); // Refresh to get updated task with threadId
+      return { threadId: result.threadId };
+    } catch (err) {
+      setError((err as Error).message);
+      return null;
     }
   };
 
@@ -378,6 +390,7 @@ export default function App() {
                   onTitle={handleTitle}
                   onArchive={handleArchive}
                   onDelete={handleDelete}
+                  onChat={handleChat}
                 />
 
                 <button
@@ -458,6 +471,7 @@ export default function App() {
               onTitleTask={handleTitle}
               onArchiveTask={handleArchive}
               onDeleteTask={handleDelete}
+              onChatTask={handleChat}
             />
           </>
         )}

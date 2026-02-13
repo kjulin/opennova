@@ -15,9 +15,10 @@ interface ProjectListProps {
   onTitleTask?: (id: string, title: string) => void
   onArchiveTask?: (id: string) => void
   onDeleteTask?: (id: string) => void
+  onChatTask?: (taskId: string, agentId: string) => Promise<{ threadId: string } | null>
 }
 
-export function ProjectList({ projects, tasks, agents, onUpdateProjectStatus, onUpdatePhaseStatus, onEditProject, onToggleTask, onDismissTask, onStatusChangeTask, onRemarksTask, onTitleTask, onArchiveTask, onDeleteTask }: ProjectListProps) {
+export function ProjectList({ projects, tasks, agents, onUpdateProjectStatus, onUpdatePhaseStatus, onEditProject, onToggleTask, onDismissTask, onStatusChangeTask, onRemarksTask, onTitleTask, onArchiveTask, onDeleteTask, onChatTask }: ProjectListProps) {
   const draft = projects.filter(p => p.status === 'draft')
   const active = projects.filter(p => p.status === 'active')
   const completed = projects.filter(p => p.status === 'completed')
@@ -48,6 +49,7 @@ export function ProjectList({ projects, tasks, agents, onUpdateProjectStatus, on
       onTitleTask={onTitleTask}
       onArchiveTask={onArchiveTask}
       onDeleteTask={onDeleteTask}
+      onChatTask={onChatTask}
     />
   )
 

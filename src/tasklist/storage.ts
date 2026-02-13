@@ -71,7 +71,7 @@ export interface UpdateTaskData {
   rationale?: string | undefined;
   instructions?: string | undefined;
   remarks?: string | undefined;
-  status?: "open" | "in_progress" | "done" | "failed" | "dismissed" | undefined;
+  status?: "open" | "in_progress" | "review" | "done" | "failed" | "dismissed" | undefined;
   threadId?: string | undefined;
 }
 

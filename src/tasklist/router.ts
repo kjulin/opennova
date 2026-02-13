@@ -1,6 +1,8 @@
 import { Hono } from "hono";
+import path from "path";
 import { loadTasks, createTask, updateTask, getTask, archiveTask, deleteTask, loadArchivedTasks } from "./storage.js";
 import { loadAgents } from "#core/agents.js";
+import { createThread } from "#core/index.js";
 
 export function createTasklistRouter(workspaceDir: string): Hono {
   const app = new Hono();
@@ -65,6 +67,40 @@ export function createTasklistRouter(workspaceDir: string): Hono {
 
       const updated = updateTask(workspaceDir, id, { status, remarks, title });
       return c.json(updated);
+    } catch {
+      return c.json({ error: "Invalid request body" }, 400);
+    }
+  });
+
+  app.post("/:id/thread", async (c) => {
+    const id = c.req.param("id");
+    const task = getTask(workspaceDir, id);
+
+    if (!task) {
+      return c.json({ error: "Task not found" }, 404);
+    }
+
+    // If task already has a thread, return it
+    if (task.threadId) {
+      return c.json({ threadId: task.threadId, task });
+    }
+
+    try {
+      const body = await c.req.json();
+      const { agentId } = body;
+
+      if (!agentId) {
+        return c.json({ error: "Missing required field: agentId" }, 400);
+      }
+
+      // Create thread in the agent's directory
+      const agentDir = path.join(workspaceDir, "agents", agentId);
+      const threadId = createThread(agentDir, "telegram");
+
+      // Update task with threadId
+      const updated = updateTask(workspaceDir, id, { threadId });
+
+      return c.json({ threadId, task: updated });
     } catch {
       return c.json({ error: "Invalid request body" }, 400);
     }
