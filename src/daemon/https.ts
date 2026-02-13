@@ -5,6 +5,7 @@ import os from "os";
 import { Hono, type Context } from "hono";
 import { serve } from "@hono/node-server";
 import { createTasklistRouter } from "#tasklist/index.js";
+import { createProjectsRouter } from "#projects/index.js";
 import { log } from "./logger.js";
 
 const PORT = 3838;
@@ -123,6 +124,7 @@ export function startHttpsServer(workspaceDir: string): HttpsServer | null {
   // API routes
   app.get("/api/health", (c) => c.json({ ok: true }));
   app.route("/api/tasklist", createTasklistRouter(workspaceDir));
+  app.route("/api/projects", createProjectsRouter(workspaceDir));
 
   // Tasklist webapp
   if (tasklistDir) {

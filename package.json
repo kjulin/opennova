@@ -16,7 +16,8 @@
     "#core/*": "./dist/core/*",
     "#daemon/*": "./dist/daemon/*",
     "#tui/*": "./dist/tui/*",
-    "#tasklist/*": "./dist/tasklist/*"
+    "#tasklist/*": "./dist/tasklist/*",
+    "#projects/*": "./dist/projects/*"
   },
   "scripts": {
     "dev": "tsx watch src/daemon/cli.ts daemon",

@@ -71,6 +71,14 @@ export function createTasklistMcpServer(
             .optional()
             .default("user")
             .describe("Who should complete this task: 'user' or an agent ID"),
+          projectId: z
+            .string()
+            .optional()
+            .describe("Optional project ID to link this task to"),
+          phaseId: z
+            .string()
+            .optional()
+            .describe("Optional phase ID within the project"),
         },
         async (args) => {
           const task = createTask(workspaceDir, {
@@ -79,6 +87,8 @@ export function createTasklistMcpServer(
             title: args.title,
             rationale: args.rationale,
             instructions: args.instructions,
+            projectId: args.projectId,
+            phaseId: args.phaseId,
           });
           return {
             content: [
