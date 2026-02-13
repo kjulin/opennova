@@ -8,9 +8,11 @@ interface ProjectItemProps {
   project: Project
   tasks: Task[]
   agents: Agent[]
+  isRunning?: boolean
   onUpdateProjectStatus: (id: string, status: 'active' | 'completed' | 'cancelled') => void
   onUpdatePhaseStatus: (projectId: string, phaseId: string, status: 'pending' | 'in_progress' | 'review' | 'done') => void
   onEditProject?: (project: Project) => void
+  onRunReview?: (projectId: string) => void
   onToggleTask?: (id: string) => void
   onDismissTask?: (id: string) => void
   onStatusChangeTask?: (id: string, status: 'open' | 'review' | 'done' | 'dismissed') => void
@@ -21,7 +23,7 @@ interface ProjectItemProps {
   onChatTask?: (taskId: string, agentId: string) => Promise<{ threadId: string } | null>
 }
 
-export function ProjectItem({ project, tasks, agents, onUpdateProjectStatus, onUpdatePhaseStatus, onEditProject, onToggleTask, onDismissTask, onStatusChangeTask, onRemarksTask, onTitleTask, onArchiveTask, onDeleteTask, onChatTask }: ProjectItemProps) {
+export function ProjectItem({ project, tasks, agents, isRunning, onUpdateProjectStatus, onUpdatePhaseStatus, onEditProject, onRunReview, onToggleTask, onDismissTask, onStatusChangeTask, onRemarksTask, onTitleTask, onArchiveTask, onDeleteTask, onChatTask }: ProjectItemProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [expandedPhases, setExpandedPhases] = useState<Set<string>>(new Set())
 
@@ -307,17 +309,47 @@ export function ProjectItem({ project, tasks, agents, onUpdateProjectStatus, onU
               </>
             )}
             {project.status === 'active' && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  onUpdateProjectStatus(project.id, 'cancelled')
-                }}
-                className="text-xs text-red-400 hover:text-red-300 hover:bg-red-500/10"
-              >
-                Cancel Project
-              </Button>
+              <>
+                {onRunReview && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    disabled={isRunning}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      onRunReview(project.id)
+                    }}
+                    className={`text-xs ${
+                      isRunning
+                        ? 'text-gray-500 cursor-not-allowed'
+                        : 'text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10'
+                    }`}
+                  >
+                    {isRunning ? (
+                      <span className="flex items-center gap-1.5">
+                        <svg className="h-3 w-3 animate-spin" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                        </svg>
+                        Running...
+                      </span>
+                    ) : (
+                      'Run Review'
+                    )}
+                  </Button>
+                )}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    onUpdateProjectStatus(project.id, 'cancelled')
+                  }}
+                  className="text-xs text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                >
+                  Cancel Project
+                </Button>
+              </>
             )}
           </div>
         </div>

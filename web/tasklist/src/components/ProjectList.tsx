@@ -5,9 +5,11 @@ interface ProjectListProps {
   projects: Project[]
   tasks: Task[]
   agents: Agent[]
+  runningProjectIds?: string[]
   onUpdateProjectStatus: (id: string, status: 'active' | 'completed' | 'cancelled') => void
   onUpdatePhaseStatus: (projectId: string, phaseId: string, status: 'pending' | 'in_progress' | 'review' | 'done') => void
   onEditProject?: (project: Project) => void
+  onRunReview?: (projectId: string) => void
   onToggleTask?: (id: string) => void
   onDismissTask?: (id: string) => void
   onStatusChangeTask?: (id: string, status: 'open' | 'review' | 'done' | 'dismissed') => void
@@ -18,7 +20,7 @@ interface ProjectListProps {
   onChatTask?: (taskId: string, agentId: string) => Promise<{ threadId: string } | null>
 }
 
-export function ProjectList({ projects, tasks, agents, onUpdateProjectStatus, onUpdatePhaseStatus, onEditProject, onToggleTask, onDismissTask, onStatusChangeTask, onRemarksTask, onTitleTask, onArchiveTask, onDeleteTask, onChatTask }: ProjectListProps) {
+export function ProjectList({ projects, tasks, agents, runningProjectIds = [], onUpdateProjectStatus, onUpdatePhaseStatus, onEditProject, onRunReview, onToggleTask, onDismissTask, onStatusChangeTask, onRemarksTask, onTitleTask, onArchiveTask, onDeleteTask, onChatTask }: ProjectListProps) {
   const draft = projects.filter(p => p.status === 'draft')
   const active = projects.filter(p => p.status === 'active')
   const completed = projects.filter(p => p.status === 'completed')
@@ -39,9 +41,11 @@ export function ProjectList({ projects, tasks, agents, onUpdateProjectStatus, on
       project={project}
       tasks={tasks}
       agents={agents}
+      isRunning={runningProjectIds.includes(project.id)}
       onUpdateProjectStatus={onUpdateProjectStatus}
       onUpdatePhaseStatus={onUpdatePhaseStatus}
       onEditProject={onEditProject}
+      onRunReview={onRunReview}
       onToggleTask={onToggleTask}
       onDismissTask={onDismissTask}
       onStatusChangeTask={onStatusChangeTask}

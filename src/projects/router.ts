@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { loadProjects, getProject, createProject, updateProject, updateProjectFull, updatePhase } from "./storage.js";
 import { loadAgents } from "#core/agents.js";
-import { runProjectReviews, getProjectReviewStatus } from "./scheduler.js";
+import { runProjectReview, getRunningProjects } from "./scheduler.js";
 
 export function createProjectsRouter(workspaceDir: string): Hono {
   const app = new Hono();
@@ -13,16 +13,31 @@ export function createProjectsRouter(workspaceDir: string): Hono {
       id: a.id,
       name: a.name,
     }));
-    const reviewStatus = getProjectReviewStatus();
-    return c.json({ projects, agents: agentList, reviewStatus });
+    const runningProjectIds = getRunningProjects();
+    return c.json({ projects, agents: agentList, runningProjectIds });
   });
 
-  app.post("/run", async (c) => {
-    const result = await runProjectReviews();
+  app.post("/:id/run", async (c) => {
+    const id = c.req.param("id");
+    const result = await runProjectReview(id);
+
     if (!result.started) {
-      return c.json({ error: "Project review already in progress" }, 409);
+      if (result.reason === "already_running") {
+        return c.json({ error: "Project review already in progress" }, 409);
+      }
+      if (result.reason === "not_found") {
+        return c.json({ error: "Project not found" }, 404);
+      }
+      if (result.reason === "not_active") {
+        return c.json({ error: "Can only run reviews for active projects" }, 400);
+      }
+      if (result.reason === "agent_not_found") {
+        return c.json({ error: "Lead agent not found" }, 400);
+      }
+      return c.json({ error: "Failed to start review" }, 500);
     }
-    return c.json({ success: true, message: "Project reviews started" });
+
+    return c.json({ success: true, message: "Project review started" });
   });
 
   app.get("/:id", (c) => {

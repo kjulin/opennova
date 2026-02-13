@@ -12,12 +12,11 @@ export interface ProjectScheduler {
   stop: () => void;
 }
 
-// Lock to prevent concurrent runs
-let isRunning = false;
-let lastRunStarted: Date | null = null;
+// Lock to prevent concurrent runs per project
+const runningProjects = new Set<string>();
 
-export function getProjectReviewStatus(): { isRunning: boolean; lastRunStarted: Date | null } {
-  return { isRunning, lastRunStarted };
+export function getRunningProjects(): string[] {
+  return Array.from(runningProjects);
 }
 
 export function startProjectScheduler(): ProjectScheduler {
@@ -38,57 +37,57 @@ export function startProjectScheduler(): ProjectScheduler {
   };
 }
 
-export async function runProjectReviews(): Promise<{ started: boolean; reason?: string }> {
-  // Check if already running
-  if (isRunning) {
-    log.info("projects", "project review already in progress, skipping");
+export async function runProjectReview(projectId: string): Promise<{ started: boolean; reason?: string }> {
+  // Check if this project is already running
+  if (runningProjects.has(projectId)) {
+    log.info("projects", `project ${projectId} review already in progress, skipping`);
     return { started: false, reason: "already_running" };
   }
 
-  isRunning = true;
-  lastRunStarted = new Date();
+  const projects = loadProjects(Config.workspaceDir);
+  const project = projects.find((p) => p.id === projectId);
 
-  try {
-    const projects = loadProjects(Config.workspaceDir);
-    const activeProjects = projects.filter((p) => p.status === "active");
+  if (!project) {
+    return { started: false, reason: "not_found" };
+  }
 
-    if (activeProjects.length === 0) {
-      log.info("projects", "no active projects to review");
-      isRunning = false;
-      return { started: true, reason: "no_active_projects" };
-    }
+  if (project.status !== "active") {
+    return { started: false, reason: "not_active" };
+  }
 
-    log.info("projects", `reviewing ${activeProjects.length} active project(s)`);
+  const agentDir = path.join(Config.workspaceDir, "agents", project.lead);
 
-    const reviewPromises: Promise<void>[] = [];
+  if (!fs.existsSync(agentDir)) {
+    log.warn("projects", `lead agent directory not found for ${project.lead}`);
+    return { started: false, reason: "agent_not_found" };
+  }
 
-    for (const project of activeProjects) {
-      const agentDir = path.join(Config.workspaceDir, "agents", project.lead);
+  runningProjects.add(projectId);
 
-      if (!fs.existsSync(agentDir)) {
-        log.warn("projects", `lead agent directory not found for ${project.lead}, skipping project ${project.id}`);
-        continue;
-      }
+  const threadId = createThread(agentDir, "system");
+  const prompt = getProjectReviewPrompt(project.title);
 
-      const threadId = createThread(agentDir, "system");
-      const prompt = getProjectReviewPrompt(project.title);
+  runThread(agentDir, threadId, prompt)
+    .then(() => log.info("projects", `project review completed for "${project.title}" (lead: ${project.lead})`))
+    .catch((err) => log.error("projects", `project review failed for "${project.title}":`, err))
+    .finally(() => runningProjects.delete(projectId));
 
-      const reviewPromise = runThread(agentDir, threadId, prompt)
-        .then(() => log.info("projects", `project review completed for "${project.title}" (lead: ${project.lead})`))
-        .catch((err) => log.error("projects", `project review failed for "${project.title}":`, err));
+  log.info("projects", `started review for "${project.title}" (lead: ${project.lead})`);
+  return { started: true };
+}
 
-      reviewPromises.push(reviewPromise);
-    }
+export async function runProjectReviews(): Promise<void> {
+  const projects = loadProjects(Config.workspaceDir);
+  const activeProjects = projects.filter((p) => p.status === "active");
 
-    // Wait for all reviews to complete, then release lock
-    Promise.all(reviewPromises).finally(() => {
-      isRunning = false;
-      log.info("projects", "all project reviews completed");
-    });
+  if (activeProjects.length === 0) {
+    log.info("projects", "no active projects to review");
+    return;
+  }
 
-    return { started: true };
-  } catch (err) {
-    isRunning = false;
-    throw err;
+  log.info("projects", `reviewing ${activeProjects.length} active project(s)`);
+
+  for (const project of activeProjects) {
+    await runProjectReview(project.id);
   }
 }
