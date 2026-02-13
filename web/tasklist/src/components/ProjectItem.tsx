@@ -10,9 +10,11 @@ interface ProjectItemProps {
   onUpdateProjectStatus: (id: string, status: 'active' | 'completed' | 'cancelled') => void
   onUpdatePhaseStatus: (projectId: string, phaseId: string, status: 'pending' | 'in_progress' | 'review' | 'done') => void
   onEditProject?: (project: Project) => void
+  onToggleTask?: (id: string) => void
+  onDismissTask?: (id: string) => void
 }
 
-export function ProjectItem({ project, tasks, agents, onUpdateProjectStatus, onUpdatePhaseStatus, onEditProject }: ProjectItemProps) {
+export function ProjectItem({ project, tasks, agents, onUpdateProjectStatus, onUpdatePhaseStatus, onEditProject, onToggleTask, onDismissTask }: ProjectItemProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [expandedPhases, setExpandedPhases] = useState<Set<string>>(new Set())
 
@@ -147,15 +149,50 @@ export function ProjectItem({ project, tasks, agents, onUpdateProjectStatus, onU
                           <div className="mt-2 space-y-1">
                             <p className="text-[10px] uppercase tracking-wide text-gray-500">Linked Tasks</p>
                             {phaseTasks.map(task => (
-                              <div key={task.id} className="flex items-center gap-2 text-xs text-gray-400">
-                                <span className={`h-1.5 w-1.5 rounded-full ${
-                                  task.status === 'done' ? 'bg-emerald-400' :
-                                  task.status === 'in_progress' ? 'bg-blue-400' :
-                                  task.status === 'failed' ? 'bg-orange-400' :
-                                  task.status === 'dismissed' ? 'bg-red-400' :
-                                  'bg-gray-400'
-                                }`} />
-                                {task.title}
+                              <div key={task.id} className="flex items-center gap-2 text-xs">
+                                {onToggleTask && (
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      onToggleTask(task.id)
+                                    }}
+                                    className={`h-4 w-4 rounded border flex items-center justify-center transition-colors ${
+                                      task.status === 'done'
+                                        ? 'bg-emerald-500 border-emerald-500 text-white'
+                                        : 'border-gray-500 hover:border-gray-400'
+                                    }`}
+                                  >
+                                    {task.status === 'done' && (
+                                      <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                      </svg>
+                                    )}
+                                  </button>
+                                )}
+                                <span className={`flex-1 ${
+                                  task.status === 'done' ? 'text-gray-500 line-through' :
+                                  task.status === 'dismissed' ? 'text-red-400 line-through' :
+                                  task.status === 'in_progress' ? 'text-blue-400' :
+                                  task.status === 'failed' ? 'text-orange-400' :
+                                  'text-gray-300'
+                                }`}>
+                                  {task.title}
+                                </span>
+                                {onDismissTask && task.status !== 'done' && (
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      onDismissTask(task.id)
+                                    }}
+                                    className={`text-xs px-1.5 py-0.5 rounded transition-colors ${
+                                      task.status === 'dismissed'
+                                        ? 'text-gray-400 hover:text-gray-300'
+                                        : 'text-red-400 hover:text-red-300 hover:bg-red-500/10'
+                                    }`}
+                                  >
+                                    {task.status === 'dismissed' ? 'Restore' : 'Dismiss'}
+                                  </button>
+                                )}
                               </div>
                             ))}
                           </div>

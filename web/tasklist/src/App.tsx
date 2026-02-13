@@ -441,6 +441,8 @@ export default function App() {
               onUpdateProjectStatus={handleUpdateProjectStatus}
               onUpdatePhaseStatus={handleUpdatePhaseStatus}
               onEditProject={handleEditProject}
+              onToggleTask={handleToggle}
+              onDismissTask={handleDismiss}
             />
           </>
         )}

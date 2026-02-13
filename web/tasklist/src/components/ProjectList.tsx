@@ -8,9 +8,11 @@ interface ProjectListProps {
   onUpdateProjectStatus: (id: string, status: 'active' | 'completed' | 'cancelled') => void
   onUpdatePhaseStatus: (projectId: string, phaseId: string, status: 'pending' | 'in_progress' | 'review' | 'done') => void
   onEditProject?: (project: Project) => void
+  onToggleTask?: (id: string) => void
+  onDismissTask?: (id: string) => void
 }
 
-export function ProjectList({ projects, tasks, agents, onUpdateProjectStatus, onUpdatePhaseStatus, onEditProject }: ProjectListProps) {
+export function ProjectList({ projects, tasks, agents, onUpdateProjectStatus, onUpdatePhaseStatus, onEditProject, onToggleTask, onDismissTask }: ProjectListProps) {
   const draft = projects.filter(p => p.status === 'draft')
   const active = projects.filter(p => p.status === 'active')
   const completed = projects.filter(p => p.status === 'completed')
@@ -34,6 +36,8 @@ export function ProjectList({ projects, tasks, agents, onUpdateProjectStatus, on
       onUpdateProjectStatus={onUpdateProjectStatus}
       onUpdatePhaseStatus={onUpdatePhaseStatus}
       onEditProject={onEditProject}
+      onToggleTask={onToggleTask}
+      onDismissTask={onDismissTask}
     />
   )
 
