@@ -150,7 +150,9 @@ export function ProjectItem({ project, tasks, agents, onUpdateProjectStatus, onU
 
                     {isPhaseExpanded && (
                       <div className="border-t border-[#2d333b] px-3 py-2 space-y-2">
-                        <p className="text-xs text-gray-400">{phase.description}</p>
+                        <div className="text-xs text-gray-400 whitespace-pre-wrap">
+                          <Markdown>{phase.description}</Markdown>
+                        </div>
 
                         {phaseTasks.length > 0 && (
                           <div className="mt-2 space-y-2" onClick={(e) => e.stopPropagation()}>
