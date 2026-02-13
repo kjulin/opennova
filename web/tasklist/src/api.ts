@@ -147,9 +147,15 @@ export interface Project {
   updatedAt: string;
 }
 
+export interface ReviewStatus {
+  isRunning: boolean;
+  lastRunStarted: string | null;
+}
+
 export interface ProjectsResponse {
   projects: Project[];
   agents: Agent[];
+  reviewStatus: ReviewStatus;
 }
 
 const PROJECTS_API_BASE = "/api/projects";
@@ -158,6 +164,16 @@ export async function fetchProjects(): Promise<ProjectsResponse> {
   const res = await fetch(PROJECTS_API_BASE);
   if (!res.ok) throw new Error("Failed to fetch projects");
   return res.json();
+}
+
+export async function runProjectReviews(): Promise<void> {
+  const res = await fetch(`${PROJECTS_API_BASE}/run`, {
+    method: "POST",
+  });
+  if (res.status === 409) {
+    throw new Error("Project review already in progress");
+  }
+  if (!res.ok) throw new Error("Failed to start project reviews");
 }
 
 export interface CreateProjectData {

@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { loadProjects, getProject, createProject, updateProject, updateProjectFull, updatePhase } from "./storage.js";
 import { loadAgents } from "#core/agents.js";
+import { runProjectReviews, getProjectReviewStatus } from "./scheduler.js";
 
 export function createProjectsRouter(workspaceDir: string): Hono {
   const app = new Hono();
@@ -12,7 +13,16 @@ export function createProjectsRouter(workspaceDir: string): Hono {
       id: a.id,
       name: a.name,
     }));
-    return c.json({ projects, agents: agentList });
+    const reviewStatus = getProjectReviewStatus();
+    return c.json({ projects, agents: agentList, reviewStatus });
+  });
+
+  app.post("/run", async (c) => {
+    const result = await runProjectReviews();
+    if (!result.started) {
+      return c.json({ error: "Project review already in progress" }, 409);
+    }
+    return c.json({ success: true, message: "Project reviews started" });
   });
 
   app.get("/:id", (c) => {
