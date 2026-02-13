@@ -22,7 +22,7 @@ interface TaskItemProps {
   onTitle: (id: string, title: string) => void
   onArchive: (id: string) => void
   onDelete: (id: string) => void
-  onChat?: (taskId: string, agentId: string) => Promise<{ threadId: string } | null>
+  onChat?: (taskId: string, agentId: string) => Promise<{ threadId: string; agentId: string } | null>
   onRun?: (id: string) => void
 }
 
@@ -276,17 +276,14 @@ export function TaskItem({ task, assigneeName, creatorName, isRunning = false, o
                   size="sm"
                   onClick={async e => {
                     e.stopPropagation()
-                    let threadId = task.threadId
-                    if (!threadId && onChat) {
-                      const result = await onChat(task.id, chatTarget)
-                      if (!result) return
-                      threadId = result.threadId
-                    }
-                    if (!threadId) return
+                    if (!onChat) return
+                    // Always call API to get correct agentId for threadId
+                    const result = await onChat(task.id, chatTarget)
+                    if (!result) return
                     const data = JSON.stringify({
                       action: 'chat',
-                      agentId: chatTarget,
-                      threadId,
+                      agentId: result.agentId,
+                      threadId: result.threadId,
                       taskTitle: task.title
                     })
                     window.Telegram?.WebApp?.sendData(data)

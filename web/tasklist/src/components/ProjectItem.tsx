@@ -20,7 +20,7 @@ interface ProjectItemProps {
   onTitleTask?: (id: string, title: string) => void
   onArchiveTask?: (id: string) => void
   onDeleteTask?: (id: string) => void
-  onChatTask?: (taskId: string, agentId: string) => Promise<{ threadId: string } | null>
+  onChatTask?: (taskId: string, agentId: string) => Promise<{ threadId: string; agentId: string } | null>
 }
 
 export function ProjectItem({ project, tasks, agents, isRunning, onUpdateProjectStatus, onUpdatePhaseStatus, onEditProject, onRunReview, onToggleTask, onDismissTask, onStatusChangeTask, onRemarksTask, onTitleTask, onArchiveTask, onDeleteTask, onChatTask }: ProjectItemProps) {

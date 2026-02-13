@@ -17,7 +17,7 @@ interface ProjectListProps {
   onTitleTask?: (id: string, title: string) => void
   onArchiveTask?: (id: string) => void
   onDeleteTask?: (id: string) => void
-  onChatTask?: (taskId: string, agentId: string) => Promise<{ threadId: string } | null>
+  onChatTask?: (taskId: string, agentId: string) => Promise<{ threadId: string; agentId: string } | null>
 }
 
 export function ProjectList({ projects, tasks, agents, runningProjectIds = [], onUpdateProjectStatus, onUpdatePhaseStatus, onEditProject, onRunReview, onToggleTask, onDismissTask, onStatusChangeTask, onRemarksTask, onTitleTask, onArchiveTask, onDeleteTask, onChatTask }: ProjectListProps) {

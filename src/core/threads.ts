@@ -8,6 +8,7 @@ export type ChannelType = string;
 export interface ThreadManifest {
   title?: string;
   channel: ChannelType;
+  agentId?: string;
   sessionId?: string;
   createdAt: string;
   updatedAt: string;
@@ -52,8 +53,10 @@ export function createThread(agentDir: string, channel: ChannelType): string {
   const threadsDir = path.join(agentDir, "threads");
   if (!fs.existsSync(threadsDir)) fs.mkdirSync(threadsDir, { recursive: true });
 
+  const agentId = path.basename(agentDir);
   const manifest: ThreadManifest = {
     channel,
+    agentId,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   };
@@ -105,6 +108,31 @@ export function loadMessages(filePath: string): ThreadMessage[] {
 export function deleteThread(agentDir: string, threadId: string): void {
   const filePath = threadPath(agentDir, threadId);
   if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+}
+
+/**
+ * Find a thread by ID, searching all agent directories.
+ * Returns the manifest (including agentId) if found, null otherwise.
+ */
+export function findThread(workspaceDir: string, threadId: string): ThreadManifest | null {
+  const agentsDir = path.join(workspaceDir, "agents");
+  if (!fs.existsSync(agentsDir)) return null;
+
+  for (const entry of fs.readdirSync(agentsDir, { withFileTypes: true })) {
+    if (!entry.isDirectory()) continue;
+    const agentDir = path.join(agentsDir, entry.name);
+    const filePath = threadPath(agentDir, threadId);
+    if (fs.existsSync(filePath)) {
+      const manifest = loadManifest(filePath);
+      // Backfill agentId for older threads that don't have it
+      if (!manifest.agentId) {
+        manifest.agentId = entry.name;
+      }
+      return manifest;
+    }
+  }
+
+  return null;
 }
 
 export function appendMessage(filePath: string, msg: ThreadMessage): void {

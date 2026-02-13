@@ -106,7 +106,7 @@ export async function runTask(id: string): Promise<void> {
 export async function getOrCreateTaskThread(
   id: string,
   agentId: string
-): Promise<{ threadId: string; task: Task }> {
+): Promise<{ threadId: string; agentId: string; task: Task }> {
   const res = await fetch(`${API_BASE}/${id}/thread`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },

@@ -12,7 +12,7 @@ interface TaskListProps {
   onTitle: (id: string, title: string) => void
   onArchive: (id: string) => void
   onDelete: (id: string) => void
-  onChat?: (taskId: string, agentId: string) => Promise<{ threadId: string } | null>
+  onChat?: (taskId: string, agentId: string) => Promise<{ threadId: string; agentId: string } | null>
   onRun?: (id: string) => void
 }
 
