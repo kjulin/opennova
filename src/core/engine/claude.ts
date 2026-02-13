@@ -60,7 +60,7 @@ async function execQuery(
     ...(options.systemPrompt ? { systemPrompt: options.systemPrompt } : {}),
     ...(options.agents ? { agents: options.agents } : {}),
     ...(options.mcpServers ? { mcpServers: options.mcpServers } : {}),
-    ...(options.model ? { model: options.model } : {}),
+    model: options.model ?? "opus",
     ...(options.maxTurns ? { maxTurns: options.maxTurns } : {}),
     // Security options (injected by Runtime)
     ...(options.permissionMode ? { permissionMode: options.permissionMode } : {}),
