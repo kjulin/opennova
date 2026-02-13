@@ -161,30 +161,73 @@ export function ProjectItem({ project, tasks, agents, onUpdateProjectStatus, onU
                           </div>
                         )}
 
-                        {phase.status === 'review' && (
+                        {project.status === 'active' && (
                           <div className="mt-2 flex gap-2">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                onUpdatePhaseStatus(project.id, phase.id, 'done')
-                              }}
-                              className="text-xs text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10"
-                            >
-                              Approve
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                onUpdatePhaseStatus(project.id, phase.id, 'in_progress')
-                              }}
-                              className="text-xs text-amber-400 hover:text-amber-300 hover:bg-amber-500/10"
-                            >
-                              Request Changes
-                            </Button>
+                            {phase.status === 'review' && (
+                              <>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    onUpdatePhaseStatus(project.id, phase.id, 'done')
+                                  }}
+                                  className="text-xs text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10"
+                                >
+                                  Approve
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    onUpdatePhaseStatus(project.id, phase.id, 'in_progress')
+                                  }}
+                                  className="text-xs text-amber-400 hover:text-amber-300 hover:bg-amber-500/10"
+                                >
+                                  Request Changes
+                                </Button>
+                              </>
+                            )}
+                            {phase.status === 'in_progress' && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  onUpdatePhaseStatus(project.id, phase.id, 'done')
+                                }}
+                                className="text-xs text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10"
+                              >
+                                Mark Complete
+                              </Button>
+                            )}
+                            {phase.status === 'done' && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  onUpdatePhaseStatus(project.id, phase.id, 'in_progress')
+                                }}
+                                className="text-xs text-blue-400 hover:text-blue-300 hover:bg-blue-500/10"
+                              >
+                                Reopen
+                              </Button>
+                            )}
+                            {phase.status === 'pending' && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  onUpdatePhaseStatus(project.id, phase.id, 'in_progress')
+                                }}
+                                className="text-xs text-blue-400 hover:text-blue-300 hover:bg-blue-500/10"
+                              >
+                                Start Phase
+                              </Button>
+                            )}
                           </div>
                         )}
                       </div>

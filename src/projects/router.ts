@@ -129,6 +129,10 @@ export function createProjectsRouter(workspaceDir: string): Hono {
       return c.json({ error: "Project not found" }, 404);
     }
 
+    if (project.status !== "active") {
+      return c.json({ error: "Can only update phases on active projects" }, 400);
+    }
+
     const phase = project.phases.find((p) => p.id === phaseId);
     if (!phase) {
       return c.json({ error: "Phase not found" }, 404);
@@ -142,6 +146,7 @@ export function createProjectsRouter(workspaceDir: string): Hono {
         return c.json({ error: "Invalid status" }, 400);
       }
 
+      // CEO can set any valid status - no transition restrictions
       const updated = updatePhase(workspaceDir, id, phaseId, { status });
       return c.json(updated);
     } catch {
