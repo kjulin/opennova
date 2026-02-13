@@ -60,7 +60,7 @@ async function execQuery(
     ...(options.systemPrompt ? { systemPrompt: options.systemPrompt } : {}),
     ...(options.agents ? { agents: options.agents } : {}),
     ...(options.mcpServers ? { mcpServers: options.mcpServers } : {}),
-    ...(options.model ? { model: options.model } : {}),
+    model: options.model ?? "opus",
     ...(options.maxTurns ? { maxTurns: options.maxTurns } : {}),
     // Security options (injected by Runtime)
     ...(options.permissionMode ? { permissionMode: options.permissionMode } : {}),
@@ -71,10 +71,11 @@ async function execQuery(
     settingSources: ["project"] as SettingSource[],
   };
 
-  // Log options without mcpServers (may contain circular refs)
-  const { mcpServers, ...loggableOptions } = queryOptions as Record<string, unknown>;
+  // Log options without mcpServers (may contain circular refs) and systemPrompt (too verbose)
+  const { mcpServers, systemPrompt, ...loggableOptions } = queryOptions as Record<string, unknown>;
   log.debug("engine", "options", JSON.stringify({
     ...loggableOptions,
+    ...(systemPrompt ? { systemPrompt: "[omitted]" } : {}),
     ...(mcpServers ? { mcpServers: Object.keys(mcpServers as object) } : {}),
   }, null, 2));
 
@@ -96,6 +97,14 @@ async function execQuery(
 
   for await (const event of result) {
     log.debug("engine", `event: ${event.type}${("subtype" in event && event.subtype) ? `:${event.subtype}` : ""}`);
+
+    // Log model info from init event
+    if (event.type === "system" && "subtype" in event && event.subtype === "init") {
+      const initEvent = event as { model?: string };
+      if (initEvent.model) {
+        log.info("engine", `model: ${initEvent.model}`);
+      }
+    }
 
     // Clear any pending thinking timeout on new events
     if (thinkingTimeout) {
