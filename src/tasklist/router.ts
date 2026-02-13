@@ -3,6 +3,7 @@ import path from "path";
 import { loadTasks, createTask, updateTask, getTask, archiveTask, deleteTask, loadArchivedTasks } from "./storage.js";
 import { loadAgents } from "#core/agents.js";
 import { createThread } from "#core/index.js";
+import { runTask, getRunningTasks } from "./scheduler.js";
 
 export function createTasklistRouter(workspaceDir: string): Hono {
   const app = new Hono();
@@ -14,7 +15,37 @@ export function createTasklistRouter(workspaceDir: string): Hono {
       id: a.id,
       name: a.name,
     }));
-    return c.json({ tasks, agents: agentList });
+    const runningTaskIds = getRunningTasks();
+    return c.json({ tasks, agents: agentList, runningTaskIds });
+  });
+
+  app.post("/:id/run", async (c) => {
+    const id = c.req.param("id");
+    const result = await runTask(id);
+
+    if (!result.started) {
+      if (result.reason === "already_running") {
+        return c.json({ error: "Task already running" }, 409);
+      }
+      if (result.reason === "not_found") {
+        return c.json({ error: "Task not found" }, 404);
+      }
+      if (result.reason === "not_open") {
+        return c.json({ error: "Can only run open tasks" }, 400);
+      }
+      if (result.reason === "assigned_to_user") {
+        return c.json({ error: "Cannot run tasks assigned to user" }, 400);
+      }
+      if (result.reason === "agent_not_found") {
+        return c.json({ error: "Agent not found" }, 400);
+      }
+      if (result.reason === "start_failed") {
+        return c.json({ error: "Failed to initialize task - check server logs" }, 500);
+      }
+      return c.json({ error: `Failed to start task: ${result.reason || "unknown"}` }, 500);
+    }
+
+    return c.json({ success: true });
   });
 
   app.get("/archived", (c) => {

@@ -4,6 +4,7 @@ import { TaskItem } from './TaskItem'
 interface TaskListProps {
   tasks: Task[]
   agents: Agent[]
+  runningTaskIds?: string[]
   onToggle: (id: string) => void
   onDismiss: (id: string) => void
   onStatusChange?: (id: string, status: 'open' | 'review' | 'done' | 'dismissed') => void
@@ -12,9 +13,10 @@ interface TaskListProps {
   onArchive: (id: string) => void
   onDelete: (id: string) => void
   onChat?: (taskId: string, agentId: string) => Promise<{ threadId: string } | null>
+  onRun?: (id: string) => void
 }
 
-export function TaskList({ tasks, agents, onToggle, onDismiss, onStatusChange, onRemarks, onTitle, onArchive, onDelete, onChat }: TaskListProps) {
+export function TaskList({ tasks, agents, runningTaskIds = [], onToggle, onDismiss, onStatusChange, onRemarks, onTitle, onArchive, onDelete, onChat, onRun }: TaskListProps) {
   const pending = tasks.filter(t => t.status === 'open')
   const inProgress = tasks.filter(t => t.status === 'in_progress')
   const review = tasks.filter(t => t.status === 'review')
@@ -34,6 +36,7 @@ export function TaskList({ tasks, agents, onToggle, onDismiss, onStatusChange, o
       task={task}
       assigneeName={getAgentName(task.assignee)}
       creatorName={getAgentName(task.agentId)}
+      isRunning={runningTaskIds.includes(task.id)}
       onToggle={onToggle}
       onDismiss={onDismiss}
       onStatusChange={onStatusChange}
@@ -42,6 +45,7 @@ export function TaskList({ tasks, agents, onToggle, onDismiss, onStatusChange, o
       onArchive={onArchive}
       onDelete={onDelete}
       onChat={onChat}
+      onRun={onRun}
     />
   )
 

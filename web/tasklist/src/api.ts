@@ -26,6 +26,7 @@ export interface Agent {
 export interface TasklistResponse {
   tasks: Task[];
   agents: Agent[];
+  runningTaskIds: string[];
 }
 
 const API_BASE = "/api/tasklist";
@@ -90,6 +91,16 @@ export async function updateTaskTitle(
   });
   if (!res.ok) throw new Error("Failed to update title");
   return res.json();
+}
+
+export async function runTask(id: string): Promise<void> {
+  const res = await fetch(`${API_BASE}/${id}/run`, {
+    method: "POST",
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error || "Failed to start task");
+  }
 }
 
 export async function getOrCreateTaskThread(

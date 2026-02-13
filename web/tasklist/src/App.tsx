@@ -14,6 +14,7 @@ import {
   archiveTask,
   deleteTask,
   getOrCreateTaskThread,
+  runTask,
   runProjectReview,
   type Task,
   type ArchivedTask,
@@ -54,6 +55,7 @@ export default function App() {
   const [showArchived, setShowArchived] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [runningProjectIds, setRunningProjectIds] = useState<string[]>([]);
+  const [runningTaskIds, setRunningTaskIds] = useState<string[]>([]);
 
   const loadTasks = useCallback(async () => {
     try {
@@ -61,6 +63,7 @@ export default function App() {
       const data = await fetchTasks();
       setTasks(data.tasks);
       setAgents(data.agents);
+      setRunningTaskIds(data.runningTaskIds);
       setLastUpdated(new Date());
     } catch (err) {
       setError((err as Error).message);
@@ -206,6 +209,16 @@ export default function App() {
     } catch (err) {
       setError((err as Error).message);
       return null;
+    }
+  };
+
+  const handleRunTask = async (id: string) => {
+    try {
+      setError(null);
+      await runTask(id);
+      await loadTasks();
+    } catch (err) {
+      setError((err as Error).message);
     }
   };
 
@@ -397,6 +410,7 @@ export default function App() {
                 <TaskList
                   tasks={filteredTasks}
                   agents={agents}
+                  runningTaskIds={runningTaskIds}
                   onToggle={handleToggle}
                   onDismiss={handleDismiss}
                   onStatusChange={handleStatusChange}
@@ -405,6 +419,7 @@ export default function App() {
                   onArchive={handleArchive}
                   onDelete={handleDelete}
                   onChat={handleChat}
+                  onRun={handleRunTask}
                 />
 
                 <button
