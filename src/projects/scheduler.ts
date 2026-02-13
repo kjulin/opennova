@@ -15,12 +15,12 @@ export interface ProjectScheduler {
 export function startProjectScheduler(): ProjectScheduler {
   const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
-  // Run project reviews every 4 hours during working hours (8, 12, 16, 20)
-  const projectReview = cron.schedule("0 8,12,16,20 * * 1-6", () => {
+  // Run project reviews every hour during working hours (8-20)
+  const projectReview = cron.schedule("0 8-20 * * 1-6", () => {
     runProjectReviews();
   }, { timezone });
 
-  log.info("projects", "scheduler started (project reviews: 8, 12, 16, 20, Mon-Sat)");
+  log.info("projects", "scheduler started (project reviews: hourly 8-20, Mon-Sat)");
 
   return {
     projectReview,
