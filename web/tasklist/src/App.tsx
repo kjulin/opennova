@@ -7,6 +7,7 @@ import {
   updateTaskRemarks,
   updateTaskTitle,
   updateProjectStatus,
+  updateProject,
   updatePhaseStatus,
   createTask,
   createProject,
@@ -196,6 +197,15 @@ export default function App() {
   const handleUpdateProjectStatus = async (id: string, status: 'active' | 'completed' | 'cancelled') => {
     try {
       await updateProjectStatus(id, status);
+      await loadProjects();
+    } catch (err) {
+      setError((err as Error).message);
+    }
+  };
+
+  const handleUpdateProject = async (id: string, data: { title?: string; description?: string }) => {
+    try {
+      await updateProject(id, data);
       await loadProjects();
     } catch (err) {
       setError((err as Error).message);
@@ -421,6 +431,7 @@ export default function App() {
               agents={agents}
               onUpdateProjectStatus={handleUpdateProjectStatus}
               onUpdatePhaseStatus={handleUpdatePhaseStatus}
+              onUpdateProject={handleUpdateProject}
             />
           </>
         )}

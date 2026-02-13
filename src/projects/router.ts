@@ -64,13 +64,13 @@ export function createProjectsRouter(workspaceDir: string): Hono {
 
     try {
       const body = await c.req.json();
-      const { status } = body;
+      const { status, title, description } = body;
 
       if (status && !["draft", "active", "completed", "cancelled"].includes(status)) {
         return c.json({ error: "Invalid status" }, 400);
       }
 
-      const updated = updateProject(workspaceDir, id, { status });
+      const updated = updateProject(workspaceDir, id, { status, title, description });
       return c.json(updated);
     } catch {
       return c.json({ error: "Invalid request body" }, 400);
