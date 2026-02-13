@@ -9,6 +9,7 @@ import {
   updateProjectStatus,
   updatePhaseStatus,
   createTask,
+  createProject,
   archiveTask,
   deleteTask,
   type Task,
@@ -19,6 +20,7 @@ import {
 import { TaskList } from "./components/TaskList";
 import { ArchivedTaskList } from "./components/ArchivedTaskList";
 import { NewTaskForm } from "./components/NewTaskForm";
+import { NewProjectForm } from "./components/NewProjectForm";
 import { ProjectList } from "./components/ProjectList";
 
 declare global {
@@ -44,6 +46,7 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
   const [showMyTasksOnly, setShowMyTasksOnly] = useState(false);
   const [showNewForm, setShowNewForm] = useState(false);
+  const [showNewProjectForm, setShowNewProjectForm] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
@@ -175,6 +178,16 @@ export default function App() {
     try {
       await deleteTask(id);
       await loadTasks();
+    } catch (err) {
+      setError((err as Error).message);
+    }
+  };
+
+  const handleAddProject = async (data: { title: string; description: string; lead: string; phases: { title: string; description: string }[] }) => {
+    try {
+      await createProject(data);
+      await loadProjects();
+      setShowNewProjectForm(false);
     } catch (err) {
       setError((err as Error).message);
     }
@@ -376,6 +389,27 @@ export default function App() {
 
         {mainView === "projects" && (
           <>
+            <div className="mb-6 flex justify-end">
+              <button
+                onClick={() => setShowNewProjectForm(!showNewProjectForm)}
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+              >
+                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d={showNewProjectForm ? 'M6 18L18 6M6 6l12 12' : 'M12 4v16m8-8H4'} />
+                </svg>
+              </button>
+            </div>
+
+            {showNewProjectForm && (
+              <div className="mb-6">
+                <NewProjectForm
+                  agents={agents}
+                  onAdd={handleAddProject}
+                  onCancel={() => setShowNewProjectForm(false)}
+                />
+              </div>
+            )}
+
             {reviewCount > 0 && (
               <div className="mb-4 rounded-xl bg-amber-500/10 border border-amber-500/20 px-4 py-3 text-sm text-amber-400">
                 {reviewCount} project{reviewCount > 1 ? 's' : ''} waiting for your review

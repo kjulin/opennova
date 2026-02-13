@@ -147,6 +147,23 @@ export async function fetchProjects(): Promise<ProjectsResponse> {
   return res.json();
 }
 
+export interface CreateProjectData {
+  lead: string;
+  title: string;
+  description: string;
+  phases: { title: string; description: string }[];
+}
+
+export async function createProject(data: CreateProjectData): Promise<Project> {
+  const res = await fetch(PROJECTS_API_BASE, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error("Failed to create project");
+  return res.json();
+}
+
 export async function updateProjectStatus(
   id: string,
   status: "active" | "completed" | "cancelled"

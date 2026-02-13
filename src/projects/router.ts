@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { loadProjects, getProject, updateProject, updatePhase } from "./storage.js";
+import { loadProjects, getProject, createProject, updateProject, updatePhase } from "./storage.js";
 import { loadAgents } from "#core/agents.js";
 
 export function createProjectsRouter(workspaceDir: string): Hono {
@@ -24,6 +24,34 @@ export function createProjectsRouter(workspaceDir: string): Hono {
     }
 
     return c.json(project);
+  });
+
+  app.post("/", async (c) => {
+    try {
+      const body = await c.req.json();
+      const { lead, title, description, phases } = body;
+
+      if (!lead || !title || !phases || !Array.isArray(phases) || phases.length === 0) {
+        return c.json(
+          { error: "Missing required fields: lead, title, phases" },
+          400
+        );
+      }
+
+      const project = createProject(workspaceDir, {
+        lead,
+        title,
+        description: description || "",
+        phases: phases.map((p: { title: string; description?: string }) => ({
+          title: p.title,
+          description: p.description || "",
+        })),
+      });
+
+      return c.json(project, 201);
+    } catch {
+      return c.json({ error: "Invalid request body" }, 400);
+    }
   });
 
   app.patch("/:id", async (c) => {
