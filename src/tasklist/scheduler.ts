@@ -4,8 +4,62 @@ import path from "path";
 import { Config, createThread } from "#core/index.js";
 import { runThread } from "#daemon/runner.js";
 import { log } from "#daemon/logger.js";
-import { loadTasks, updateTask } from "./storage.js";
+import { loadTasks, updateTask, getTask } from "./storage.js";
 import { TASKLIST_CHECK_PROMPT } from "./prompts.js";
+
+// Track running tasks
+const runningTasks = new Set<string>();
+
+export function getRunningTasks(): string[] {
+  return Array.from(runningTasks);
+}
+
+export async function runTask(taskId: string): Promise<{ started: boolean; reason?: string }> {
+  if (runningTasks.has(taskId)) {
+    return { started: false, reason: "already_running" };
+  }
+
+  const task = getTask(Config.workspaceDir, taskId);
+  if (!task) {
+    return { started: false, reason: "not_found" };
+  }
+
+  if (task.status !== "open") {
+    return { started: false, reason: "not_open" };
+  }
+
+  if (task.assignee === "user") {
+    return { started: false, reason: "assigned_to_user" };
+  }
+
+  const agentDir = path.join(Config.workspaceDir, "agents", task.assignee);
+  if (!fs.existsSync(agentDir)) {
+    return { started: false, reason: "agent_not_found" };
+  }
+
+  try {
+    runningTasks.add(taskId);
+
+    const threadId = task.threadId ?? createThread(agentDir, "system");
+    updateTask(Config.workspaceDir, taskId, { status: "in_progress", threadId });
+
+    log.info("tasklist", `manually started task ${taskId} for ${task.assignee}`);
+
+    runThread(agentDir, threadId, `Complete task ${taskId}`)
+      .then(() => log.info("tasklist", `task ${taskId} completed for ${task.assignee}`))
+      .catch((err) => {
+        log.error("tasklist", `task ${taskId} failed for ${task.assignee}:`, err);
+        updateTask(Config.workspaceDir, taskId, { status: "failed" });
+      })
+      .finally(() => runningTasks.delete(taskId));
+
+    return { started: true };
+  } catch (err) {
+    runningTasks.delete(taskId);
+    log.error("tasklist", `failed to start task ${taskId}:`, err);
+    return { started: false, reason: "start_failed" };
+  }
+}
 
 export interface TasklistScheduler {
   taskRunner: cron.ScheduledTask;
@@ -63,14 +117,16 @@ async function runAssignedTasks() {
     }
 
     try {
-      // Create thread and mark task as in_progress
-      const threadId = createThread(agentDir, "system");
+      // Use existing thread if available, otherwise create new one
+      const threadId = task.threadId ?? createThread(agentDir, "system");
+      const isExistingThread = !!task.threadId;
+
       updateTask(Config.workspaceDir, task.id, {
         status: "in_progress",
         threadId
       });
 
-      log.info("tasklist", `starting task ${task.id} for ${task.assignee} (thread: ${threadId})`);
+      log.info("tasklist", `starting task ${task.id} for ${task.assignee} (thread: ${threadId}${isExistingThread ? ", continuing existing" : ""})`);
 
       // Run agent and wait for completion
       await runThread(agentDir, threadId, `Complete task ${task.id}`);

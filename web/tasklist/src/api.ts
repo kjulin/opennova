@@ -6,8 +6,10 @@ export interface Task {
   rationale: string;
   instructions: string;
   remarks?: string;
-  status: "open" | "in_progress" | "done" | "failed" | "dismissed";
+  status: "open" | "in_progress" | "review" | "done" | "failed" | "dismissed";
   threadId?: string;
+  projectId?: string;
+  phaseId?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -24,6 +26,7 @@ export interface Agent {
 export interface TasklistResponse {
   tasks: Task[];
   agents: Agent[];
+  runningTaskIds: string[];
 }
 
 const API_BASE = "/api/tasklist";
@@ -53,7 +56,7 @@ export async function createTask(data: CreateTaskData): Promise<Task> {
 
 export async function updateTaskStatus(
   id: string,
-  status: "done" | "dismissed"
+  status: "open" | "review" | "done" | "dismissed"
 ): Promise<Task> {
   const res = await fetch(`${API_BASE}/${id}`, {
     method: "PATCH",
@@ -90,6 +93,29 @@ export async function updateTaskTitle(
   return res.json();
 }
 
+export async function runTask(id: string): Promise<void> {
+  const res = await fetch(`${API_BASE}/${id}/run`, {
+    method: "POST",
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error || "Failed to start task");
+  }
+}
+
+export async function getOrCreateTaskThread(
+  id: string,
+  agentId: string
+): Promise<{ threadId: string; task: Task }> {
+  const res = await fetch(`${API_BASE}/${id}/thread`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ agentId }),
+  });
+  if (!res.ok) throw new Error("Failed to get/create task thread");
+  return res.json();
+}
+
 export async function archiveTask(id: string): Promise<void> {
   const res = await fetch(`${API_BASE}/${id}/archive`, {
     method: "POST",
@@ -109,4 +135,119 @@ export async function fetchArchivedTasks(days: number = 7): Promise<ArchivedTask
   if (!res.ok) throw new Error("Failed to fetch archived tasks");
   const data = await res.json();
   return data.tasks;
+}
+
+// Projects API
+
+export interface Phase {
+  id: string;
+  title: string;
+  description: string;
+  status: "pending" | "in_progress" | "review" | "done";
+}
+
+export interface Project {
+  id: string;
+  lead: string;
+  title: string;
+  description: string;
+  status: "draft" | "active" | "completed" | "cancelled";
+  artifacts: string[];
+  phases: Phase[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ProjectsResponse {
+  projects: Project[];
+  agents: Agent[];
+  runningProjectIds: string[];
+}
+
+const PROJECTS_API_BASE = "/api/projects";
+
+export async function fetchProjects(): Promise<ProjectsResponse> {
+  const res = await fetch(PROJECTS_API_BASE);
+  if (!res.ok) throw new Error("Failed to fetch projects");
+  return res.json();
+}
+
+export async function runProjectReview(projectId: string): Promise<void> {
+  const res = await fetch(`${PROJECTS_API_BASE}/${projectId}/run`, {
+    method: "POST",
+  });
+  if (res.status === 409) {
+    throw new Error("Project review already in progress");
+  }
+  if (!res.ok) throw new Error("Failed to start project review");
+}
+
+export interface CreateProjectData {
+  lead: string;
+  title: string;
+  description: string;
+  phases: { title: string; description: string }[];
+}
+
+export async function createProject(data: CreateProjectData): Promise<Project> {
+  const res = await fetch(PROJECTS_API_BASE, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error("Failed to create project");
+  return res.json();
+}
+
+export async function updateProjectStatus(
+  id: string,
+  status: "active" | "completed" | "cancelled"
+): Promise<Project> {
+  const res = await fetch(`${PROJECTS_API_BASE}/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ status }),
+  });
+  if (!res.ok) throw new Error("Failed to update project");
+  return res.json();
+}
+
+export async function updateProject(
+  id: string,
+  data: { title?: string; description?: string }
+): Promise<Project> {
+  const res = await fetch(`${PROJECTS_API_BASE}/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error("Failed to update project");
+  return res.json();
+}
+
+export async function updateProjectFull(
+  id: string,
+  data: { title: string; description: string; phases: { id?: string; title: string; description: string }[] }
+): Promise<Project> {
+  const res = await fetch(`${PROJECTS_API_BASE}/${id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error("Failed to update project");
+  return res.json();
+}
+
+export async function updatePhaseStatus(
+  projectId: string,
+  phaseId: string,
+  status: "pending" | "in_progress" | "review" | "done"
+): Promise<Project> {
+  const res = await fetch(`${PROJECTS_API_BASE}/${projectId}/phases/${phaseId}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ status }),
+  });
+  if (!res.ok) throw new Error("Failed to update phase");
+  return res.json();
 }

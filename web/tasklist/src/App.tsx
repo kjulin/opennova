@@ -2,19 +2,30 @@ import { useState, useEffect, useCallback } from "react";
 import {
   fetchTasks,
   fetchArchivedTasks,
+  fetchProjects,
   updateTaskStatus,
   updateTaskRemarks,
   updateTaskTitle,
+  updateProjectStatus,
+  updateProjectFull,
+  updatePhaseStatus,
   createTask,
+  createProject,
   archiveTask,
   deleteTask,
+  getOrCreateTaskThread,
+  runTask,
+  runProjectReview,
   type Task,
   type ArchivedTask,
   type Agent,
+  type Project,
 } from "./api";
 import { TaskList } from "./components/TaskList";
 import { ArchivedTaskList } from "./components/ArchivedTaskList";
 import { NewTaskForm } from "./components/NewTaskForm";
+import { ProjectForm } from "./components/NewProjectForm";
+import { ProjectList } from "./components/ProjectList";
 
 declare global {
   interface Window {
@@ -27,16 +38,24 @@ declare global {
   }
 }
 
+type MainView = "tasks" | "projects";
+
 export default function App() {
+  const [mainView, setMainView] = useState<MainView>("tasks");
   const [tasks, setTasks] = useState<Task[]>([]);
   const [archivedTasks, setArchivedTasks] = useState<ArchivedTask[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
   const [agents, setAgents] = useState<Agent[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showMyTasksOnly, setShowMyTasksOnly] = useState(false);
   const [showNewForm, setShowNewForm] = useState(false);
+  const [showProjectForm, setShowProjectForm] = useState(false);
+  const [editingProject, setEditingProject] = useState<Project | null>(null);
   const [showArchived, setShowArchived] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [runningProjectIds, setRunningProjectIds] = useState<string[]>([]);
+  const [runningTaskIds, setRunningTaskIds] = useState<string[]>([]);
 
   const loadTasks = useCallback(async () => {
     try {
@@ -44,11 +63,31 @@ export default function App() {
       const data = await fetchTasks();
       setTasks(data.tasks);
       setAgents(data.agents);
+      setRunningTaskIds(data.runningTaskIds);
       setLastUpdated(new Date());
     } catch (err) {
       setError((err as Error).message);
     } finally {
       setLoading(false);
+    }
+  }, []);
+
+  const loadProjects = useCallback(async () => {
+    try {
+      setError(null);
+      const data = await fetchProjects();
+      setProjects(data.projects);
+      setRunningProjectIds(data.runningProjectIds);
+      // Merge agents from projects API if not already loaded
+      if (data.agents.length > 0) {
+        setAgents(prev => {
+          const existingIds = new Set(prev.map(a => a.id));
+          const newAgents = data.agents.filter(a => !existingIds.has(a.id));
+          return [...prev, ...newAgents];
+        });
+      }
+    } catch (err) {
+      setError((err as Error).message);
     }
   }, []);
 
@@ -65,11 +104,15 @@ export default function App() {
     window.Telegram?.WebApp?.ready();
     window.Telegram?.WebApp?.expand();
     loadTasks();
+    loadProjects();
 
     // Poll for updates every minute
-    const interval = setInterval(loadTasks, 60000);
+    const interval = setInterval(() => {
+      loadTasks();
+      loadProjects();
+    }, 60000);
     return () => clearInterval(interval);
-  }, [loadTasks]);
+  }, [loadTasks, loadProjects]);
 
   useEffect(() => {
     if (showArchived) {
@@ -83,7 +126,7 @@ export default function App() {
 
     const newStatus = task.status === 'done' ? 'open' : 'done';
     try {
-      await updateTaskStatus(id, newStatus as 'done' | 'dismissed');
+      await updateTaskStatus(id, newStatus);
       await loadTasks();
     } catch (err) {
       setError((err as Error).message);
@@ -96,7 +139,16 @@ export default function App() {
 
     const newStatus = task.status === 'dismissed' ? 'open' : 'dismissed';
     try {
-      await updateTaskStatus(id, newStatus as 'done' | 'dismissed');
+      await updateTaskStatus(id, newStatus);
+      await loadTasks();
+    } catch (err) {
+      setError((err as Error).message);
+    }
+  };
+
+  const handleStatusChange = async (id: string, status: 'open' | 'review' | 'done' | 'dismissed') => {
+    try {
+      await updateTaskStatus(id, status);
       await loadTasks();
     } catch (err) {
       setError((err as Error).message);
@@ -149,6 +201,76 @@ export default function App() {
     }
   };
 
+  const handleChat = async (taskId: string, agentId: string): Promise<{ threadId: string } | null> => {
+    try {
+      const result = await getOrCreateTaskThread(taskId, agentId);
+      await loadTasks(); // Refresh to get updated task with threadId
+      return { threadId: result.threadId };
+    } catch (err) {
+      setError((err as Error).message);
+      return null;
+    }
+  };
+
+  const handleRunTask = async (id: string) => {
+    try {
+      setError(null);
+      await runTask(id);
+      await loadTasks();
+    } catch (err) {
+      setError((err as Error).message);
+    }
+  };
+
+  const handleProjectSubmit = async (data: { title: string; description: string; lead: string; phases: { id?: string; title: string; description: string }[] }) => {
+    try {
+      if (editingProject) {
+        await updateProjectFull(editingProject.id, data);
+      } else {
+        await createProject(data);
+      }
+      await loadProjects();
+      setShowProjectForm(false);
+      setEditingProject(null);
+    } catch (err) {
+      setError((err as Error).message);
+    }
+  };
+
+  const handleEditProject = (project: Project) => {
+    setEditingProject(project);
+    setShowProjectForm(true);
+  };
+
+  const handleUpdateProjectStatus = async (id: string, status: 'active' | 'completed' | 'cancelled') => {
+    try {
+      await updateProjectStatus(id, status);
+      await loadProjects();
+    } catch (err) {
+      setError((err as Error).message);
+    }
+  };
+
+  const handleUpdatePhaseStatus = async (projectId: string, phaseId: string, status: 'pending' | 'in_progress' | 'review' | 'done') => {
+    try {
+      await updatePhaseStatus(projectId, phaseId, status);
+      await loadProjects();
+    } catch (err) {
+      setError((err as Error).message);
+    }
+  };
+
+  const handleRunReview = async (projectId: string) => {
+    try {
+      setError(null);
+      await runProjectReview(projectId);
+      // Immediately refresh to show running status
+      await loadProjects();
+    } catch (err) {
+      setError((err as Error).message);
+    }
+  };
+
   const filteredTasks = showMyTasksOnly
     ? tasks.filter(t => t.assignee === 'user')
     : tasks;
@@ -156,6 +278,8 @@ export default function App() {
   const totalCount = tasks.length;
   const completedCount = tasks.filter(t => t.status === 'done').length;
   const myTaskCount = tasks.filter(t => t.assignee === 'user').length;
+  const activeProjectCount = projects.filter(p => p.status === 'active').length;
+  const reviewCount = projects.filter(p => p.phases.some(ph => ph.status === 'review')).length;
 
   if (loading) {
     return (
@@ -185,12 +309,44 @@ export default function App() {
             </svg>
           </div>
           <div>
-            <h1 className="text-2xl font-bold tracking-tight">Task Manager</h1>
+            <h1 className="text-2xl font-bold tracking-tight">Nova Dashboard</h1>
             <p className="mt-0.5 text-sm text-gray-400">
-              {completedCount} of {totalCount} tasks completed
+              {completedCount}/{totalCount} tasks · {activeProjectCount} active projects
             </p>
           </div>
         </header>
+
+        {/* Main view toggle: Tasks / Projects */}
+        <div className="mb-6 flex items-center rounded-xl bg-[#161b22] p-1">
+          <button
+            onClick={() => { setMainView("tasks"); setShowArchived(false); }}
+            className={`flex-1 rounded-lg px-4 py-2.5 text-sm font-medium transition-all ${
+              mainView === "tasks"
+                ? 'bg-blue-600 text-white shadow-md shadow-blue-600/20'
+                : 'text-gray-400 hover:text-gray-200'
+            }`}
+          >
+            Tasks
+            <span className="ml-2 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-white/15 px-1.5 text-xs">
+              {totalCount}
+            </span>
+          </button>
+          <button
+            onClick={() => setMainView("projects")}
+            className={`flex-1 rounded-lg px-4 py-2.5 text-sm font-medium transition-all ${
+              mainView === "projects"
+                ? 'bg-blue-600 text-white shadow-md shadow-blue-600/20'
+                : 'text-gray-400 hover:text-gray-200'
+            }`}
+          >
+            Projects
+            <span className={`ml-2 inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-xs ${
+              reviewCount > 0 ? 'bg-amber-500/30 text-amber-300' : 'bg-white/15'
+            }`}>
+              {projects.length}
+            </span>
+          </button>
+        </div>
 
         {error && (
           <div className="mb-6 rounded-xl bg-red-500/10 border border-red-500/20 px-4 py-3 text-sm text-red-400">
@@ -198,92 +354,156 @@ export default function App() {
           </div>
         )}
 
-        {!showArchived ? (
+        {mainView === "tasks" && (
           <>
-            <div className="mb-6 flex items-center gap-3">
-              <div className="flex flex-1 items-center rounded-xl bg-[#161b22] p-1">
+            {!showArchived ? (
+              <>
+                <div className="mb-6 flex items-center gap-3">
+                  <div className="flex flex-1 items-center rounded-xl bg-[#161b22] p-1">
+                    <button
+                      onClick={() => setShowMyTasksOnly(false)}
+                      className={`flex-1 rounded-lg px-4 py-2.5 text-sm font-medium transition-all ${
+                        !showMyTasksOnly
+                          ? 'bg-gray-700 text-white'
+                          : 'text-gray-400 hover:text-gray-200'
+                      }`}
+                    >
+                      All Tasks
+                      <span className="ml-2 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-white/15 px-1.5 text-xs">
+                        {totalCount}
+                      </span>
+                    </button>
+                    <button
+                      onClick={() => setShowMyTasksOnly(true)}
+                      className={`flex-1 rounded-lg px-4 py-2.5 text-sm font-medium transition-all ${
+                        showMyTasksOnly
+                          ? 'bg-gray-700 text-white'
+                          : 'text-gray-400 hover:text-gray-200'
+                      }`}
+                    >
+                      My Tasks
+                      <span className="ml-2 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-white/15 px-1.5 text-xs">
+                        {myTaskCount}
+                      </span>
+                    </button>
+                  </div>
+                  <button
+                    onClick={() => setShowNewForm(!showNewForm)}
+                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+                  >
+                    <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d={showNewForm ? 'M6 18L18 6M6 6l12 12' : 'M12 4v16m8-8H4'} />
+                    </svg>
+                  </button>
+                </div>
+
+                {showNewForm && (
+                  <div className="mb-6">
+                    <NewTaskForm
+                      agents={agents}
+                      onAdd={handleAddTask}
+                      onCancel={() => setShowNewForm(false)}
+                    />
+                  </div>
+                )}
+
+                <TaskList
+                  tasks={filteredTasks}
+                  agents={agents}
+                  runningTaskIds={runningTaskIds}
+                  onToggle={handleToggle}
+                  onDismiss={handleDismiss}
+                  onStatusChange={handleStatusChange}
+                  onRemarks={handleRemarks}
+                  onTitle={handleTitle}
+                  onArchive={handleArchive}
+                  onDelete={handleDelete}
+                  onChat={handleChat}
+                  onRun={handleRunTask}
+                />
+
                 <button
-                  onClick={() => setShowMyTasksOnly(false)}
-                  className={`flex-1 rounded-lg px-4 py-2.5 text-sm font-medium transition-all ${
-                    !showMyTasksOnly
-                      ? 'bg-blue-600 text-white shadow-md shadow-blue-600/20'
-                      : 'text-gray-400 hover:text-gray-200'
-                  }`}
+                  onClick={() => setShowArchived(true)}
+                  className="mt-6 w-full text-center text-sm text-gray-500 hover:text-gray-400 transition-colors"
                 >
-                  All Tasks
-                  <span className="ml-2 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-white/15 px-1.5 text-xs">
-                    {totalCount}
-                  </span>
+                  View archived tasks (last 7 days)
                 </button>
-                <button
-                  onClick={() => setShowMyTasksOnly(true)}
-                  className={`flex-1 rounded-lg px-4 py-2.5 text-sm font-medium transition-all ${
-                    showMyTasksOnly
-                      ? 'bg-blue-600 text-white shadow-md shadow-blue-600/20'
-                      : 'text-gray-400 hover:text-gray-200'
-                  }`}
-                >
-                  My Tasks
-                  <span className="ml-2 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-white/15 px-1.5 text-xs">
-                    {myTaskCount}
-                  </span>
-                </button>
-              </div>
+              </>
+            ) : (
+              <>
+                <div className="mb-6 flex items-center gap-3">
+                  <button
+                    onClick={() => setShowArchived(false)}
+                    className="flex items-center gap-2 text-sm text-gray-400 hover:text-gray-200 transition-colors"
+                  >
+                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+                    </svg>
+                    Back to tasks
+                  </button>
+                </div>
+
+                <h2 className="mb-4 text-lg font-semibold text-gray-300">Archived Tasks (Last 7 Days)</h2>
+
+                <ArchivedTaskList tasks={archivedTasks} agents={agents} />
+              </>
+            )}
+          </>
+        )}
+
+        {mainView === "projects" && (
+          <>
+            <div className="mb-6 flex justify-end">
               <button
-                onClick={() => setShowNewForm(!showNewForm)}
+                onClick={() => {
+                  setEditingProject(null);
+                  setShowProjectForm(!showProjectForm);
+                }}
                 className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-white hover:bg-blue-700 transition-colors"
               >
                 <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d={showNewForm ? 'M6 18L18 6M6 6l12 12' : 'M12 4v16m8-8H4'} />
+                  <path strokeLinecap="round" strokeLinejoin="round" d={showProjectForm ? 'M6 18L18 6M6 6l12 12' : 'M12 4v16m8-8H4'} />
                 </svg>
               </button>
             </div>
 
-            {showNewForm && (
+            {showProjectForm && (
               <div className="mb-6">
-                <NewTaskForm
+                <ProjectForm
                   agents={agents}
-                  onAdd={handleAddTask}
-                  onCancel={() => setShowNewForm(false)}
+                  project={editingProject ?? undefined}
+                  onSubmit={handleProjectSubmit}
+                  onCancel={() => {
+                    setShowProjectForm(false);
+                    setEditingProject(null);
+                  }}
                 />
               </div>
             )}
 
-            <TaskList
-              tasks={filteredTasks}
+            {reviewCount > 0 && (
+              <div className="mb-4 rounded-xl bg-amber-500/10 border border-amber-500/20 px-4 py-3 text-sm text-amber-400">
+                {reviewCount} project{reviewCount > 1 ? 's' : ''} waiting for your review
+              </div>
+            )}
+            <ProjectList
+              projects={projects}
+              tasks={tasks}
               agents={agents}
-              onToggle={handleToggle}
-              onDismiss={handleDismiss}
-              onRemarks={handleRemarks}
-              onTitle={handleTitle}
-              onArchive={handleArchive}
-              onDelete={handleDelete}
+              runningProjectIds={runningProjectIds}
+              onUpdateProjectStatus={handleUpdateProjectStatus}
+              onUpdatePhaseStatus={handleUpdatePhaseStatus}
+              onEditProject={handleEditProject}
+              onRunReview={handleRunReview}
+              onToggleTask={handleToggle}
+              onDismissTask={handleDismiss}
+              onStatusChangeTask={handleStatusChange}
+              onRemarksTask={handleRemarks}
+              onTitleTask={handleTitle}
+              onArchiveTask={handleArchive}
+              onDeleteTask={handleDelete}
+              onChatTask={handleChat}
             />
-
-            <button
-              onClick={() => setShowArchived(true)}
-              className="mt-6 w-full text-center text-sm text-gray-500 hover:text-gray-400 transition-colors"
-            >
-              View archived tasks (last 7 days)
-            </button>
-          </>
-        ) : (
-          <>
-            <div className="mb-6 flex items-center gap-3">
-              <button
-                onClick={() => setShowArchived(false)}
-                className="flex items-center gap-2 text-sm text-gray-400 hover:text-gray-200 transition-colors"
-              >
-                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-                </svg>
-                Back to tasks
-              </button>
-            </div>
-
-            <h2 className="mb-4 text-lg font-semibold text-gray-300">Archived Tasks (Last 7 Days)</h2>
-
-            <ArchivedTaskList tasks={archivedTasks} agents={agents} />
           </>
         )}
 

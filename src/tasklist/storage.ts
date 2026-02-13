@@ -41,6 +41,8 @@ export interface CreateTaskData {
   title: string;
   rationale: string;
   instructions: string;
+  projectId?: string | undefined;
+  phaseId?: string | undefined;
 }
 
 export function createTask(workspaceDir: string, data: CreateTaskData): Task {
@@ -54,6 +56,8 @@ export function createTask(workspaceDir: string, data: CreateTaskData): Task {
     rationale: data.rationale,
     instructions: data.instructions,
     status: "open",
+    ...(data.projectId ? { projectId: data.projectId } : {}),
+    ...(data.phaseId ? { phaseId: data.phaseId } : {}),
     createdAt: now,
     updatedAt: now,
   };
@@ -67,7 +71,7 @@ export interface UpdateTaskData {
   rationale?: string | undefined;
   instructions?: string | undefined;
   remarks?: string | undefined;
-  status?: "open" | "in_progress" | "done" | "failed" | "dismissed" | undefined;
+  status?: "open" | "in_progress" | "review" | "done" | "failed" | "dismissed" | undefined;
   threadId?: string | undefined;
 }
 

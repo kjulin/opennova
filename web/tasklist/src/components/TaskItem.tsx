@@ -3,20 +3,30 @@ import type { Task } from '../api'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Button } from '@/components/ui/button'
 import { Markdown } from './Markdown'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 
 interface TaskItemProps {
   task: Task
   assigneeName: string
   creatorName: string
+  isRunning?: boolean
   onToggle: (id: string) => void
   onDismiss: (id: string) => void
+  onStatusChange?: (id: string, status: 'open' | 'review' | 'done' | 'dismissed') => void
   onRemarks: (id: string, remarks: string) => void
   onTitle: (id: string, title: string) => void
   onArchive: (id: string) => void
   onDelete: (id: string) => void
+  onChat?: (taskId: string, agentId: string) => Promise<{ threadId: string } | null>
+  onRun?: (id: string) => void
 }
 
-export function TaskItem({ task, assigneeName, creatorName, onToggle, onDismiss, onRemarks, onTitle, onArchive, onDelete }: TaskItemProps) {
+export function TaskItem({ task, assigneeName, creatorName, isRunning = false, onToggle, onDismiss, onStatusChange, onRemarks, onTitle, onArchive, onDelete, onChat, onRun }: TaskItemProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [remarks, setRemarks] = useState(task.remarks ?? '')
   const [title, setTitle] = useState(task.title)
@@ -52,6 +62,7 @@ export function TaskItem({ task, assigneeName, creatorName, onToggle, onDismiss,
   const isCompleted = task.status === 'done'
   const isDismissed = task.status === 'dismissed'
   const isInProgress = task.status === 'in_progress'
+  const isReview = task.status === 'review'
   const isFailed = task.status === 'failed'
   const isResolved = isCompleted || isDismissed || isFailed
 
@@ -78,7 +89,7 @@ export function TaskItem({ task, assigneeName, creatorName, onToggle, onDismiss,
         <div onClick={e => e.stopPropagation()} className="flex items-center">
           <Checkbox
             checked={isCompleted}
-            disabled={isDismissed || isInProgress || isFailed}
+            disabled={isDismissed || isInProgress || isReview || isFailed}
             onCheckedChange={() => onToggle(task.id)}
             className="h-5 w-5 rounded-md border-gray-600 data-[state=checked]:border-emerald-500 data-[state=checked]:bg-emerald-500 disabled:opacity-40"
           />
@@ -123,9 +134,21 @@ export function TaskItem({ task, assigneeName, creatorName, onToggle, onDismiss,
           )}
         </div>
 
-        {isInProgress && (
+        {isRunning && (
+          <span className="rounded-md bg-purple-500/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-purple-400 animate-pulse">
+            Running
+          </span>
+        )}
+
+        {isInProgress && !isRunning && (
           <span className="rounded-md bg-blue-500/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-blue-400">
             In Progress
+          </span>
+        )}
+
+        {isReview && (
+          <span className="rounded-md bg-amber-500/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-amber-400">
+            Review
           </span>
         )}
 
@@ -219,43 +242,106 @@ export function TaskItem({ task, assigneeName, creatorName, onToggle, onDismiss,
               </div>
             )}
           </div>
-          <div className="flex justify-end gap-2">
-            {task.threadId && (
+          <div className="flex flex-wrap justify-end gap-2">
+            {/* Primary actions - always visible */}
+
+            {/* Work Now - for open tasks assigned to agents */}
+            {task.status === 'open' && task.assignee !== 'user' && onRun && (
+              <Button
+                variant="ghost"
+                size="sm"
+                disabled={isRunning}
+                onClick={e => {
+                  e.stopPropagation()
+                  onRun(task.id)
+                }}
+                className="mt-1 text-xs text-purple-400 hover:text-purple-300 hover:bg-purple-500/10 disabled:opacity-50"
+              >
+                {isRunning ? 'Running...' : 'Work Now'}
+              </Button>
+            )}
+
+            {/* Chat about this */}
+            {(() => {
+              const userIsOwner = task.agentId === 'user'
+              const userIsAssignee = task.assignee === 'user'
+              if (userIsOwner && userIsAssignee) return null
+              const canChat = task.status === 'open' || task.threadId
+              if (!canChat) return null
+              const chatTarget = userIsOwner ? task.assignee : task.agentId
+
+              return (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={async e => {
+                    e.stopPropagation()
+                    let threadId = task.threadId
+                    if (!threadId && onChat) {
+                      const result = await onChat(task.id, chatTarget)
+                      if (!result) return
+                      threadId = result.threadId
+                    }
+                    if (!threadId) return
+                    const data = JSON.stringify({
+                      action: 'chat',
+                      agentId: chatTarget,
+                      threadId,
+                      taskTitle: task.title
+                    })
+                    window.Telegram?.WebApp?.sendData(data)
+                  }}
+                  className="mt-1 text-xs text-blue-400 hover:text-blue-300 hover:bg-blue-500/10"
+                >
+                  Chat
+                </Button>
+              )
+            })()}
+
+            {/* Review actions */}
+            {isReview && onStatusChange && (
+              <>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={e => {
+                    e.stopPropagation()
+                    onStatusChange(task.id, 'done')
+                  }}
+                  className="mt-1 text-xs text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10"
+                >
+                  Approve
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={e => {
+                    e.stopPropagation()
+                    onStatusChange(task.id, 'open')
+                  }}
+                  className="mt-1 text-xs text-amber-400 hover:text-amber-300 hover:bg-amber-500/10"
+                >
+                  Request Changes
+                </Button>
+              </>
+            )}
+
+            {/* Status change for open tasks */}
+            {task.status === 'open' && onStatusChange && (
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={e => {
                   e.stopPropagation()
-                  const data = JSON.stringify({
-                    action: 'chat',
-                    agentId: task.assignee,
-                    threadId: task.threadId,
-                    taskTitle: task.title
-                  })
-                  window.Telegram?.WebApp?.sendData(data)
+                  onStatusChange(task.id, 'review')
                 }}
-                className="mt-1 text-xs text-blue-400 hover:text-blue-300 hover:bg-blue-500/10"
+                className="mt-1 text-xs text-amber-400 hover:text-amber-300 hover:bg-amber-500/10"
               >
-                Chat about this
+                Mark for Review
               </Button>
             )}
-            {!isCompleted && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={e => {
-                  e.stopPropagation()
-                  onDismiss(task.id)
-                }}
-                className={`mt-1 text-xs ${
-                  isDismissed
-                    ? 'text-blue-400 hover:text-blue-300 hover:bg-blue-500/10'
-                    : 'text-red-400 hover:text-red-300 hover:bg-red-500/10'
-                }`}
-              >
-                {isDismissed ? 'Restore task' : 'Dismiss task'}
-              </Button>
-            )}
+
+            {/* Archive for completed */}
             {isCompleted && (
               <Button
                 variant="ghost"
@@ -269,44 +355,70 @@ export function TaskItem({ task, assigneeName, creatorName, onToggle, onDismiss,
                 Archive
               </Button>
             )}
-            {confirmDelete ? (
-              <>
+
+            {/* More actions dropdown */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild onClick={e => e.stopPropagation()}>
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={e => {
-                    e.stopPropagation()
-                    setConfirmDelete(false)
-                  }}
-                  className="mt-1 text-xs text-gray-400 hover:text-gray-300 hover:bg-gray-500/10"
+                  className="mt-1 text-xs text-gray-500 hover:text-gray-400 hover:bg-gray-500/10 px-2"
                 >
-                  Cancel
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+                  </svg>
                 </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={e => {
-                    e.stopPropagation()
-                    onDelete(task.id)
-                  }}
-                  className="mt-1 text-xs text-red-500 hover:text-red-400 hover:bg-red-500/10"
-                >
-                  Confirm delete
-                </Button>
-              </>
-            ) : (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={e => {
-                  e.stopPropagation()
-                  setConfirmDelete(true)
-                }}
-                className="mt-1 text-xs text-gray-500 hover:text-gray-400 hover:bg-gray-500/10"
-              >
-                Delete
-              </Button>
-            )}
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="bg-[#161b22] border-[#30363d]">
+                {!isCompleted && !isReview && (
+                  <DropdownMenuItem
+                    onClick={e => {
+                      e.stopPropagation()
+                      onDismiss(task.id)
+                    }}
+                    className={`text-xs cursor-pointer ${
+                      isDismissed
+                        ? 'text-blue-400 focus:text-blue-300 focus:bg-blue-500/10'
+                        : 'text-red-400 focus:text-red-300 focus:bg-red-500/10'
+                    }`}
+                  >
+                    {isDismissed ? 'Restore task' : 'Dismiss task'}
+                  </DropdownMenuItem>
+                )}
+                {confirmDelete ? (
+                  <>
+                    <DropdownMenuItem
+                      onClick={e => {
+                        e.stopPropagation()
+                        setConfirmDelete(false)
+                      }}
+                      className="text-xs text-gray-400 cursor-pointer focus:text-gray-300 focus:bg-gray-500/10"
+                    >
+                      Cancel delete
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={e => {
+                        e.stopPropagation()
+                        onDelete(task.id)
+                      }}
+                      className="text-xs text-red-500 cursor-pointer focus:text-red-400 focus:bg-red-500/10"
+                    >
+                      Confirm delete
+                    </DropdownMenuItem>
+                  </>
+                ) : (
+                  <DropdownMenuItem
+                    onClick={e => {
+                      e.stopPropagation()
+                      setConfirmDelete(true)
+                    }}
+                    className="text-xs text-gray-500 cursor-pointer focus:text-gray-400 focus:bg-gray-500/10"
+                  >
+                    Delete task
+                  </DropdownMenuItem>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
       )}
