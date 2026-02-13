@@ -8,6 +8,8 @@ export interface Task {
   remarks?: string;
   status: "open" | "in_progress" | "done" | "failed" | "dismissed";
   threadId?: string;
+  projectId?: string;
+  phaseId?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -109,4 +111,65 @@ export async function fetchArchivedTasks(days: number = 7): Promise<ArchivedTask
   if (!res.ok) throw new Error("Failed to fetch archived tasks");
   const data = await res.json();
   return data.tasks;
+}
+
+// Projects API
+
+export interface Phase {
+  id: string;
+  title: string;
+  description: string;
+  status: "pending" | "in_progress" | "review" | "done";
+}
+
+export interface Project {
+  id: string;
+  lead: string;
+  title: string;
+  description: string;
+  status: "draft" | "active" | "completed" | "cancelled";
+  artifacts: string[];
+  phases: Phase[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ProjectsResponse {
+  projects: Project[];
+  agents: Agent[];
+}
+
+const PROJECTS_API_BASE = "/api/projects";
+
+export async function fetchProjects(): Promise<ProjectsResponse> {
+  const res = await fetch(PROJECTS_API_BASE);
+  if (!res.ok) throw new Error("Failed to fetch projects");
+  return res.json();
+}
+
+export async function updateProjectStatus(
+  id: string,
+  status: "active" | "completed" | "cancelled"
+): Promise<Project> {
+  const res = await fetch(`${PROJECTS_API_BASE}/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ status }),
+  });
+  if (!res.ok) throw new Error("Failed to update project");
+  return res.json();
+}
+
+export async function updatePhaseStatus(
+  projectId: string,
+  phaseId: string,
+  status: "pending" | "in_progress" | "review" | "done"
+): Promise<Project> {
+  const res = await fetch(`${PROJECTS_API_BASE}/${projectId}/phases/${phaseId}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ status }),
+  });
+  if (!res.ok) throw new Error("Failed to update phase");
+  return res.json();
 }
