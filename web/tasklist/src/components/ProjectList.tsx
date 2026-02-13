@@ -10,9 +10,13 @@ interface ProjectListProps {
   onEditProject?: (project: Project) => void
   onToggleTask?: (id: string) => void
   onDismissTask?: (id: string) => void
+  onRemarksTask?: (id: string, remarks: string) => void
+  onTitleTask?: (id: string, title: string) => void
+  onArchiveTask?: (id: string) => void
+  onDeleteTask?: (id: string) => void
 }
 
-export function ProjectList({ projects, tasks, agents, onUpdateProjectStatus, onUpdatePhaseStatus, onEditProject, onToggleTask, onDismissTask }: ProjectListProps) {
+export function ProjectList({ projects, tasks, agents, onUpdateProjectStatus, onUpdatePhaseStatus, onEditProject, onToggleTask, onDismissTask, onRemarksTask, onTitleTask, onArchiveTask, onDeleteTask }: ProjectListProps) {
   const draft = projects.filter(p => p.status === 'draft')
   const active = projects.filter(p => p.status === 'active')
   const completed = projects.filter(p => p.status === 'completed')
@@ -38,6 +42,10 @@ export function ProjectList({ projects, tasks, agents, onUpdateProjectStatus, on
       onEditProject={onEditProject}
       onToggleTask={onToggleTask}
       onDismissTask={onDismissTask}
+      onRemarksTask={onRemarksTask}
+      onTitleTask={onTitleTask}
+      onArchiveTask={onArchiveTask}
+      onDeleteTask={onDeleteTask}
     />
   )
 

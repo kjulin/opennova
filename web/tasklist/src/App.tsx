@@ -443,6 +443,10 @@ export default function App() {
               onEditProject={handleEditProject}
               onToggleTask={handleToggle}
               onDismissTask={handleDismiss}
+              onRemarksTask={handleRemarks}
+              onTitleTask={handleTitle}
+              onArchiveTask={handleArchive}
+              onDeleteTask={handleDelete}
             />
           </>
         )}
