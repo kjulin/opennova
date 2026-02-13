@@ -266,9 +266,20 @@ export function ProjectItem({ project, tasks, agents, onUpdateProjectStatus, onU
             </div>
           )}
 
-          <div className="flex justify-end gap-2 pt-2">
+          <div className="flex flex-wrap justify-end gap-2 pt-2">
             {project.status === 'draft' && (
               <>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    onUpdateProjectStatus(project.id, 'active')
+                  }}
+                  className="text-xs text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10"
+                >
+                  Start Project
+                </Button>
                 {onEditProject && (
                   <Button
                     variant="ghost"
@@ -282,17 +293,6 @@ export function ProjectItem({ project, tasks, agents, onUpdateProjectStatus, onU
                     Edit
                   </Button>
                 )}
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    onUpdateProjectStatus(project.id, 'active')
-                  }}
-                  className="text-xs text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10"
-                >
-                  Start Project
-                </Button>
                 <Button
                   variant="ghost"
                   size="sm"
