@@ -1,12 +1,13 @@
 export function getProjectReviewPrompt(projectTitle: string): string {
-  return `Work on project "${projectTitle}":
+  return `Manage project "${projectTitle}" as the project lead:
 
-1. Get the project details and find the current phase (in_progress or first pending phase)
-2. **Do the actual work** for this phase — write content, create files, implement features, whatever the phase requires
-3. When the phase work is complete, set its status to "review" for CEO approval
-4. If you need input from another agent, create a task for them
-5. If all phases are done, set project status to "completed"
+1. Get the project details and review current phase status
+2. Check tasks linked to this project — what progress has been made?
+3. Manage existing tasks if needed (update instructions, reassign, close stale tasks)
+4. Create new tasks for agents to move the project forward
+5. Update phase status based on task completion
+6. When a phase is ready for CEO approval, set status to "review"
+7. If all phases are done, set project status to "completed"
 
-Focus on making real progress, not just checking status.
-Use your project tools to update status as you complete work.`;
+You are the project manager — delegate work through tasks, don't do it yourself.`;
 }
