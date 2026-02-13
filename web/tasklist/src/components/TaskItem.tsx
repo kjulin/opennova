@@ -273,6 +273,19 @@ export function TaskItem({ task, assigneeName, creatorName, onToggle, onDismiss,
                 </Button>
               </>
             )}
+            {task.status === 'open' && onStatusChange && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={e => {
+                  e.stopPropagation()
+                  onStatusChange(task.id, 'review')
+                }}
+                className="mt-1 text-xs text-amber-400 hover:text-amber-300 hover:bg-amber-500/10"
+              >
+                Mark for Review
+              </Button>
+            )}
             {!isCompleted && !isReview && (
               <Button
                 variant="ghost"
