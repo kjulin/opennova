@@ -6,15 +6,17 @@ interface TaskListProps {
   agents: Agent[]
   onToggle: (id: string) => void
   onDismiss: (id: string) => void
+  onStatusChange?: (id: string, status: 'open' | 'review' | 'done' | 'dismissed') => void
   onRemarks: (id: string, remarks: string) => void
   onTitle: (id: string, title: string) => void
   onArchive: (id: string) => void
   onDelete: (id: string) => void
 }
 
-export function TaskList({ tasks, agents, onToggle, onDismiss, onRemarks, onTitle, onArchive, onDelete }: TaskListProps) {
+export function TaskList({ tasks, agents, onToggle, onDismiss, onStatusChange, onRemarks, onTitle, onArchive, onDelete }: TaskListProps) {
   const pending = tasks.filter(t => t.status === 'open')
   const inProgress = tasks.filter(t => t.status === 'in_progress')
+  const review = tasks.filter(t => t.status === 'review')
   const completed = tasks.filter(t => t.status === 'done')
   const failed = tasks.filter(t => t.status === 'failed')
   const dismissed = tasks.filter(t => t.status === 'dismissed')
@@ -33,6 +35,7 @@ export function TaskList({ tasks, agents, onToggle, onDismiss, onRemarks, onTitl
       creatorName={getAgentName(task.agentId)}
       onToggle={onToggle}
       onDismiss={onDismiss}
+      onStatusChange={onStatusChange}
       onRemarks={onRemarks}
       onTitle={onTitle}
       onArchive={onArchive}
@@ -42,6 +45,19 @@ export function TaskList({ tasks, agents, onToggle, onDismiss, onRemarks, onTitl
 
   return (
     <div className="space-y-6">
+      {review.length > 0 && (
+        <section>
+          <h2 className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-gray-400">
+            <span className="h-1.5 w-1.5 rounded-full bg-amber-400 animate-pulse" />
+            Needs Review
+            <span className="text-gray-500">({review.length})</span>
+          </h2>
+          <div className="space-y-2">
+            {review.map(renderTaskItem)}
+          </div>
+        </section>
+      )}
+
       {inProgress.length > 0 && (
         <section>
           <h2 className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-gray-400">

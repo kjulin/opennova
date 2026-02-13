@@ -59,7 +59,7 @@ export function createTasklistRouter(workspaceDir: string): Hono {
       const body = await c.req.json();
       const { status, remarks, title } = body;
 
-      if (status && !["open", "done", "dismissed"].includes(status)) {
+      if (status && !["open", "review", "done", "dismissed"].includes(status)) {
         return c.json({ error: "Invalid status" }, 400);
       }
 

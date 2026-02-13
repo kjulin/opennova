@@ -119,7 +119,7 @@ export default function App() {
 
     const newStatus = task.status === 'done' ? 'open' : 'done';
     try {
-      await updateTaskStatus(id, newStatus as 'done' | 'dismissed');
+      await updateTaskStatus(id, newStatus);
       await loadTasks();
     } catch (err) {
       setError((err as Error).message);
@@ -132,7 +132,16 @@ export default function App() {
 
     const newStatus = task.status === 'dismissed' ? 'open' : 'dismissed';
     try {
-      await updateTaskStatus(id, newStatus as 'done' | 'dismissed');
+      await updateTaskStatus(id, newStatus);
+      await loadTasks();
+    } catch (err) {
+      setError((err as Error).message);
+    }
+  };
+
+  const handleStatusChange = async (id: string, status: 'open' | 'review' | 'done' | 'dismissed') => {
+    try {
+      await updateTaskStatus(id, status);
       await loadTasks();
     } catch (err) {
       setError((err as Error).message);
@@ -364,6 +373,7 @@ export default function App() {
                   agents={agents}
                   onToggle={handleToggle}
                   onDismiss={handleDismiss}
+                  onStatusChange={handleStatusChange}
                   onRemarks={handleRemarks}
                   onTitle={handleTitle}
                   onArchive={handleArchive}
@@ -443,6 +453,7 @@ export default function App() {
               onEditProject={handleEditProject}
               onToggleTask={handleToggle}
               onDismissTask={handleDismiss}
+              onStatusChangeTask={handleStatusChange}
               onRemarksTask={handleRemarks}
               onTitleTask={handleTitle}
               onArchiveTask={handleArchive}

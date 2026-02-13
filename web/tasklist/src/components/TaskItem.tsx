@@ -10,13 +10,14 @@ interface TaskItemProps {
   creatorName: string
   onToggle: (id: string) => void
   onDismiss: (id: string) => void
+  onStatusChange?: (id: string, status: 'open' | 'review' | 'done' | 'dismissed') => void
   onRemarks: (id: string, remarks: string) => void
   onTitle: (id: string, title: string) => void
   onArchive: (id: string) => void
   onDelete: (id: string) => void
 }
 
-export function TaskItem({ task, assigneeName, creatorName, onToggle, onDismiss, onRemarks, onTitle, onArchive, onDelete }: TaskItemProps) {
+export function TaskItem({ task, assigneeName, creatorName, onToggle, onDismiss, onStatusChange, onRemarks, onTitle, onArchive, onDelete }: TaskItemProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [remarks, setRemarks] = useState(task.remarks ?? '')
   const [title, setTitle] = useState(task.title)
@@ -52,6 +53,7 @@ export function TaskItem({ task, assigneeName, creatorName, onToggle, onDismiss,
   const isCompleted = task.status === 'done'
   const isDismissed = task.status === 'dismissed'
   const isInProgress = task.status === 'in_progress'
+  const isReview = task.status === 'review'
   const isFailed = task.status === 'failed'
   const isResolved = isCompleted || isDismissed || isFailed
 
@@ -78,7 +80,7 @@ export function TaskItem({ task, assigneeName, creatorName, onToggle, onDismiss,
         <div onClick={e => e.stopPropagation()} className="flex items-center">
           <Checkbox
             checked={isCompleted}
-            disabled={isDismissed || isInProgress || isFailed}
+            disabled={isDismissed || isInProgress || isReview || isFailed}
             onCheckedChange={() => onToggle(task.id)}
             className="h-5 w-5 rounded-md border-gray-600 data-[state=checked]:border-emerald-500 data-[state=checked]:bg-emerald-500 disabled:opacity-40"
           />
@@ -126,6 +128,12 @@ export function TaskItem({ task, assigneeName, creatorName, onToggle, onDismiss,
         {isInProgress && (
           <span className="rounded-md bg-blue-500/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-blue-400">
             In Progress
+          </span>
+        )}
+
+        {isReview && (
+          <span className="rounded-md bg-amber-500/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-amber-400">
+            Review
           </span>
         )}
 
@@ -239,7 +247,33 @@ export function TaskItem({ task, assigneeName, creatorName, onToggle, onDismiss,
                 Chat about this
               </Button>
             )}
-            {!isCompleted && (
+            {isReview && onStatusChange && (
+              <>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={e => {
+                    e.stopPropagation()
+                    onStatusChange(task.id, 'done')
+                  }}
+                  className="mt-1 text-xs text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10"
+                >
+                  Approve
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={e => {
+                    e.stopPropagation()
+                    onStatusChange(task.id, 'open')
+                  }}
+                  className="mt-1 text-xs text-amber-400 hover:text-amber-300 hover:bg-amber-500/10"
+                >
+                  Request Changes
+                </Button>
+              </>
+            )}
+            {!isCompleted && !isReview && (
               <Button
                 variant="ghost"
                 size="sm"

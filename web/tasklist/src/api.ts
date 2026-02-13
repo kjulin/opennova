@@ -6,7 +6,7 @@ export interface Task {
   rationale: string;
   instructions: string;
   remarks?: string;
-  status: "open" | "in_progress" | "done" | "failed" | "dismissed";
+  status: "open" | "in_progress" | "review" | "done" | "failed" | "dismissed";
   threadId?: string;
   projectId?: string;
   phaseId?: string;
@@ -55,7 +55,7 @@ export async function createTask(data: CreateTaskData): Promise<Task> {
 
 export async function updateTaskStatus(
   id: string,
-  status: "done" | "dismissed"
+  status: "open" | "review" | "done" | "dismissed"
 ): Promise<Task> {
   const res = await fetch(`${API_BASE}/${id}`, {
     method: "PATCH",

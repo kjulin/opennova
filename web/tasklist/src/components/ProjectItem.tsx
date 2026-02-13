@@ -13,13 +13,14 @@ interface ProjectItemProps {
   onEditProject?: (project: Project) => void
   onToggleTask?: (id: string) => void
   onDismissTask?: (id: string) => void
+  onStatusChangeTask?: (id: string, status: 'open' | 'review' | 'done' | 'dismissed') => void
   onRemarksTask?: (id: string, remarks: string) => void
   onTitleTask?: (id: string, title: string) => void
   onArchiveTask?: (id: string) => void
   onDeleteTask?: (id: string) => void
 }
 
-export function ProjectItem({ project, tasks, agents, onUpdateProjectStatus, onUpdatePhaseStatus, onEditProject, onToggleTask, onDismissTask, onRemarksTask, onTitleTask, onArchiveTask, onDeleteTask }: ProjectItemProps) {
+export function ProjectItem({ project, tasks, agents, onUpdateProjectStatus, onUpdatePhaseStatus, onEditProject, onToggleTask, onDismissTask, onStatusChangeTask, onRemarksTask, onTitleTask, onArchiveTask, onDeleteTask }: ProjectItemProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [expandedPhases, setExpandedPhases] = useState<Set<string>>(new Set())
 
@@ -161,6 +162,7 @@ export function ProjectItem({ project, tasks, agents, onUpdateProjectStatus, onU
                                 creatorName={getAgentName(task.creator)}
                                 onToggle={onToggleTask ?? (() => {})}
                                 onDismiss={onDismissTask ?? (() => {})}
+                                onStatusChange={onStatusChangeTask}
                                 onRemarks={onRemarksTask ?? (() => {})}
                                 onTitle={onTitleTask ?? (() => {})}
                                 onArchive={onArchiveTask ?? (() => {})}
