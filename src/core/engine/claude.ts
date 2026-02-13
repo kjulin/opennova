@@ -71,10 +71,11 @@ async function execQuery(
     settingSources: ["project"] as SettingSource[],
   };
 
-  // Log options without mcpServers (may contain circular refs)
-  const { mcpServers, ...loggableOptions } = queryOptions as Record<string, unknown>;
+  // Log options without mcpServers (may contain circular refs) and systemPrompt (too verbose)
+  const { mcpServers, systemPrompt, ...loggableOptions } = queryOptions as Record<string, unknown>;
   log.debug("engine", "options", JSON.stringify({
     ...loggableOptions,
+    ...(systemPrompt ? { systemPrompt: "[omitted]" } : {}),
     ...(mcpServers ? { mcpServers: Object.keys(mcpServers as object) } : {}),
   }, null, 2));
 
