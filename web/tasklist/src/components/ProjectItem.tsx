@@ -9,35 +9,14 @@ interface ProjectItemProps {
   agents: Agent[]
   onUpdateProjectStatus: (id: string, status: 'active' | 'completed' | 'cancelled') => void
   onUpdatePhaseStatus: (projectId: string, phaseId: string, status: 'pending' | 'in_progress' | 'review' | 'done') => void
-  onUpdateProject?: (id: string, data: { title?: string; description?: string }) => void
+  onEditProject?: (project: Project) => void
 }
 
-export function ProjectItem({ project, tasks, agents, onUpdateProjectStatus, onUpdatePhaseStatus, onUpdateProject }: ProjectItemProps) {
+export function ProjectItem({ project, tasks, agents, onUpdateProjectStatus, onUpdatePhaseStatus, onEditProject }: ProjectItemProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [expandedPhases, setExpandedPhases] = useState<Set<string>>(new Set())
-  const [isEditingTitle, setIsEditingTitle] = useState(false)
-  const [isEditingDescription, setIsEditingDescription] = useState(false)
-  const [editTitle, setEditTitle] = useState(project.title)
-  const [editDescription, setEditDescription] = useState(project.description)
 
   const isDraft = project.status === 'draft'
-
-  const saveTitle = () => {
-    const trimmed = editTitle.trim()
-    if (trimmed && trimmed !== project.title && onUpdateProject) {
-      onUpdateProject(project.id, { title: trimmed })
-    } else {
-      setEditTitle(project.title)
-    }
-    setIsEditingTitle(false)
-  }
-
-  const saveDescription = () => {
-    if (editDescription !== project.description && onUpdateProject) {
-      onUpdateProject(project.id, { description: editDescription })
-    }
-    setIsEditingDescription(false)
-  }
 
   const getAgentName = (agentId: string) => {
     if (agentId === 'user') return 'You'
@@ -95,34 +74,9 @@ export function ProjectItem({ project, tasks, agents, onUpdateProjectStatus, onU
         onClick={() => setIsOpen(!isOpen)}
       >
         <div className="min-w-0 flex-1">
-          {isEditingTitle ? (
-            <input
-              type="text"
-              value={editTitle}
-              onChange={e => setEditTitle(e.target.value)}
-              onClick={e => e.stopPropagation()}
-              onBlur={saveTitle}
-              onKeyDown={e => {
-                if (e.key === 'Enter') saveTitle()
-                else if (e.key === 'Escape') { setEditTitle(project.title); setIsEditingTitle(false) }
-              }}
-              className="w-full bg-transparent text-sm font-medium text-gray-100 border-b border-blue-500 outline-none py-0.5"
-              autoFocus
-            />
-          ) : (
-            <p
-              className={`text-sm font-medium leading-tight ${isResolved ? 'text-gray-400' : 'text-gray-100'}`}
-              onDoubleClick={e => {
-                if (isDraft) {
-                  e.stopPropagation()
-                  setIsEditingTitle(true)
-                }
-              }}
-              title={isDraft ? "Double-click to edit" : undefined}
-            >
-              {project.title}
-            </p>
-          )}
+          <p className={`text-sm font-medium leading-tight ${isResolved ? 'text-gray-400' : 'text-gray-100'}`}>
+            {project.title}
+          </p>
           {currentPhase && (
             <p className="mt-1 text-xs text-gray-500">
               {currentPhase.status === 'review' ? '⚠️ ' : ''}{currentPhase.title}
@@ -149,30 +103,9 @@ export function ProjectItem({ project, tasks, agents, onUpdateProjectStatus, onU
 
       {isOpen && (
         <div className="border-t border-[#2d333b] px-4 pb-4 pt-3 space-y-4">
-          {isEditingDescription ? (
-            <textarea
-              value={editDescription}
-              onChange={e => setEditDescription(e.target.value)}
-              onClick={e => e.stopPropagation()}
-              onBlur={saveDescription}
-              className="w-full rounded-lg bg-[#0d1117] border border-blue-500 px-3 py-2.5 text-sm text-[#c9d1d9] focus:outline-none resize-none"
-              rows={3}
-              autoFocus
-            />
-          ) : (
-            <div
-              className={`rounded-lg bg-[#0d1117] px-3 py-2.5 text-sm text-[#c9d1d9] ${isDraft ? 'cursor-pointer border border-transparent hover:border-[#30363d]' : ''}`}
-              onClick={e => {
-                if (isDraft) {
-                  e.stopPropagation()
-                  setIsEditingDescription(true)
-                }
-              }}
-              title={isDraft ? "Click to edit" : undefined}
-            >
-              {project.description ? <Markdown>{project.description}</Markdown> : <span className="text-gray-500 italic">{isDraft ? 'Click to add description...' : 'No description'}</span>}
-            </div>
-          )}
+          <div className="rounded-lg bg-[#0d1117] px-3 py-2.5 text-sm text-[#c9d1d9]">
+            {project.description ? <Markdown>{project.description}</Markdown> : <span className="text-gray-500 italic">No description</span>}
+          </div>
 
           <div>
             <label className="mb-2 block text-xs font-medium uppercase tracking-wider text-[#8b949e]">
@@ -278,6 +211,19 @@ export function ProjectItem({ project, tasks, agents, onUpdateProjectStatus, onU
           <div className="flex justify-end gap-2 pt-2">
             {project.status === 'draft' && (
               <>
+                {onEditProject && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      onEditProject(project)
+                    }}
+                    className="text-xs text-blue-400 hover:text-blue-300 hover:bg-blue-500/10"
+                  >
+                    Edit
+                  </Button>
+                )}
                 <Button
                   variant="ghost"
                   size="sm"

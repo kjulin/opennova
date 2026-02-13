@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { loadProjects, getProject, createProject, updateProject, updatePhase } from "./storage.js";
+import { loadProjects, getProject, createProject, updateProject, updateProjectFull, updatePhase } from "./storage.js";
 import { loadAgents } from "#core/agents.js";
 
 export function createProjectsRouter(workspaceDir: string): Hono {
@@ -71,6 +71,49 @@ export function createProjectsRouter(workspaceDir: string): Hono {
       }
 
       const updated = updateProject(workspaceDir, id, { status, title, description });
+      return c.json(updated);
+    } catch {
+      return c.json({ error: "Invalid request body" }, 400);
+    }
+  });
+
+  app.put("/:id", async (c) => {
+    const id = c.req.param("id");
+    const project = getProject(workspaceDir, id);
+
+    if (!project) {
+      return c.json({ error: "Project not found" }, 404);
+    }
+
+    if (project.status !== "draft") {
+      return c.json({ error: "Can only edit draft projects" }, 400);
+    }
+
+    try {
+      const body = await c.req.json();
+      const { title, description, phases } = body;
+
+      if (!title || !phases || !Array.isArray(phases) || phases.length === 0) {
+        return c.json(
+          { error: "Missing required fields: title, phases" },
+          400
+        );
+      }
+
+      const updated = updateProjectFull(workspaceDir, id, {
+        title,
+        description: description || "",
+        phases: phases.map((p: { id?: string; title: string; description?: string }) => ({
+          id: p.id,
+          title: p.title,
+          description: p.description || "",
+        })),
+      });
+
+      if (!updated) {
+        return c.json({ error: "Failed to update project" }, 500);
+      }
+
       return c.json(updated);
     } catch {
       return c.json({ error: "Invalid request body" }, 400);

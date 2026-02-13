@@ -7,10 +7,10 @@ interface ProjectListProps {
   agents: Agent[]
   onUpdateProjectStatus: (id: string, status: 'active' | 'completed' | 'cancelled') => void
   onUpdatePhaseStatus: (projectId: string, phaseId: string, status: 'pending' | 'in_progress' | 'review' | 'done') => void
-  onUpdateProject?: (id: string, data: { title?: string; description?: string }) => void
+  onEditProject?: (project: Project) => void
 }
 
-export function ProjectList({ projects, tasks, agents, onUpdateProjectStatus, onUpdatePhaseStatus, onUpdateProject }: ProjectListProps) {
+export function ProjectList({ projects, tasks, agents, onUpdateProjectStatus, onUpdatePhaseStatus, onEditProject }: ProjectListProps) {
   const draft = projects.filter(p => p.status === 'draft')
   const active = projects.filter(p => p.status === 'active')
   const completed = projects.filter(p => p.status === 'completed')
@@ -33,7 +33,7 @@ export function ProjectList({ projects, tasks, agents, onUpdateProjectStatus, on
       agents={agents}
       onUpdateProjectStatus={onUpdateProjectStatus}
       onUpdatePhaseStatus={onUpdatePhaseStatus}
-      onUpdateProject={onUpdateProject}
+      onEditProject={onEditProject}
     />
   )
 

@@ -1,23 +1,38 @@
-import { useState } from 'react'
-import type { Agent } from '../api'
+import { useState, useEffect } from 'react'
+import type { Agent, Project } from '../api'
 import { Button } from '@/components/ui/button'
 
 interface Phase {
+  id?: string
   title: string
   description: string
 }
 
-interface NewProjectFormProps {
+interface ProjectFormProps {
   agents: Agent[]
-  onAdd: (data: { title: string; description: string; lead: string; phases: Phase[] }) => void
+  project?: Project // If provided, we're in edit mode
+  onSubmit: (data: { title: string; description: string; lead: string; phases: Phase[] }) => void
   onCancel: () => void
 }
 
-export function NewProjectForm({ agents, onAdd, onCancel }: NewProjectFormProps) {
-  const [title, setTitle] = useState('')
-  const [description, setDescription] = useState('')
-  const [lead, setLead] = useState('')
-  const [phases, setPhases] = useState<Phase[]>([{ title: '', description: '' }])
+export function ProjectForm({ agents, project, onSubmit, onCancel }: ProjectFormProps) {
+  const isEditMode = !!project
+  const [title, setTitle] = useState(project?.title ?? '')
+  const [description, setDescription] = useState(project?.description ?? '')
+  const [lead, setLead] = useState(project?.lead ?? '')
+  const [phases, setPhases] = useState<Phase[]>(
+    project?.phases.map(p => ({ id: p.id, title: p.title, description: p.description })) ??
+    [{ title: '', description: '' }]
+  )
+
+  useEffect(() => {
+    if (project) {
+      setTitle(project.title)
+      setDescription(project.description)
+      setLead(project.lead)
+      setPhases(project.phases.map(p => ({ id: p.id, title: p.title, description: p.description })))
+    }
+  }, [project])
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -26,11 +41,12 @@ export function NewProjectForm({ agents, onAdd, onCancel }: NewProjectFormProps)
     const validPhases = phases.filter(p => p.title.trim())
     if (validPhases.length === 0) return
 
-    onAdd({
+    onSubmit({
       title: title.trim(),
       description: description.trim(),
       lead,
       phases: validPhases.map(p => ({
+        ...(p.id ? { id: p.id } : {}),
         title: p.title.trim(),
         description: p.description.trim(),
       })),
@@ -89,8 +105,9 @@ export function NewProjectForm({ agents, onAdd, onCancel }: NewProjectFormProps)
         <select
           value={lead}
           onChange={e => setLead(e.target.value)}
-          className="w-full rounded-lg bg-[#0d1117] border border-[#30363d] px-3 py-2 text-sm text-gray-100 focus:outline-none focus:border-blue-500"
+          className="w-full rounded-lg bg-[#0d1117] border border-[#30363d] px-3 py-2 text-sm text-gray-100 focus:outline-none focus:border-blue-500 disabled:opacity-50"
           required
+          disabled={isEditMode}
         >
           <option value="">Select lead agent...</option>
           {agents.map(agent => (
@@ -99,6 +116,9 @@ export function NewProjectForm({ agents, onAdd, onCancel }: NewProjectFormProps)
             </option>
           ))}
         </select>
+        {isEditMode && (
+          <p className="mt-1 text-xs text-gray-500">Project lead cannot be changed</p>
+        )}
       </div>
 
       <div>
@@ -166,7 +186,7 @@ export function NewProjectForm({ agents, onAdd, onCancel }: NewProjectFormProps)
           className="bg-blue-600 hover:bg-blue-700 text-white"
           disabled={!title.trim() || !lead || !phases.some(p => p.title.trim())}
         >
-          Create Project
+          {isEditMode ? 'Save Changes' : 'Create Project'}
         </Button>
       </div>
     </form>

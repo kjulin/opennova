@@ -190,6 +190,19 @@ export async function updateProject(
   return res.json();
 }
 
+export async function updateProjectFull(
+  id: string,
+  data: { title: string; description: string; phases: { id?: string; title: string; description: string }[] }
+): Promise<Project> {
+  const res = await fetch(`${PROJECTS_API_BASE}/${id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error("Failed to update project");
+  return res.json();
+}
+
 export async function updatePhaseStatus(
   projectId: string,
   phaseId: string,

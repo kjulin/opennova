@@ -7,7 +7,7 @@ import {
   updateTaskRemarks,
   updateTaskTitle,
   updateProjectStatus,
-  updateProject,
+  updateProjectFull,
   updatePhaseStatus,
   createTask,
   createProject,
@@ -21,7 +21,7 @@ import {
 import { TaskList } from "./components/TaskList";
 import { ArchivedTaskList } from "./components/ArchivedTaskList";
 import { NewTaskForm } from "./components/NewTaskForm";
-import { NewProjectForm } from "./components/NewProjectForm";
+import { ProjectForm } from "./components/NewProjectForm";
 import { ProjectList } from "./components/ProjectList";
 
 declare global {
@@ -47,7 +47,8 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
   const [showMyTasksOnly, setShowMyTasksOnly] = useState(false);
   const [showNewForm, setShowNewForm] = useState(false);
-  const [showNewProjectForm, setShowNewProjectForm] = useState(false);
+  const [showProjectForm, setShowProjectForm] = useState(false);
+  const [editingProject, setEditingProject] = useState<Project | null>(null);
   const [showArchived, setShowArchived] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
@@ -184,28 +185,29 @@ export default function App() {
     }
   };
 
-  const handleAddProject = async (data: { title: string; description: string; lead: string; phases: { title: string; description: string }[] }) => {
+  const handleProjectSubmit = async (data: { title: string; description: string; lead: string; phases: { id?: string; title: string; description: string }[] }) => {
     try {
-      await createProject(data);
+      if (editingProject) {
+        await updateProjectFull(editingProject.id, data);
+      } else {
+        await createProject(data);
+      }
       await loadProjects();
-      setShowNewProjectForm(false);
+      setShowProjectForm(false);
+      setEditingProject(null);
     } catch (err) {
       setError((err as Error).message);
     }
+  };
+
+  const handleEditProject = (project: Project) => {
+    setEditingProject(project);
+    setShowProjectForm(true);
   };
 
   const handleUpdateProjectStatus = async (id: string, status: 'active' | 'completed' | 'cancelled') => {
     try {
       await updateProjectStatus(id, status);
-      await loadProjects();
-    } catch (err) {
-      setError((err as Error).message);
-    }
-  };
-
-  const handleUpdateProject = async (id: string, data: { title?: string; description?: string }) => {
-    try {
-      await updateProject(id, data);
       await loadProjects();
     } catch (err) {
       setError((err as Error).message);
@@ -401,21 +403,28 @@ export default function App() {
           <>
             <div className="mb-6 flex justify-end">
               <button
-                onClick={() => setShowNewProjectForm(!showNewProjectForm)}
+                onClick={() => {
+                  setEditingProject(null);
+                  setShowProjectForm(!showProjectForm);
+                }}
                 className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-white hover:bg-blue-700 transition-colors"
               >
                 <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d={showNewProjectForm ? 'M6 18L18 6M6 6l12 12' : 'M12 4v16m8-8H4'} />
+                  <path strokeLinecap="round" strokeLinejoin="round" d={showProjectForm ? 'M6 18L18 6M6 6l12 12' : 'M12 4v16m8-8H4'} />
                 </svg>
               </button>
             </div>
 
-            {showNewProjectForm && (
+            {showProjectForm && (
               <div className="mb-6">
-                <NewProjectForm
+                <ProjectForm
                   agents={agents}
-                  onAdd={handleAddProject}
-                  onCancel={() => setShowNewProjectForm(false)}
+                  project={editingProject ?? undefined}
+                  onSubmit={handleProjectSubmit}
+                  onCancel={() => {
+                    setShowProjectForm(false);
+                    setEditingProject(null);
+                  }}
                 />
               </div>
             )}
@@ -431,7 +440,7 @@ export default function App() {
               agents={agents}
               onUpdateProjectStatus={handleUpdateProjectStatus}
               onUpdatePhaseStatus={handleUpdatePhaseStatus}
-              onUpdateProject={handleUpdateProject}
+              onEditProject={handleEditProject}
             />
           </>
         )}
