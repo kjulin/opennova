@@ -14,9 +14,10 @@ interface TaskListProps {
   onDelete: (id: string) => void
   onChat?: (taskId: string, agentId: string) => Promise<{ threadId: string; agentId: string } | null>
   onRun?: (id: string) => void
+  onReassign?: (id: string, assignee: string) => void
 }
 
-export function TaskList({ tasks, agents, runningTaskIds = [], onToggle, onDismiss, onStatusChange, onRemarks, onTitle, onArchive, onDelete, onChat, onRun }: TaskListProps) {
+export function TaskList({ tasks, agents, runningTaskIds = [], onToggle, onDismiss, onStatusChange, onRemarks, onTitle, onArchive, onDelete, onChat, onRun, onReassign }: TaskListProps) {
   const pending = tasks.filter(t => t.status === 'open')
   const inProgress = tasks.filter(t => t.status === 'in_progress')
   const review = tasks.filter(t => t.status === 'review')
@@ -34,6 +35,7 @@ export function TaskList({ tasks, agents, runningTaskIds = [], onToggle, onDismi
     <TaskItem
       key={task.id}
       task={task}
+      agents={agents}
       assigneeName={getAgentName(task.assignee)}
       creatorName={getAgentName(task.agentId)}
       isRunning={runningTaskIds.includes(task.id)}
@@ -46,6 +48,7 @@ export function TaskList({ tasks, agents, runningTaskIds = [], onToggle, onDismi
       onDelete={onDelete}
       onChat={onChat}
       onRun={onRun}
+      onReassign={onReassign}
     />
   )
 

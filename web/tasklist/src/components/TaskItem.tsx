@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import type { Task } from '../api'
+import type { Task, Agent } from '../api'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Button } from '@/components/ui/button'
 import { Markdown } from './Markdown'
@@ -8,10 +8,14 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSub,
+  DropdownMenuSubTrigger,
+  DropdownMenuSubContent,
 } from '@/components/ui/dropdown-menu'
 
 interface TaskItemProps {
   task: Task
+  agents: Agent[]
   assigneeName: string
   creatorName: string
   isRunning?: boolean
@@ -24,9 +28,10 @@ interface TaskItemProps {
   onDelete: (id: string) => void
   onChat?: (taskId: string, agentId: string) => Promise<{ threadId: string; agentId: string } | null>
   onRun?: (id: string) => void
+  onReassign?: (id: string, assignee: string) => void
 }
 
-export function TaskItem({ task, assigneeName, creatorName, isRunning = false, onToggle, onDismiss, onStatusChange, onRemarks, onTitle, onArchive, onDelete, onChat, onRun }: TaskItemProps) {
+export function TaskItem({ task, agents, assigneeName, creatorName, isRunning = false, onToggle, onDismiss, onStatusChange, onRemarks, onTitle, onArchive, onDelete, onChat, onRun, onReassign }: TaskItemProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [remarks, setRemarks] = useState(task.remarks ?? '')
   const [title, setTitle] = useState(task.title)
@@ -367,6 +372,40 @@ export function TaskItem({ task, assigneeName, creatorName, isRunning = false, o
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="bg-[#161b22] border-[#30363d]">
+                {!isResolved && onReassign && (
+                  <DropdownMenuSub>
+                    <DropdownMenuSubTrigger className="text-xs cursor-pointer text-gray-400 focus:text-gray-300 focus:bg-gray-500/10">
+                      Reassign to
+                    </DropdownMenuSubTrigger>
+                    <DropdownMenuSubContent className="bg-[#161b22] border-[#30363d]">
+                      {task.assignee !== 'user' && (
+                        <DropdownMenuItem
+                          onClick={e => {
+                            e.stopPropagation()
+                            onReassign(task.id, 'user')
+                          }}
+                          className="text-xs cursor-pointer text-gray-400 focus:text-gray-300 focus:bg-gray-500/10"
+                        >
+                          You
+                        </DropdownMenuItem>
+                      )}
+                      {agents
+                        .filter(a => a.id !== task.assignee)
+                        .map(agent => (
+                          <DropdownMenuItem
+                            key={agent.id}
+                            onClick={e => {
+                              e.stopPropagation()
+                              onReassign(task.id, agent.id)
+                            }}
+                            className="text-xs cursor-pointer text-gray-400 focus:text-gray-300 focus:bg-gray-500/10"
+                          >
+                            {agent.name}
+                          </DropdownMenuItem>
+                        ))}
+                    </DropdownMenuSubContent>
+                  </DropdownMenuSub>
+                )}
                 {!isCompleted && !isReview && (
                   <DropdownMenuItem
                     onClick={e => {
