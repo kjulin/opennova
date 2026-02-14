@@ -10,6 +10,7 @@ import { createMemoryMcpServer } from "./memory.js";
 import { createAgentManagementMcpServer, createSelfManagementMcpServer } from "./agent-management.js";
 import { createAskAgentMcpServer } from "./ask-agent.js";
 import { createFileSendMcpServer, type FileType } from "./file-send.js";
+import { createTranscriptionMcpServer } from "./transcription/index.js";
 import { appendUsage, createUsageMcpServer } from "./usage.js";
 import { createTasklistMcpServer } from "#tasklist/index.js";
 import { createProjectsMcpServer } from "#projects/index.js";
@@ -123,6 +124,7 @@ export function createThreadRunner(runtime: Runtime = defaultRuntime): ThreadRun
                 "file-send": createFileSendMcpServer(agentDir, directories, (filePath, caption, fileType) => {
                   callbacks?.onFileSend?.(agentId, threadId, manifest.channel, filePath, caption, fileType);
                 }),
+                transcription: createTranscriptionMcpServer(agentDir, directories),
               } : {}),
               ...extraMcpServers,
               ...(agentId === "agent-builder" ? { agents: createAgentManagementMcpServer() } : {}),

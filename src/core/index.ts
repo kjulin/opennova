@@ -125,6 +125,7 @@ export {
   MODEL_SIZES,
   checkFfmpeg,
   checkWhisper,
+  createTranscriptionMcpServer,
   type TranscriptionConfig,
   type TranscriptionResult,
   type TranscriptionOptions,
