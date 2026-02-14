@@ -13,7 +13,6 @@ import { createFileSendMcpServer, type FileType } from "./file-send.js";
 import { createTranscriptionMcpServer } from "./transcription/index.js";
 import { appendUsage, createUsageMcpServer } from "./usage.js";
 import { createTasklistMcpServer } from "#tasklist/index.js";
-import { createProjectsMcpServer } from "#projects/index.js";
 import {
   threadPath,
   loadManifest,
@@ -118,7 +117,6 @@ export function createThreadRunner(runtime: Runtime = defaultRuntime): ThreadRun
             mcpServers: {
               memory: createMemoryMcpServer(),
               tasklist: createTasklistMcpServer(agentId, Config.workspaceDir),
-              projects: createProjectsMcpServer(agentId, Config.workspaceDir),
               ...(security !== "sandbox" ? { self: createSelfManagementMcpServer(agentDir) } : {}),
               ...(security !== "sandbox" ? {
                 "file-send": createFileSendMcpServer(agentDir, directories, (filePath, caption, fileType) => {

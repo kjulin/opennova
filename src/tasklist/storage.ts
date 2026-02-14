@@ -41,8 +41,6 @@ export interface CreateTaskData {
   title: string;
   rationale: string;
   instructions: string;
-  projectId?: string | undefined;
-  phaseId?: string | undefined;
 }
 
 export function createTask(workspaceDir: string, data: CreateTaskData): Task {
@@ -56,8 +54,6 @@ export function createTask(workspaceDir: string, data: CreateTaskData): Task {
     rationale: data.rationale,
     instructions: data.instructions,
     status: "open",
-    ...(data.projectId ? { projectId: data.projectId } : {}),
-    ...(data.phaseId ? { phaseId: data.phaseId } : {}),
     createdAt: now,
     updatedAt: now,
   };
