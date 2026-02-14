@@ -203,3 +203,6 @@ export async function downloadModel(
 export { MODEL_URLS, MODEL_SIZES } from "./whisper.js";
 export { checkFfmpeg } from "./convert.js";
 export { checkWhisper } from "./whisper.js";
+
+// MCP Server
+export { createTranscriptionMcpServer } from "./mcp.js";
