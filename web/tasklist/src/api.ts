@@ -93,6 +93,19 @@ export async function updateTaskTitle(
   return res.json();
 }
 
+export async function updateTaskAssignee(
+  id: string,
+  assignee: string
+): Promise<Task> {
+  const res = await fetch(`${API_BASE}/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ assignee }),
+  });
+  if (!res.ok) throw new Error("Failed to reassign task");
+  return res.json();
+}
+
 export async function runTask(id: string): Promise<void> {
   const res = await fetch(`${API_BASE}/${id}/run`, {
     method: "POST",

@@ -213,6 +213,47 @@ export function createTasklistMcpServer(
         }
       ),
       tool(
+        "reassign_task",
+        "Reassign a task to a different agent or user. Both creator and current assignee can reassign.",
+        {
+          id: z.string().describe("Task ID to reassign"),
+          assignee: z
+            .string()
+            .describe("New assignee: 'user' or an agent ID"),
+        },
+        async (args) => {
+          const task = getTask(workspaceDir, args.id);
+          if (!task) {
+            return {
+              content: [{ type: "text" as const, text: "Task not found" }],
+              isError: true,
+            };
+          }
+          if (!canCompleteTask(task)) {
+            return {
+              content: [
+                {
+                  type: "text" as const,
+                  text: "You can only reassign tasks you created or tasks assigned to you",
+                },
+              ],
+              isError: true,
+            };
+          }
+          const updated = updateTask(workspaceDir, args.id, {
+            assignee: args.assignee,
+          });
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: `Reassigned task "${updated?.title}" to ${args.assignee}`,
+              },
+            ],
+          };
+        }
+      ),
+      tool(
         "update_remarks",
         "Update the remarks on a task. Both creator and assignee can update remarks to communicate about progress or clarifications.",
         {

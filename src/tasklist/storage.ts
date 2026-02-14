@@ -73,6 +73,7 @@ export interface UpdateTaskData {
   remarks?: string | undefined;
   status?: "open" | "in_progress" | "review" | "done" | "failed" | "dismissed" | undefined;
   threadId?: string | undefined;
+  assignee?: string | undefined;
 }
 
 export function updateTask(
@@ -91,6 +92,7 @@ export function updateTask(
   if (updates.remarks !== undefined) task.remarks = updates.remarks;
   if (updates.status !== undefined) task.status = updates.status;
   if (updates.threadId !== undefined) task.threadId = updates.threadId;
+  if (updates.assignee !== undefined) task.assignee = updates.assignee;
   task.updatedAt = new Date().toISOString();
 
   saveTasks(workspaceDir, tasks);

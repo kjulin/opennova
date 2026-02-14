@@ -6,6 +6,7 @@ import {
   updateTaskStatus,
   updateTaskRemarks,
   updateTaskTitle,
+  updateTaskAssignee,
   updateProjectStatus,
   updateProjectFull,
   updatePhaseStatus,
@@ -167,6 +168,15 @@ export default function App() {
   const handleTitle = async (id: string, title: string) => {
     try {
       await updateTaskTitle(id, title);
+      await loadTasks();
+    } catch (err) {
+      setError((err as Error).message);
+    }
+  };
+
+  const handleReassign = async (id: string, assignee: string) => {
+    try {
+      await updateTaskAssignee(id, assignee);
       await loadTasks();
     } catch (err) {
       setError((err as Error).message);
@@ -420,6 +430,7 @@ export default function App() {
                   onDelete={handleDelete}
                   onChat={handleChat}
                   onRun={handleRunTask}
+                  onReassign={handleReassign}
                 />
 
                 <button
@@ -503,6 +514,7 @@ export default function App() {
               onArchiveTask={handleArchive}
               onDeleteTask={handleDelete}
               onChatTask={handleChat}
+              onReassignTask={handleReassign}
             />
           </>
         )}
