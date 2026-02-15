@@ -188,8 +188,9 @@ export function startHttpsServer(workspaceDir: string): HttpsServer | null {
     return c.json({ agents: agentList });
   });
 
-  // Root webapp
-  app.get("/*", createStaticHandler(webappDir, ""));
+  // Webapp at /web/tasklist (for Telegram mini app compatibility)
+  app.get("/web/tasklist", (c) => c.redirect("/web/tasklist/"));
+  app.get("/web/tasklist/*", createStaticHandler(webappDir, "/web/tasklist"));
 
   const server = serve({
     fetch: app.fetch,
