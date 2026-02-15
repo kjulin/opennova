@@ -9,9 +9,9 @@ export interface Task {
   description: string;
   owner: string;           // Agent ID or "user"
   createdBy: string;       // Agent ID or "user"
-  status: "active" | "waiting" | "done";
+  status: "active" | "waiting" | "done" | "canceled";
   steps: Step[];
-  threadId: string;        // Dedicated thread, created with the task
+  threadId?: string;       // Dedicated thread, created after task
   createdAt: string;       // ISO timestamp
   updatedAt: string;       // ISO timestamp
 }
@@ -25,6 +25,7 @@ export interface CreateTaskInput {
 export interface UpdateTaskInput {
   title?: string;
   description?: string;
-  status?: "active" | "waiting" | "done";
+  status?: "active" | "waiting" | "done" | "canceled";
   owner?: string;
+  threadId?: string;
 }

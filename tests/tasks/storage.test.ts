@@ -9,6 +9,7 @@ import {
   updateTask,
   updateSteps,
   cancelTask,
+  completeTask,
   loadHistory,
 } from "#tasks/index.js";
 
@@ -64,7 +65,6 @@ describe("tasks storage", () => {
         workspaceDir: testDir,
         input: { title: "New task", description: "Description" },
         createdBy: "user",
-        threadId: "thread123",
       });
 
       expect(task.id).toHaveLength(12); // 6 bytes hex
@@ -74,7 +74,7 @@ describe("tasks storage", () => {
       expect(task.createdBy).toBe("user");
       expect(task.status).toBe("active");
       expect(task.steps).toEqual([]);
-      expect(task.threadId).toBe("thread123");
+      expect(task.threadId).toBeUndefined();
     });
 
     it("allows specifying a different owner", () => {
@@ -82,7 +82,6 @@ describe("tasks storage", () => {
         workspaceDir: testDir,
         input: { title: "Agent task", description: "Desc", owner: "content-writer" },
         createdBy: "nova",
-        threadId: "thread456",
       });
 
       expect(task.owner).toBe("content-writer");
@@ -94,7 +93,6 @@ describe("tasks storage", () => {
         workspaceDir: testDir,
         input: { title: "Persisted task", description: "Desc" },
         createdBy: "user",
-        threadId: "thread789",
       });
 
       const tasks = loadTasks(testDir);
@@ -114,7 +112,6 @@ describe("tasks storage", () => {
         workspaceDir: testDir,
         input: { title: "Find me", description: "Desc" },
         createdBy: "user",
-        threadId: "thread123",
       });
 
       const found = getTask(testDir, created.id);
@@ -129,7 +126,6 @@ describe("tasks storage", () => {
         workspaceDir: testDir,
         input: { title: "Original", description: "Desc" },
         createdBy: "user",
-        threadId: "thread123",
       });
 
       const updated = updateTask(testDir, task.id, {
@@ -142,12 +138,28 @@ describe("tasks storage", () => {
       expect(updated!.status).toBe("waiting");
     });
 
+    it("can set threadId after task creation", () => {
+      const task = createTask({
+        workspaceDir: testDir,
+        input: { title: "No thread yet", description: "Desc" },
+        createdBy: "user",
+      });
+
+      expect(task.threadId).toBeUndefined();
+
+      const updated = updateTask(testDir, task.id, {
+        threadId: "thread123",
+      });
+
+      expect(updated).toBeDefined();
+      expect(updated!.threadId).toBe("thread123");
+    });
+
     it("moves task to history when status becomes done", () => {
       const task = createTask({
         workspaceDir: testDir,
         input: { title: "Complete me", description: "Desc" },
         createdBy: "user",
-        threadId: "thread123",
       });
 
       updateTask(testDir, task.id, { status: "done" });
@@ -160,7 +172,25 @@ describe("tasks storage", () => {
       const history = loadHistory(testDir);
       expect(history).toHaveLength(1);
       expect(history[0]!.title).toBe("Complete me");
+      expect(history[0]!.status).toBe("done");
       expect(history[0]!.archivedAt).toBeDefined();
+    });
+
+    it("moves task to history when status becomes canceled", () => {
+      const task = createTask({
+        workspaceDir: testDir,
+        input: { title: "Cancel via update", description: "Desc" },
+        createdBy: "user",
+      });
+
+      updateTask(testDir, task.id, { status: "canceled" });
+
+      const tasks = loadTasks(testDir);
+      expect(tasks).toHaveLength(0);
+
+      const history = loadHistory(testDir);
+      expect(history).toHaveLength(1);
+      expect(history[0]!.status).toBe("canceled");
     });
 
     it("returns undefined for non-existent task", () => {
@@ -175,7 +205,6 @@ describe("tasks storage", () => {
         workspaceDir: testDir,
         input: { title: "With steps", description: "Desc" },
         createdBy: "user",
-        threadId: "thread123",
       });
 
       const updated = updateSteps(testDir, task.id, [
@@ -191,16 +220,16 @@ describe("tasks storage", () => {
   });
 
   describe("cancelTask", () => {
-    it("removes task from active list and adds to history", () => {
+    it("sets status to canceled and moves to history", () => {
       const task = createTask({
         workspaceDir: testDir,
         input: { title: "Cancel me", description: "Desc" },
         createdBy: "user",
-        threadId: "thread123",
       });
 
       const result = cancelTask(testDir, task.id);
-      expect(result).toBe(true);
+      expect(result).toBeDefined();
+      expect(result!.status).toBe("canceled");
 
       const tasks = loadTasks(testDir);
       expect(tasks).toHaveLength(0);
@@ -208,11 +237,39 @@ describe("tasks storage", () => {
       const history = loadHistory(testDir);
       expect(history).toHaveLength(1);
       expect(history[0]!.title).toBe("Cancel me");
+      expect(history[0]!.status).toBe("canceled");
     });
 
-    it("returns false for non-existent task", () => {
+    it("returns undefined for non-existent task", () => {
       const result = cancelTask(testDir, "nonexistent");
-      expect(result).toBe(false);
+      expect(result).toBeUndefined();
+    });
+  });
+
+  describe("completeTask", () => {
+    it("sets status to done and moves to history", () => {
+      const task = createTask({
+        workspaceDir: testDir,
+        input: { title: "Complete me", description: "Desc" },
+        createdBy: "user",
+      });
+
+      const result = completeTask(testDir, task.id);
+      expect(result).toBeDefined();
+      expect(result!.status).toBe("done");
+
+      const tasks = loadTasks(testDir);
+      expect(tasks).toHaveLength(0);
+
+      const history = loadHistory(testDir);
+      expect(history).toHaveLength(1);
+      expect(history[0]!.title).toBe("Complete me");
+      expect(history[0]!.status).toBe("done");
+    });
+
+    it("returns undefined for non-existent task", () => {
+      const result = completeTask(testDir, "nonexistent");
+      expect(result).toBeUndefined();
     });
   });
 
@@ -229,9 +286,8 @@ describe("tasks storage", () => {
           workspaceDir: testDir,
           input: { title: `Task ${i}`, description: "Desc" },
           createdBy: "user",
-          threadId: `thread${i}`,
         });
-        updateTask(testDir, task.id, { status: "done" });
+        completeTask(testDir, task.id);
       }
 
       const history = loadHistory(testDir);
@@ -246,9 +302,8 @@ describe("tasks storage", () => {
           workspaceDir: testDir,
           input: { title: `Task ${i}`, description: "Desc" },
           createdBy: "user",
-          threadId: `thread${i}`,
         });
-        updateTask(testDir, task.id, { status: "done" });
+        completeTask(testDir, task.id);
       }
 
       const history = loadHistory(testDir, 2);

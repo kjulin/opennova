@@ -6,6 +6,7 @@ export {
   updateTask,
   updateSteps,
   cancelTask,
+  completeTask,
   loadHistory,
   type CreateTaskOptions,
 } from "./storage.js";

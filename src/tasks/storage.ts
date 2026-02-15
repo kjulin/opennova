@@ -56,11 +56,10 @@ export interface CreateTaskOptions {
   workspaceDir: string;
   input: CreateTaskInput;
   createdBy: string;
-  threadId: string;  // Thread must be created before task
 }
 
 export function createTask(options: CreateTaskOptions): Task {
-  const { workspaceDir, input, createdBy, threadId } = options;
+  const { workspaceDir, input, createdBy } = options;
   const now = new Date().toISOString();
 
   const task: Task = {
@@ -71,7 +70,6 @@ export function createTask(options: CreateTaskOptions): Task {
     createdBy,
     status: "active",
     steps: [],
-    threadId,
     createdAt: now,
     updatedAt: now,
   };
@@ -93,16 +91,16 @@ export function updateTask(
   if (index === -1) return undefined;
 
   const task = tasks[index]!;
-  const previousStatus = task.status;
 
   if (input.title !== undefined) task.title = input.title;
   if (input.description !== undefined) task.description = input.description;
   if (input.owner !== undefined) task.owner = input.owner;
   if (input.status !== undefined) task.status = input.status;
+  if (input.threadId !== undefined) task.threadId = input.threadId;
   task.updatedAt = new Date().toISOString();
 
-  // If status changed to done, move to history
-  if (input.status === "done" && previousStatus !== "done") {
+  // If status is done or canceled, move to history
+  if (input.status === "done" || input.status === "canceled") {
     tasks.splice(index, 1);
     saveTasks(workspaceDir, tasks);
     appendHistory(workspaceDir, task);
@@ -132,17 +130,36 @@ export function updateSteps(
   return task;
 }
 
-export function cancelTask(workspaceDir: string, id: string): boolean {
+export function cancelTask(workspaceDir: string, id: string): Task | undefined {
   const tasks = loadTasks(workspaceDir);
   const index = tasks.findIndex((t) => t.id === id);
-  if (index === -1) return false;
+  if (index === -1) return undefined;
 
   const task = tasks[index]!;
+  task.status = "canceled";
+  task.updatedAt = new Date().toISOString();
+
   tasks.splice(index, 1);
   saveTasks(workspaceDir, tasks);
   appendHistory(workspaceDir, task);
 
-  return true;
+  return task;
+}
+
+export function completeTask(workspaceDir: string, id: string): Task | undefined {
+  const tasks = loadTasks(workspaceDir);
+  const index = tasks.findIndex((t) => t.id === id);
+  if (index === -1) return undefined;
+
+  const task = tasks[index]!;
+  task.status = "done";
+  task.updatedAt = new Date().toISOString();
+
+  tasks.splice(index, 1);
+  saveTasks(workspaceDir, tasks);
+  appendHistory(workspaceDir, task);
+
+  return task;
 }
 
 export function loadHistory(
