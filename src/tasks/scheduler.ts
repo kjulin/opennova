@@ -1,4 +1,5 @@
 import path from "path";
+import cron from "node-cron";
 import { Config } from "#core/config.js";
 import { createThread } from "#core/threads.js";
 import { loadTasks, updateTask } from "./storage.js";
@@ -48,21 +49,18 @@ export function startTaskScheduler() {
     }
   }
 
-  // Run hourly (3600000ms)
-  const HOUR_MS = 60 * 60 * 1000;
-
-  log.info("tasks", "scheduler started (hourly)");
-
-  // Don't run immediately on startup - wait for first hour
-  const interval = setInterval(() => {
+  // Run every hour at minute 0
+  const job = cron.schedule("0 * * * *", () => {
     tick().catch(err => {
       log.error("tasks", "scheduler tick failed:", err);
     });
-  }, HOUR_MS);
+  });
+
+  log.info("tasks", "scheduler started (hourly at :00)");
 
   return {
     stop: () => {
-      clearInterval(interval);
+      job.stop();
       log.info("tasks", "scheduler stopped");
     },
     // Expose for manual triggering (e.g., testing)
