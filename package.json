@@ -14,7 +14,8 @@
   "imports": {
     "#core/*": "./dist/core/*",
     "#daemon/*": "./dist/daemon/*",
-    "#tui/*": "./dist/tui/*"
+    "#tui/*": "./dist/tui/*",
+    "#tasks/*": "./dist/tasks/*"
   },
   "scripts": {
     "dev": "tsx watch src/daemon/cli.ts daemon",
