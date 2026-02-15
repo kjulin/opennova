@@ -33,7 +33,7 @@ export function TaskItem({
       >
         <div className="min-w-0 flex-1">
           <p className="text-sm font-medium leading-tight text-gray-100">
-            {task.title}
+            <span className="text-gray-500">#{task.id}</span> {task.title}
           </p>
           {totalSteps > 0 && (
             <p className="mt-1 text-xs text-gray-500">
@@ -104,6 +104,9 @@ export function TaskItem({
                     <span className={step.done ? "text-gray-400" : ""}>
                       {step.title}
                     </span>
+                    {step.taskId && (
+                      <span className="text-blue-400 text-xs">#{step.taskId}</span>
+                    )}
                   </div>
                 ))}
               </div>

@@ -67,7 +67,7 @@ describe("tasks storage", () => {
         createdBy: "user",
       });
 
-      expect(task.id).toHaveLength(12); // 6 bytes hex
+      expect(task.id).toBe("1"); // Sequential numeric ID
       expect(task.title).toBe("New task");
       expect(task.description).toBe("Description");
       expect(task.owner).toBe("user");

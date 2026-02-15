@@ -16,12 +16,13 @@ export function buildTaskContext(task: Task): string {
   const stepsText = task.steps.length > 0
     ? task.steps.map((s, i) => {
         const marker = s.done ? "✓" : (i === task.steps.findIndex(st => !st.done) ? "→" : "○");
-        return `${i + 1}. ${marker} ${s.title}`;
+        const subtask = s.taskId ? ` (#${s.taskId})` : "";
+        return `${i + 1}. ${marker} ${s.title}${subtask}`;
       }).join("\n")
     : "(no steps defined)";
 
   return `<Task>
-You are working on the following task. Focus solely on progressing this task. Do not work on anything else.
+You are working on task #${task.id}. Focus solely on progressing this task. Do not work on anything else.
 
 Title: ${task.title}
 Description: ${task.description}

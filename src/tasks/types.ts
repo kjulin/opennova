@@ -1,6 +1,7 @@
 export interface Step {
   title: string;
   done: boolean;
+  taskId?: string;  // Linked subtask
 }
 
 export interface Task {
