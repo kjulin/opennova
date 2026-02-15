@@ -14,15 +14,17 @@ export function startTaskScheduler() {
   const workspaceDir = Config.workspaceDir;
 
   async function tick() {
+    log.info("tasks", "scheduler tick");
+
     const tasks = loadTasks(workspaceDir);
     const agentTasks = tasks.filter(t => t.owner !== "user" && !inFlightTasks.has(t.id));
 
     if (agentTasks.length === 0) {
-      log.debug("tasks", "scheduler tick: no agent tasks to process");
+      log.info("tasks", "no agent tasks to process");
       return;
     }
 
-    log.info("tasks", `scheduler tick: processing ${agentTasks.length} task(s)`);
+    log.info("tasks", `processing ${agentTasks.length} task(s)`);
 
     for (const task of agentTasks) {
       const agentDir = path.join(workspaceDir, "agents", task.owner);
