@@ -94,19 +94,8 @@ export function startHttpsServer(workspaceDir: string): HttpsServer | null {
   const cert = fs.readFileSync(certPath);
   const key = fs.readFileSync(keyPath);
 
-  // Locate webapp directories
-  const workspaceWebappDir = path.join(workspaceDir, "webapp");
-  if (!fs.existsSync(workspaceWebappDir) || fs.readdirSync(workspaceWebappDir).length === 0) {
-    const templateWebapp = path.resolve(import.meta.dirname, "..", "..", "workspace-template", "webapp");
-    if (fs.existsSync(templateWebapp)) {
-      fs.mkdirSync(workspaceWebappDir, { recursive: true });
-      fs.cpSync(templateWebapp, workspaceWebappDir, { recursive: true });
-      log.info("https", "copied webapp template to workspace");
-    } else {
-      fs.mkdirSync(workspaceWebappDir, { recursive: true });
-      log.warn("https", "no webapp directory found, serving empty");
-    }
-  }
+  // Serve webapp from package dist
+  const webappDir = path.resolve(import.meta.dirname, "..", "webapp");
 
   const app = new Hono();
 
@@ -190,7 +179,7 @@ export function startHttpsServer(workspaceDir: string): HttpsServer | null {
   });
 
   // Root webapp
-  app.get("/*", createStaticHandler(workspaceWebappDir, ""));
+  app.get("/*", createStaticHandler(webappDir, ""));
 
   const server = serve({
     fetch: app.fetch,
