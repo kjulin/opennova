@@ -5,6 +5,16 @@ import os from "os";
 import { Hono, type Context } from "hono";
 import { serve } from "@hono/node-server";
 import { log } from "./logger.js";
+import { loadAgents } from "#core/agents.js";
+import {
+  loadTasks,
+  getTask,
+  updateTask,
+  completeTask,
+  cancelTask,
+  loadHistory,
+  isTaskInFlight,
+} from "#tasks/index.js";
 
 const PORT = 3838;
 
@@ -115,6 +125,69 @@ export function startHttpsServer(workspaceDir: string): HttpsServer | null {
 
   // API routes
   app.get("/api/health", (c) => c.json({ ok: true }));
+
+  // Tasks API
+  app.get("/api/tasks", (c) => {
+    const tasks = loadTasks(workspaceDir);
+    const agents = loadAgents();
+    const agentList = Array.from(agents.values()).map((a) => ({
+      id: a.id,
+      name: a.name,
+    }));
+    const inFlightIds = tasks.filter((t) => isTaskInFlight(t.id)).map((t) => t.id);
+    return c.json({ tasks, agents: agentList, inFlightIds });
+  });
+
+  app.get("/api/tasks/history", (c) => {
+    const limit = parseInt(c.req.query("limit") ?? "50", 10);
+    const history = loadHistory(workspaceDir, limit);
+    return c.json({ tasks: history });
+  });
+
+  app.get("/api/tasks/:id", (c) => {
+    const task = getTask(workspaceDir, c.req.param("id"));
+    if (!task) {
+      return c.json({ error: "Task not found" }, 404);
+    }
+    return c.json(task);
+  });
+
+  app.patch("/api/tasks/:id", async (c) => {
+    const id = c.req.param("id");
+    const body = await c.req.json();
+    const task = updateTask(workspaceDir, id, body);
+    if (!task) {
+      return c.json({ error: "Task not found" }, 404);
+    }
+    return c.json(task);
+  });
+
+  app.post("/api/tasks/:id/complete", (c) => {
+    const id = c.req.param("id");
+    const task = completeTask(workspaceDir, id);
+    if (!task) {
+      return c.json({ error: "Task not found" }, 404);
+    }
+    return c.json(task);
+  });
+
+  app.post("/api/tasks/:id/cancel", (c) => {
+    const id = c.req.param("id");
+    const task = cancelTask(workspaceDir, id);
+    if (!task) {
+      return c.json({ error: "Task not found" }, 404);
+    }
+    return c.json(task);
+  });
+
+  app.get("/api/agents", (c) => {
+    const agents = loadAgents();
+    const agentList = Array.from(agents.values()).map((a) => ({
+      id: a.id,
+      name: a.name,
+    }));
+    return c.json({ agents: agentList });
+  });
 
   // Root webapp
   app.get("/*", createStaticHandler(workspaceWebappDir, ""));
