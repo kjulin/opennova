@@ -42,6 +42,7 @@ export {
   type ThreadManifest,
   type ThreadMessage,
   type ThreadInfo,
+  type CreateThreadOptions,
 } from "./threads.js";
 
 // Agents
@@ -131,15 +132,3 @@ export {
   type TranscriptionOptions,
 } from "./transcription/index.js";
 
-// Tasklist
-export {
-  createTasklistMcpServer,
-  createTasklistRouter,
-  loadTasks,
-  createTask,
-  updateTask,
-  deleteTask,
-  getTask,
-  startTasklistScheduler,
-  type Task,
-} from "#tasklist/index.js";

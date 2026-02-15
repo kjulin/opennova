@@ -10,9 +10,10 @@ import { createMemoryMcpServer } from "./memory.js";
 import { createAgentManagementMcpServer, createSelfManagementMcpServer } from "./agent-management.js";
 import { createAskAgentMcpServer } from "./ask-agent.js";
 import { createFileSendMcpServer, type FileType } from "./file-send.js";
+import { createNotifyUserMcpServer } from "./notify-user.js";
 import { createTranscriptionMcpServer } from "./transcription/index.js";
 import { appendUsage, createUsageMcpServer } from "./usage.js";
-import { createTasklistMcpServer } from "#tasklist/index.js";
+import { createTasksMcpServer, getTask, buildTaskContext } from "#tasks/index.js";
 import {
   threadPath,
   loadManifest,
@@ -27,6 +28,7 @@ export interface RunThreadOverrides {
   model?: Model | undefined;
   maxTurns?: number | undefined;
   systemPromptSuffix?: string | undefined;
+  silent?: boolean | undefined;  // Suppress channel notifications
 }
 
 export interface ThreadRunnerCallbacks extends EngineCallbacks {
@@ -101,10 +103,28 @@ export function createThreadRunner(runtime: Runtime = defaultRuntime): ThreadRun
       try {
         const cwd = getAgentCwd(agent);
         const directories = getAgentDirectories(agent);
-        const baseSystemPrompt = buildSystemPrompt(agent, manifest.channel, security, cwd, directories);
+        let baseSystemPrompt = buildSystemPrompt(agent, manifest.channel, security, cwd, directories);
+
+        // Inject task context if this thread is bound to a task
+        const taskId = manifest.taskId as string | undefined;
+        if (taskId) {
+          const task = getTask(Config.workspaceDir, taskId);
+          if (task) {
+            baseSystemPrompt = `${baseSystemPrompt}\n\n${buildTaskContext(task)}`;
+          }
+        }
+
+        // Add silent mode prompt if running in background
+        const silentPrompt = overrides?.silent
+          ? `\n\n<Background>
+You are running in the background (scheduled task). Your responses will NOT be sent to the user automatically.
+If you need to notify the user about something important (questions, updates, completed work), use the notify_user tool.
+</Background>`
+          : "";
+
         const systemPrompt = overrides?.systemPromptSuffix
-          ? `${baseSystemPrompt}\n\n${overrides.systemPromptSuffix}`
-          : baseSystemPrompt;
+          ? `${baseSystemPrompt}${silentPrompt}\n\n${overrides.systemPromptSuffix}`
+          : `${baseSystemPrompt}${silentPrompt}`;
         result = await runtime.run(
           message,
           {
@@ -116,7 +136,7 @@ export function createThreadRunner(runtime: Runtime = defaultRuntime): ThreadRun
             ...(agent.subagents ? { agents: agent.subagents } : {}),
             mcpServers: {
               memory: createMemoryMcpServer(),
-              tasklist: createTasklistMcpServer(agentId, Config.workspaceDir),
+              tasks: createTasksMcpServer(agentId, Config.workspaceDir),
               ...(security !== "sandbox" ? { self: createSelfManagementMcpServer(agentDir) } : {}),
               ...(security !== "sandbox" ? {
                 "file-send": createFileSendMcpServer(agentDir, directories, (filePath, caption, fileType) => {
@@ -128,6 +148,11 @@ export function createThreadRunner(runtime: Runtime = defaultRuntime): ThreadRun
               ...(agentId === "agent-builder" ? { agents: createAgentManagementMcpServer() } : {}),
               ...(agentId === "nova" ? { usage: createUsageMcpServer() } : {}),
               ...(agent.allowedAgents && security !== "sandbox" ? { "ask-agent": createAskAgentMcpServer(agent, askAgentDepth ?? 0, runThreadForAskAgent) } : {}),
+              ...(overrides?.silent ? {
+                "notify-user": createNotifyUserMcpServer((message) => {
+                  callbacks?.onThreadResponse?.(agentId, threadId, manifest.channel, message);
+                }),
+              } : {}),
             },
           },
           security,

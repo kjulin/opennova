@@ -9,20 +9,18 @@
   },
   "files": [
     "dist",
-    "workspace-template",
-    "web/tasklist/dist"
+    "workspace-template"
   ],
   "imports": {
     "#core/*": "./dist/core/*",
     "#daemon/*": "./dist/daemon/*",
     "#tui/*": "./dist/tui/*",
-    "#tasklist/*": "./dist/tasklist/*"
+    "#tasks/*": "./dist/tasks/*"
   },
   "scripts": {
     "dev": "tsx watch src/daemon/cli.ts daemon",
-    "build": "tsc && npm run build:tasklist",
-    "build:tasklist": "cd web/tasklist && npm install && npm run build",
-    "dev:tasklist": "cd web/tasklist && npm run dev",
+    "build": "tsc && npm run build:webapp",
+    "build:webapp": "cd web/tasks && npm run build && mkdir -p ../../dist/webapp && cp -r dist/* ../../dist/webapp/",
     "start": "node dist/daemon/index.js",
     "test": "vitest run",
     "test:watch": "vitest",
