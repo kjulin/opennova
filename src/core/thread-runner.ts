@@ -12,7 +12,7 @@ import { createAskAgentMcpServer } from "./ask-agent.js";
 import { createFileSendMcpServer, type FileType } from "./file-send.js";
 import { createTranscriptionMcpServer } from "./transcription/index.js";
 import { appendUsage, createUsageMcpServer } from "./usage.js";
-import { createTasksMcpServer } from "#tasks/index.js";
+import { createTasksMcpServer, getTask, type Task } from "#tasks/index.js";
 import {
   threadPath,
   loadManifest,
@@ -22,6 +22,24 @@ import {
   withThreadLock,
 } from "./threads.js";
 import { log } from "./logger.js";
+
+function buildTaskContext(task: Task): string {
+  const stepsText = task.steps.length > 0
+    ? task.steps.map((s, i) => {
+        const marker = s.done ? "✓" : (i === task.steps.findIndex(st => !st.done) ? "→" : "○");
+        return `${i + 1}. ${marker} ${s.title}`;
+      }).join("\n")
+    : "(no steps defined)";
+
+  return `<Task>
+Title: ${task.title}
+Description: ${task.description}
+Status: ${task.status}
+Owner: ${task.owner}
+Steps:
+${stepsText}
+</Task>`;
+}
 
 export interface RunThreadOverrides {
   model?: Model | undefined;
@@ -101,7 +119,17 @@ export function createThreadRunner(runtime: Runtime = defaultRuntime): ThreadRun
       try {
         const cwd = getAgentCwd(agent);
         const directories = getAgentDirectories(agent);
-        const baseSystemPrompt = buildSystemPrompt(agent, manifest.channel, security, cwd, directories);
+        let baseSystemPrompt = buildSystemPrompt(agent, manifest.channel, security, cwd, directories);
+
+        // Inject task context if this thread is bound to a task
+        const taskId = manifest.taskId as string | undefined;
+        if (taskId) {
+          const task = getTask(Config.workspaceDir, taskId);
+          if (task) {
+            baseSystemPrompt = `${baseSystemPrompt}\n\n${buildTaskContext(task)}`;
+          }
+        }
+
         const systemPrompt = overrides?.systemPromptSuffix
           ? `${baseSystemPrompt}\n\n${overrides.systemPromptSuffix}`
           : baseSystemPrompt;

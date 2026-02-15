@@ -48,7 +48,11 @@ export function saveManifest(filePath: string, manifest: ThreadManifest): void {
   fs.writeFileSync(filePath, lines.join("\n"));
 }
 
-export function createThread(agentDir: string, channel: ChannelType): string {
+export interface CreateThreadOptions {
+  taskId?: string;
+}
+
+export function createThread(agentDir: string, channel: ChannelType, options?: CreateThreadOptions): string {
   const id = randomBytes(6).toString("hex");
   const threadsDir = path.join(agentDir, "threads");
   if (!fs.existsSync(threadsDir)) fs.mkdirSync(threadsDir, { recursive: true });
@@ -57,6 +61,7 @@ export function createThread(agentDir: string, channel: ChannelType): string {
   const manifest: ThreadManifest = {
     channel,
     agentId,
+    ...(options?.taskId ? { taskId: options.taskId } : {}),
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   };
