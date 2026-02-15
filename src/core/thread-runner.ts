@@ -35,6 +35,7 @@ export interface ThreadRunnerCallbacks extends EngineCallbacks {
   onThreadResponse?: (agentId: string, threadId: string, channel: string, text: string) => void;
   onThreadError?: (agentId: string, threadId: string, channel: string, error: string) => void;
   onFileSend?: (agentId: string, threadId: string, channel: string, filePath: string, caption: string | undefined, fileType: FileType) => void;
+  onNotifyUser?: (agentId: string, threadId: string, channel: string, message: string) => void;
 }
 
 export interface ThreadRunner {
@@ -150,7 +151,7 @@ If you need to notify the user about something important (questions, updates, co
               ...(agent.allowedAgents && security !== "sandbox" ? { "ask-agent": createAskAgentMcpServer(agent, askAgentDepth ?? 0, runThreadForAskAgent) } : {}),
               ...(overrides?.silent ? {
                 "notify-user": createNotifyUserMcpServer((message) => {
-                  callbacks?.onThreadResponse?.(agentId, threadId, manifest.channel, message);
+                  callbacks?.onNotifyUser?.(agentId, threadId, manifest.channel, message);
                 }),
               } : {}),
             },

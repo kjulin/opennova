@@ -49,6 +49,10 @@ export async function runThread(
           });
         }
       },
+      onNotifyUser(agentId, threadId, channel, text) {
+        // Always emit notify_user messages, even in silent mode
+        bus.emit("thread:response", { agentId, threadId, channel, text });
+      },
     },
     extraMcpServers,
     askAgentDepth,
