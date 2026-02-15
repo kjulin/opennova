@@ -131,15 +131,3 @@ export {
   type TranscriptionOptions,
 } from "./transcription/index.js";
 
-// Tasklist
-export {
-  createTasklistMcpServer,
-  createTasklistRouter,
-  loadTasks,
-  createTask,
-  updateTask,
-  deleteTask,
-  getTask,
-  startTasklistScheduler,
-  type Task,
-} from "#tasklist/index.js";

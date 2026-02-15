@@ -4,7 +4,6 @@ import path from "path";
 import os from "os";
 import { Hono, type Context } from "hono";
 import { serve } from "@hono/node-server";
-import { createTasklistRouter } from "#tasklist/index.js";
 import { log } from "./logger.js";
 
 const PORT = 3838;
@@ -99,12 +98,6 @@ export function startHttpsServer(workspaceDir: string): HttpsServer | null {
     }
   }
 
-  // Tasklist webapp - check both dist (built) and workspace-template (fallback)
-  const tasklistDistDir = path.resolve(import.meta.dirname, "..", "..", "web", "tasklist", "dist");
-  const tasklistTemplateDir = path.resolve(import.meta.dirname, "..", "..", "workspace-template", "tasklist");
-  const tasklistDir = fs.existsSync(tasklistDistDir) ? tasklistDistDir :
-                      fs.existsSync(tasklistTemplateDir) ? tasklistTemplateDir : null;
-
   const app = new Hono();
 
   // CORS middleware
@@ -122,15 +115,8 @@ export function startHttpsServer(workspaceDir: string): HttpsServer | null {
 
   // API routes
   app.get("/api/health", (c) => c.json({ ok: true }));
-  app.route("/api/tasklist", createTasklistRouter(workspaceDir));
 
-  // Tasklist webapp
-  if (tasklistDir) {
-    app.get("/web/tasklist", (c) => c.redirect("/web/tasklist/"));
-    app.get("/web/tasklist/*", createStaticHandler(tasklistDir, "/web/tasklist"));
-  }
-
-  // Root webapp (backwards compat)
+  // Root webapp
   app.get("/*", createStaticHandler(workspaceWebappDir, ""));
 
   const server = serve({

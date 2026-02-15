@@ -7,7 +7,6 @@ import { startHttpsServer, type HttpsServer } from "./https.js";
 import { ensureAuth } from "./auth.js";
 import { Config, loadSettings } from "#core/index.js";
 import { syncSharedSkills } from "#core/skills.js";
-import { startTasklistScheduler } from "#tasklist/index.js";
 import { log } from "./logger.js";
 
 export function start() {
@@ -47,13 +46,11 @@ export function start() {
   }
 
   const triggerInterval = startTriggerScheduler();
-  const tasklistScheduler = startTasklistScheduler();
   log.info("daemon", "nova daemon started");
 
   function handleSignal(signal: string) {
     log.info("daemon", `received ${signal}, shutting down…`);
     clearInterval(triggerInterval);
-    tasklistScheduler.stop();
     httpsServer?.shutdown();
     shutdown();
     log.info("daemon", "nova daemon stopped");

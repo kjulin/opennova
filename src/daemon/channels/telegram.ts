@@ -1,7 +1,7 @@
 import fs from "fs";
 import path from "path";
 import os from "os";
-import { Bot, InlineKeyboard, InputFile, Keyboard } from "grammy";
+import { Bot, InlineKeyboard, InputFile } from "grammy";
 import {
   Config,
   loadAgents,
@@ -115,14 +115,6 @@ function agentKeyboard(agents: Map<string, { id: string; name: string }>, active
   return keyboard;
 }
 
-function getTailscaleHostname(): string | null {
-  const certDir = path.join(os.homedir(), ".nova", "certs");
-  if (!fs.existsSync(certDir)) return null;
-  const certFiles = fs.readdirSync(certDir).filter((f) => f.endsWith(".crt"));
-  if (certFiles.length === 0) return null;
-  return certFiles[0]!.replace(".crt", "");
-}
-
 export function startTelegram() {
   const config = loadTelegramConfig();
   if (!config) {
@@ -138,8 +130,6 @@ export function startTelegram() {
   log.info("telegram", "channel started");
 
   let activeAbortController: AbortController | null = null;
-
-  const tailscaleHostname = getTailscaleHostname();
 
   bot.api.setMyCommands([
     { command: "agent", description: "Select an agent" },
@@ -159,13 +149,8 @@ export function startTelegram() {
     log.warn("telegram", "failed to set menu button:", err);
   });
 
-  // Create persistent reply keyboard with Tasks button if Tailscale is configured
-  const replyKeyboard = tailscaleHostname
-    ? new Keyboard()
-        .webApp("Tasks", `https://${tailscaleHostname}:3838/web/tasklist/`)
-        .resized()
-        .persistent()
-    : null;
+  // Placeholder for Tasks web app button (will be re-added in Tasks v2)
+  const replyKeyboard = null;
 
   bus.on("thread:response", async (payload) => {
     if (payload.channel !== "telegram") return;
