@@ -51,14 +51,14 @@ export function startTaskScheduler() {
     }
   }
 
-  // Run every hour at minutes 5 and 35
-  const job = cron.schedule("5,35 * * * *", () => {
+  // Run every hour at minutes 5 and 45
+  const job = cron.schedule("5,45 * * * *", () => {
     tick().catch(err => {
       log.error("tasks", "scheduler tick failed:", err);
     });
   });
 
-  log.info("tasks", "scheduler started (hourly at :05 and :35)");
+  log.info("tasks", "scheduler started (hourly at :05 and :45)");
 
   return {
     stop: () => {
