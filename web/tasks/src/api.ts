@@ -74,3 +74,19 @@ export async function cancelTask(id: string): Promise<Task> {
   if (!res.ok) throw new Error("Failed to cancel task");
   return res.json();
 }
+
+export interface CreateTaskInput {
+  title: string;
+  description?: string;
+  owner?: string;
+}
+
+export async function createTask(input: CreateTaskInput): Promise<Task> {
+  const res = await fetch(`${API_BASE}/tasks`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  if (!res.ok) throw new Error("Failed to create task");
+  return res.json();
+}

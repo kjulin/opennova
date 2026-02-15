@@ -9,12 +9,14 @@ import { loadAgents } from "#core/agents.js";
 import {
   loadTasks,
   getTask,
+  createTask,
   updateTask,
   completeTask,
   cancelTask,
   loadHistory,
   isTaskInFlight,
 } from "#tasks/index.js";
+import { createThread } from "#core/threads.js";
 
 const PORT = 3838;
 
@@ -137,6 +139,31 @@ export function startHttpsServer(workspaceDir: string): HttpsServer | null {
     }));
     const inFlightIds = tasks.filter((t) => isTaskInFlight(t.id)).map((t) => t.id);
     return c.json({ tasks, agents: agentList, inFlightIds });
+  });
+
+  app.post("/api/tasks", async (c) => {
+    const body = await c.req.json();
+    const { title, description, owner } = body;
+
+    if (!title) {
+      return c.json({ error: "Title is required" }, 400);
+    }
+
+    // Create the task
+    const task = createTask({
+      workspaceDir,
+      input: { title, description: description ?? "", owner },
+      createdBy: "user",
+    });
+
+    // Create dedicated thread for the task
+    const ownerAgentDir = path.join(workspaceDir, "agents", task.owner);
+    const threadId = createThread(ownerAgentDir, "telegram", { taskId: task.id });
+
+    // Update task with thread ID
+    const updatedTask = updateTask(workspaceDir, task.id, { threadId });
+
+    return c.json(updatedTask ?? task, 201);
   });
 
   app.get("/api/tasks/history", (c) => {

@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import {
   fetchTasks,
   fetchHistory,
+  createTask,
   completeTask,
   cancelTask,
   type Task,
@@ -10,6 +11,7 @@ import {
 } from "./api";
 import { TaskList } from "./components/TaskList";
 import { HistoryList } from "./components/HistoryList";
+import { NewTaskForm } from "./components/NewTaskForm";
 
 declare global {
   interface Window {
@@ -31,6 +33,7 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showHistory, setShowHistory] = useState(false);
+  const [showNewForm, setShowNewForm] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
   const loadTasks = useCallback(async () => {
@@ -90,6 +93,16 @@ export default function App() {
     }
   };
 
+  const handleCreateTask = async (data: { title: string; description: string; owner: string }) => {
+    try {
+      await createTask(data);
+      await loadTasks();
+      setShowNewForm(false);
+    } catch (err) {
+      setError((err as Error).message);
+    }
+  };
+
   const handleChat = (task: Task) => {
     if (!task.threadId) return;
     const data = JSON.stringify({
@@ -137,12 +150,32 @@ export default function App() {
               />
             </svg>
           </div>
-          <div>
+          <div className="flex-1">
             <h1 className="text-2xl font-bold tracking-tight">Nova Tasks</h1>
             <p className="mt-0.5 text-sm text-gray-400">
               {activeCount} active, {waitingCount} waiting
             </p>
           </div>
+          {!showHistory && (
+            <button
+              onClick={() => setShowNewForm(!showNewForm)}
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+            >
+              <svg
+                className="h-5 w-5"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d={showNewForm ? "M6 18L18 6M6 6l12 12" : "M12 4v16m8-8H4"}
+                />
+              </svg>
+            </button>
+          )}
         </header>
 
         {error && (
@@ -153,6 +186,16 @@ export default function App() {
 
         {!showHistory ? (
           <>
+            {showNewForm && (
+              <div className="mb-6">
+                <NewTaskForm
+                  agents={agents}
+                  onSubmit={handleCreateTask}
+                  onCancel={() => setShowNewForm(false)}
+                />
+              </div>
+            )}
+
             <TaskList
               tasks={tasks}
               inFlightIds={inFlightIds}
