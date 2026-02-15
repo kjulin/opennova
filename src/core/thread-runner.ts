@@ -10,6 +10,7 @@ import { createMemoryMcpServer } from "./memory.js";
 import { createAgentManagementMcpServer, createSelfManagementMcpServer } from "./agent-management.js";
 import { createAskAgentMcpServer } from "./ask-agent.js";
 import { createFileSendMcpServer, type FileType } from "./file-send.js";
+import { createNotifyUserMcpServer } from "./notify-user.js";
 import { createTranscriptionMcpServer } from "./transcription/index.js";
 import { appendUsage, createUsageMcpServer } from "./usage.js";
 import { createTasksMcpServer, getTask, buildTaskContext } from "#tasks/index.js";
@@ -113,9 +114,17 @@ export function createThreadRunner(runtime: Runtime = defaultRuntime): ThreadRun
           }
         }
 
+        // Add silent mode prompt if running in background
+        const silentPrompt = overrides?.silent
+          ? `\n\n<Background>
+You are running in the background (scheduled task). Your responses will NOT be sent to the user automatically.
+If you need to notify the user about something important (questions, updates, completed work), use the notify_user tool.
+</Background>`
+          : "";
+
         const systemPrompt = overrides?.systemPromptSuffix
-          ? `${baseSystemPrompt}\n\n${overrides.systemPromptSuffix}`
-          : baseSystemPrompt;
+          ? `${baseSystemPrompt}${silentPrompt}\n\n${overrides.systemPromptSuffix}`
+          : `${baseSystemPrompt}${silentPrompt}`;
         result = await runtime.run(
           message,
           {
@@ -139,6 +148,11 @@ export function createThreadRunner(runtime: Runtime = defaultRuntime): ThreadRun
               ...(agentId === "agent-builder" ? { agents: createAgentManagementMcpServer() } : {}),
               ...(agentId === "nova" ? { usage: createUsageMcpServer() } : {}),
               ...(agent.allowedAgents && security !== "sandbox" ? { "ask-agent": createAskAgentMcpServer(agent, askAgentDepth ?? 0, runThreadForAskAgent) } : {}),
+              ...(overrides?.silent ? {
+                "notify-user": createNotifyUserMcpServer((message) => {
+                  callbacks?.onThreadResponse?.(agentId, threadId, manifest.channel, message);
+                }),
+              } : {}),
             },
           },
           security,
