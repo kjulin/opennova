@@ -5,6 +5,18 @@ import os from "os";
 import { Hono, type Context } from "hono";
 import { serve } from "@hono/node-server";
 import { log } from "./logger.js";
+import { loadAgents } from "#core/agents.js";
+import {
+  loadTasks,
+  getTask,
+  createTask,
+  updateTask,
+  completeTask,
+  cancelTask,
+  loadHistory,
+  isTaskInFlight,
+} from "#tasks/index.js";
+import { createThread } from "#core/threads.js";
 
 const PORT = 3838;
 
@@ -30,6 +42,7 @@ function getMimeType(ext: string): string {
 function createStaticHandler(baseDir: string, basePath: string) {
   return (c: Context) => {
     let filePath = c.req.path;
+    log.debug("https", `static: path=${filePath} basePath=${basePath} baseDir=${baseDir}`);
 
     if (filePath.startsWith(basePath)) {
       filePath = filePath.slice(basePath.length);
@@ -40,6 +53,7 @@ function createStaticHandler(baseDir: string, basePath: string) {
     }
 
     const fullPath = path.join(baseDir, filePath);
+    log.debug("https", `static: resolved=${fullPath} exists=${fs.existsSync(fullPath)}`);
 
     if (!fullPath.startsWith(baseDir)) {
       return c.notFound();
@@ -84,21 +98,20 @@ export function startHttpsServer(workspaceDir: string): HttpsServer | null {
   const cert = fs.readFileSync(certPath);
   const key = fs.readFileSync(keyPath);
 
-  // Locate webapp directories
-  const workspaceWebappDir = path.join(workspaceDir, "webapp");
-  if (!fs.existsSync(workspaceWebappDir) || fs.readdirSync(workspaceWebappDir).length === 0) {
-    const templateWebapp = path.resolve(import.meta.dirname, "..", "..", "workspace-template", "webapp");
-    if (fs.existsSync(templateWebapp)) {
-      fs.mkdirSync(workspaceWebappDir, { recursive: true });
-      fs.cpSync(templateWebapp, workspaceWebappDir, { recursive: true });
-      log.info("https", "copied webapp template to workspace");
-    } else {
-      fs.mkdirSync(workspaceWebappDir, { recursive: true });
-      log.warn("https", "no webapp directory found, serving empty");
-    }
-  }
+  // Serve webapp from package dist
+  const webappDir = path.resolve(import.meta.dirname, "..", "webapp");
+  log.info("https", `webapp dir: ${webappDir}`);
+  log.info("https", `webapp exists: ${fs.existsSync(webappDir)}`);
 
   const app = new Hono();
+
+  // Request logging middleware
+  app.use("*", async (c, next) => {
+    const start = Date.now();
+    await next();
+    const ms = Date.now() - start;
+    log.info("https", `${c.req.method} ${c.req.path} ${c.res.status} ${ms}ms`);
+  });
 
   // CORS middleware
   app.use("*", async (c, next) => {
@@ -116,8 +129,97 @@ export function startHttpsServer(workspaceDir: string): HttpsServer | null {
   // API routes
   app.get("/api/health", (c) => c.json({ ok: true }));
 
-  // Root webapp
-  app.get("/*", createStaticHandler(workspaceWebappDir, ""));
+  // Tasks API
+  app.get("/api/tasks", (c) => {
+    const tasks = loadTasks(workspaceDir);
+    const agents = loadAgents();
+    const agentList = Array.from(agents.values()).map((a) => ({
+      id: a.id,
+      name: a.name,
+    }));
+    const inFlightIds = tasks.filter((t) => isTaskInFlight(t.id)).map((t) => t.id);
+    return c.json({ tasks, agents: agentList, inFlightIds });
+  });
+
+  app.post("/api/tasks", async (c) => {
+    const body = await c.req.json();
+    const { title, description, owner } = body;
+
+    if (!title) {
+      return c.json({ error: "Title is required" }, 400);
+    }
+
+    // Create the task
+    const task = createTask({
+      workspaceDir,
+      input: { title, description: description ?? "", owner },
+      createdBy: "user",
+    });
+
+    // Create dedicated thread for the task
+    const ownerAgentDir = path.join(workspaceDir, "agents", task.owner);
+    const threadId = createThread(ownerAgentDir, "telegram", { taskId: task.id });
+
+    // Update task with thread ID
+    const updatedTask = updateTask(workspaceDir, task.id, { threadId });
+
+    return c.json(updatedTask ?? task, 201);
+  });
+
+  app.get("/api/tasks/history", (c) => {
+    const limit = parseInt(c.req.query("limit") ?? "50", 10);
+    const history = loadHistory(workspaceDir, limit);
+    return c.json({ tasks: history });
+  });
+
+  app.get("/api/tasks/:id", (c) => {
+    const task = getTask(workspaceDir, c.req.param("id"));
+    if (!task) {
+      return c.json({ error: "Task not found" }, 404);
+    }
+    return c.json(task);
+  });
+
+  app.patch("/api/tasks/:id", async (c) => {
+    const id = c.req.param("id");
+    const body = await c.req.json();
+    const task = updateTask(workspaceDir, id, body);
+    if (!task) {
+      return c.json({ error: "Task not found" }, 404);
+    }
+    return c.json(task);
+  });
+
+  app.post("/api/tasks/:id/complete", (c) => {
+    const id = c.req.param("id");
+    const task = completeTask(workspaceDir, id);
+    if (!task) {
+      return c.json({ error: "Task not found" }, 404);
+    }
+    return c.json(task);
+  });
+
+  app.post("/api/tasks/:id/cancel", (c) => {
+    const id = c.req.param("id");
+    const task = cancelTask(workspaceDir, id);
+    if (!task) {
+      return c.json({ error: "Task not found" }, 404);
+    }
+    return c.json(task);
+  });
+
+  app.get("/api/agents", (c) => {
+    const agents = loadAgents();
+    const agentList = Array.from(agents.values()).map((a) => ({
+      id: a.id,
+      name: a.name,
+    }));
+    return c.json({ agents: agentList });
+  });
+
+  // Webapp at /web/tasklist (for Telegram mini app compatibility)
+  app.get("/web/tasklist", (c) => c.redirect("/web/tasklist/"));
+  app.get("/web/tasklist/*", createStaticHandler(webappDir, "/web/tasklist"));
 
   const server = serve({
     fetch: app.fetch,
