@@ -19,6 +19,7 @@ import {
 import { bus } from "../events.js";
 import { runThread } from "../runner.js";
 import { createTriggerMcpServer } from "../triggers.js";
+import { getTask } from "#tasks/index.js";
 import { TELEGRAM_HELP_MESSAGE } from "./telegram-help.js";
 import { log } from "../logger.js";
 
@@ -166,7 +167,19 @@ export function startTelegram() {
       config.activeThreadId = payload.threadId;
       saveTelegramConfig(config);
       log.info("telegram", `context switched to agent=${payload.agentId} thread=${payload.threadId}`);
-      text = `_Switched to ${name}_\n\n${text}`;
+      // Include task title if thread is bound to a task
+      let taskInfo = "";
+      try {
+        const agentDir = path.join(Config.workspaceDir, "agents", payload.agentId);
+        const filePath = threadPath(agentDir, payload.threadId);
+        const manifest = loadManifest(filePath);
+        const taskId = manifest.taskId as string | undefined;
+        if (taskId) {
+          const task = getTask(Config.workspaceDir, taskId);
+          if (task) taskInfo = ` (task: ${task.title})`;
+        }
+      } catch { /* ignore */ }
+      text = `_Switched to ${name}${taskInfo}_\n\n${text}`;
     }
 
     bot.api.sendMessage(chatId, text, { parse_mode: "Markdown" }).catch(() => {
