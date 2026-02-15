@@ -1,9 +1,11 @@
+import path from "path";
 import { z } from "zod/v4";
 import {
   createSdkMcpServer,
   tool,
   type McpSdkServerConfigWithInstance,
 } from "@anthropic-ai/claude-agent-sdk";
+import { createThread } from "#core/threads.js";
 import {
   loadTasks,
   getTask,
@@ -53,6 +55,7 @@ export function createTasksMcpServer(
           owner: z.string().optional().describe("Who drives this task - agent ID or 'user'. Defaults to you."),
         },
         async (args) => {
+          // Create the task first
           const task = createTask({
             workspaceDir,
             input: {
@@ -63,12 +66,17 @@ export function createTasksMcpServer(
             createdBy: agentId,
           });
 
-          // Note: Thread creation will be added in Milestone 3
+          // Create dedicated thread for the task in the owner's agent directory
+          const ownerAgentDir = path.join(workspaceDir, "agents", task.owner);
+          const threadId = createThread(ownerAgentDir, "telegram", { taskId: task.id });
+
+          // Update task with the thread ID
+          const updatedTask = updateTask(workspaceDir, task.id, { threadId });
 
           return {
             content: [{
               type: "text" as const,
-              text: `Created task:\n\n${formatTask(task)}`,
+              text: `Created task:\n\n${formatTask(updatedTask ?? task)}`,
             }],
           };
         },

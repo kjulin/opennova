@@ -12,7 +12,7 @@ import { createAskAgentMcpServer } from "./ask-agent.js";
 import { createFileSendMcpServer, type FileType } from "./file-send.js";
 import { createTranscriptionMcpServer } from "./transcription/index.js";
 import { appendUsage, createUsageMcpServer } from "./usage.js";
-import { createTasksMcpServer } from "#tasks/index.js";
+import { createTasksMcpServer, getTask, buildTaskContext } from "#tasks/index.js";
 import {
   threadPath,
   loadManifest,
@@ -101,7 +101,17 @@ export function createThreadRunner(runtime: Runtime = defaultRuntime): ThreadRun
       try {
         const cwd = getAgentCwd(agent);
         const directories = getAgentDirectories(agent);
-        const baseSystemPrompt = buildSystemPrompt(agent, manifest.channel, security, cwd, directories);
+        let baseSystemPrompt = buildSystemPrompt(agent, manifest.channel, security, cwd, directories);
+
+        // Inject task context if this thread is bound to a task
+        const taskId = manifest.taskId as string | undefined;
+        if (taskId) {
+          const task = getTask(Config.workspaceDir, taskId);
+          if (task) {
+            baseSystemPrompt = `${baseSystemPrompt}\n\n${buildTaskContext(task)}`;
+          }
+        }
+
         const systemPrompt = overrides?.systemPromptSuffix
           ? `${baseSystemPrompt}\n\n${overrides.systemPromptSuffix}`
           : baseSystemPrompt;

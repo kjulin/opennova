@@ -42,6 +42,7 @@ export {
   type ThreadManifest,
   type ThreadMessage,
   type ThreadInfo,
+  type CreateThreadOptions,
 } from "./threads.js";
 
 // Agents
