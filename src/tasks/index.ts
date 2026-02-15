@@ -10,3 +10,4 @@ export {
   loadHistory,
   type CreateTaskOptions,
 } from "./storage.js";
+export { createTasksMcpServer } from "./mcp.js";
