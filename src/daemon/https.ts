@@ -40,6 +40,7 @@ function getMimeType(ext: string): string {
 function createStaticHandler(baseDir: string, basePath: string) {
   return (c: Context) => {
     let filePath = c.req.path;
+    log.debug("https", `static: path=${filePath} basePath=${basePath} baseDir=${baseDir}`);
 
     if (filePath.startsWith(basePath)) {
       filePath = filePath.slice(basePath.length);
@@ -50,6 +51,7 @@ function createStaticHandler(baseDir: string, basePath: string) {
     }
 
     const fullPath = path.join(baseDir, filePath);
+    log.debug("https", `static: resolved=${fullPath} exists=${fs.existsSync(fullPath)}`);
 
     if (!fullPath.startsWith(baseDir)) {
       return c.notFound();
