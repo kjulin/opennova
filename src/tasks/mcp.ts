@@ -76,10 +76,11 @@ export function createTasksMcpServer(
 
       tool(
         "list_tasks",
-        "List all active and waiting tasks. Returns all tasks visible to all agents.",
+        "List your active and waiting tasks.",
         {},
         async () => {
-          const tasks = loadTasks(workspaceDir);
+          const allTasks = loadTasks(workspaceDir);
+          const tasks = allTasks.filter(t => t.owner === agentId);
 
           if (tasks.length === 0) {
             return {
