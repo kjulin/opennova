@@ -27,6 +27,7 @@ export interface RunThreadOverrides {
   model?: Model | undefined;
   maxTurns?: number | undefined;
   systemPromptSuffix?: string | undefined;
+  silent?: boolean | undefined;  // Suppress channel notifications
 }
 
 export interface ThreadRunnerCallbacks extends EngineCallbacks {

@@ -41,7 +41,7 @@ export function startTaskScheduler() {
       log.info("tasks", `invoking agent ${task.owner} for task ${task.id} (${task.title})`);
 
       try {
-        await runThread(agentDir, threadId, TASK_WORK_PROMPT);
+        await runThread(agentDir, threadId, TASK_WORK_PROMPT, undefined, undefined, undefined, undefined, { silent: true });
         log.info("tasks", `task ${task.id} invocation completed`);
       } catch (err) {
         log.error("tasks", `task ${task.id} invocation failed:`, err);
