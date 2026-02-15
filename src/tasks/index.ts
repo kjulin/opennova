@@ -11,3 +11,4 @@ export {
   type CreateTaskOptions,
 } from "./storage.js";
 export { createTasksMcpServer } from "./mcp.js";
+export { buildTaskContext } from "./prompts.js";

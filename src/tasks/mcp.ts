@@ -68,7 +68,7 @@ export function createTasksMcpServer(
 
           // Create dedicated thread for the task in the owner's agent directory
           const ownerAgentDir = path.join(workspaceDir, "agents", task.owner);
-          const threadId = createThread(ownerAgentDir, "task", { taskId: task.id });
+          const threadId = createThread(ownerAgentDir, "telegram", { taskId: task.id });
 
           // Update task with the thread ID
           const updatedTask = updateTask(workspaceDir, task.id, { threadId });
