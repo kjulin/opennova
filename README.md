@@ -15,7 +15,7 @@ OpenNova is inspired by [OpenClaw](https://github.com/openclaw/openclaw) and bor
 - **Persistent agents** — Define agents with custom roles, working directories, and sub-agents
 - **Telegram** — Chat with your agents through Telegram (supports per-agent bots)
 - **Cron triggers** — Schedule agents to run autonomously on a cron schedule
-- **Memory** — Agents remember things across conversations (agent-scoped and global)
+- **Memory** — Agents remember things across conversations (global)
 - **Agent delegation** — Agents can delegate tasks to other agents via `ask_agent`
 - **Usage tracking** — Monitor token usage and costs across agents
 - **Claude Code integration** — Utilises your Claude Code installation and subscription
@@ -81,12 +81,6 @@ Changing an agent's security level always requires terminal access — agents ca
 - **Data flows through third parties.** All conversations go through Anthropic's API. Telegram bot messages are not end-to-end encrypted. If an agent reads sensitive files, that content is sent to these services.
 - **Unrestricted agents can do anything you can.** An agent with `unrestricted` security has full shell access as your OS user. There is no confirmation step for destructive actions.
 - **Cron triggers run autonomously.** Scheduled triggers execute without human approval. Combined with `unrestricted` security, this means an agent can run shell commands on a timer with no one watching.
-
-See [daemon/README.md](./daemon/README.md) for full details.
-
-## Documentation
-
-See [daemon/README.md](./daemon/README.md) for full documentation covering agents, channels, triggers, and memory.
 
 ## License
 
