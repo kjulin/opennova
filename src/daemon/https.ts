@@ -96,8 +96,18 @@ export function startHttpsServer(workspaceDir: string): HttpsServer | null {
 
   // Serve webapp from package dist
   const webappDir = path.resolve(import.meta.dirname, "..", "webapp");
+  log.info("https", `webapp dir: ${webappDir}`);
+  log.info("https", `webapp exists: ${fs.existsSync(webappDir)}`);
 
   const app = new Hono();
+
+  // Request logging middleware
+  app.use("*", async (c, next) => {
+    const start = Date.now();
+    await next();
+    const ms = Date.now() - start;
+    log.info("https", `${c.req.method} ${c.req.path} ${c.res.status} ${ms}ms`);
+  });
 
   // CORS middleware
   app.use("*", async (c, next) => {
