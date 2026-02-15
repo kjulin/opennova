@@ -24,7 +24,7 @@ export function HistoryList({ tasks, getOwnerName }: HistoryListProps) {
               }`}
             />
             <p className="flex-1 text-sm text-gray-400 line-through">
-              {task.title}
+              <span className="text-gray-500">#{task.id}</span> {task.title}
             </p>
             <span className="text-xs text-gray-500">
               {getOwnerName(task.owner)}

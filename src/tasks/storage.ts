@@ -1,7 +1,11 @@
 import fs from "fs";
 import path from "path";
-import { randomBytes } from "crypto";
 import type { Task, Step, CreateTaskInput, UpdateTaskInput } from "./types.js";
+
+interface TasksData {
+  tasks: Task[];
+  nextId: number;
+}
 
 function tasksDir(workspaceDir: string): string {
   return path.join(workspaceDir, "tasks");
@@ -22,22 +26,29 @@ function ensureDir(workspaceDir: string): void {
   }
 }
 
-export function loadTasks(workspaceDir: string): Task[] {
+function loadTasksData(workspaceDir: string): TasksData {
   const file = tasksFile(workspaceDir);
-  if (!fs.existsSync(file)) return [];
+  if (!fs.existsSync(file)) return { tasks: [], nextId: 1 };
   try {
     const content = fs.readFileSync(file, "utf-8");
     const data = JSON.parse(content);
-    return Array.isArray(data.tasks) ? data.tasks : [];
+    return {
+      tasks: Array.isArray(data.tasks) ? data.tasks : [],
+      nextId: typeof data.nextId === "number" ? data.nextId : 1,
+    };
   } catch {
-    return [];
+    return { tasks: [], nextId: 1 };
   }
 }
 
-function saveTasks(workspaceDir: string, tasks: Task[]): void {
+export function loadTasks(workspaceDir: string): Task[] {
+  return loadTasksData(workspaceDir).tasks;
+}
+
+function saveTasksData(workspaceDir: string, data: TasksData): void {
   ensureDir(workspaceDir);
   const file = tasksFile(workspaceDir);
-  fs.writeFileSync(file, JSON.stringify({ tasks }, null, 2));
+  fs.writeFileSync(file, JSON.stringify(data, null, 2));
 }
 
 function appendHistory(workspaceDir: string, task: Task): void {
@@ -62,8 +73,11 @@ export function createTask(options: CreateTaskOptions): Task {
   const { workspaceDir, input, createdBy } = options;
   const now = new Date().toISOString();
 
+  const data = loadTasksData(workspaceDir);
+  const id = String(data.nextId);
+
   const task: Task = {
-    id: randomBytes(6).toString("hex"),
+    id,
     title: input.title,
     description: input.description,
     owner: input.owner ?? createdBy,
@@ -74,9 +88,9 @@ export function createTask(options: CreateTaskOptions): Task {
     updatedAt: now,
   };
 
-  const tasks = loadTasks(workspaceDir);
-  tasks.push(task);
-  saveTasks(workspaceDir, tasks);
+  data.tasks.push(task);
+  data.nextId++;
+  saveTasksData(workspaceDir, data);
 
   return task;
 }
@@ -86,11 +100,11 @@ export function updateTask(
   id: string,
   input: UpdateTaskInput,
 ): Task | undefined {
-  const tasks = loadTasks(workspaceDir);
-  const index = tasks.findIndex((t) => t.id === id);
+  const data = loadTasksData(workspaceDir);
+  const index = data.tasks.findIndex((t) => t.id === id);
   if (index === -1) return undefined;
 
-  const task = tasks[index]!;
+  const task = data.tasks[index]!;
 
   if (input.title !== undefined) task.title = input.title;
   if (input.description !== undefined) task.description = input.description;
@@ -101,12 +115,12 @@ export function updateTask(
 
   // If status is done or canceled, move to history
   if (input.status === "done" || input.status === "canceled") {
-    tasks.splice(index, 1);
-    saveTasks(workspaceDir, tasks);
+    data.tasks.splice(index, 1);
+    saveTasksData(workspaceDir, data);
     appendHistory(workspaceDir, task);
   } else {
-    tasks[index] = task;
-    saveTasks(workspaceDir, tasks);
+    data.tasks[index] = task;
+    saveTasksData(workspaceDir, data);
   }
 
   return task;
@@ -117,46 +131,57 @@ export function updateSteps(
   id: string,
   steps: Step[],
 ): Task | undefined {
-  const tasks = loadTasks(workspaceDir);
-  const index = tasks.findIndex((t) => t.id === id);
+  const data = loadTasksData(workspaceDir);
+  const index = data.tasks.findIndex((t) => t.id === id);
   if (index === -1) return undefined;
 
-  const task = tasks[index]!;
+  const task = data.tasks[index]!;
   task.steps = steps;
   task.updatedAt = new Date().toISOString();
-  tasks[index] = task;
-  saveTasks(workspaceDir, tasks);
+  data.tasks[index] = task;
+  saveTasksData(workspaceDir, data);
 
   return task;
 }
 
 export function cancelTask(workspaceDir: string, id: string): Task | undefined {
-  const tasks = loadTasks(workspaceDir);
-  const index = tasks.findIndex((t) => t.id === id);
+  const data = loadTasksData(workspaceDir);
+  const index = data.tasks.findIndex((t) => t.id === id);
   if (index === -1) return undefined;
 
-  const task = tasks[index]!;
+  const task = data.tasks[index]!;
   task.status = "canceled";
   task.updatedAt = new Date().toISOString();
 
-  tasks.splice(index, 1);
-  saveTasks(workspaceDir, tasks);
+  // Collect subtask IDs from steps
+  const subtaskIds = task.steps
+    .filter((s) => s.taskId)
+    .map((s) => s.taskId!);
+
+  // Remove and archive the task
+  data.tasks.splice(index, 1);
+  saveTasksData(workspaceDir, data);
   appendHistory(workspaceDir, task);
+
+  // Cascade cancel to subtasks
+  for (const subtaskId of subtaskIds) {
+    cancelTask(workspaceDir, subtaskId);
+  }
 
   return task;
 }
 
 export function completeTask(workspaceDir: string, id: string): Task | undefined {
-  const tasks = loadTasks(workspaceDir);
-  const index = tasks.findIndex((t) => t.id === id);
+  const data = loadTasksData(workspaceDir);
+  const index = data.tasks.findIndex((t) => t.id === id);
   if (index === -1) return undefined;
 
-  const task = tasks[index]!;
+  const task = data.tasks[index]!;
   task.status = "done";
   task.updatedAt = new Date().toISOString();
 
-  tasks.splice(index, 1);
-  saveTasks(workspaceDir, tasks);
+  data.tasks.splice(index, 1);
+  saveTasksData(workspaceDir, data);
   appendHistory(workspaceDir, task);
 
   return task;
@@ -187,4 +212,30 @@ export function loadHistory(
   } catch {
     return [];
   }
+}
+
+export function linkSubtask(
+  workspaceDir: string,
+  taskId: string,
+  stepIndex: number,
+  subtaskId: string,
+): Task | undefined {
+  const data = loadTasksData(workspaceDir);
+  const index = data.tasks.findIndex((t) => t.id === taskId);
+  if (index === -1) return undefined;
+
+  const task = data.tasks[index]!;
+  const step = task.steps[stepIndex];
+  if (!step) return undefined;
+
+  if (step.taskId) {
+    throw new Error(`Step ${stepIndex} already has a linked subtask (#${step.taskId})`);
+  }
+
+  step.taskId = subtaskId;
+  task.updatedAt = new Date().toISOString();
+  data.tasks[index] = task;
+  saveTasksData(workspaceDir, data);
+
+  return task;
 }

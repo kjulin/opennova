@@ -8,6 +8,7 @@ export {
   cancelTask,
   completeTask,
   loadHistory,
+  linkSubtask,
   type CreateTaskOptions,
 } from "./storage.js";
 export { createTasksMcpServer } from "./mcp.js";
