@@ -9,3 +9,4 @@ export {
   loadAllNotes,
 } from "./storage.js";
 export { createNotesMcpServer } from "./mcp.js";
+export { createNotesRouter } from "./api.js";
