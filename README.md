@@ -17,8 +17,14 @@ OpenNova is inspired by [OpenClaw](https://github.com/openclaw/openclaw) and bor
 - **Cron triggers** — Schedule agents to run autonomously on a cron schedule
 - **Memory** — Agents remember things across conversations (global)
 - **Agent delegation** — Agents can delegate tasks to other agents via `ask_agent`
+- **Tasks** — Create and track tasks for agents with dedicated threads and step-by-step progress
+- **Shared Skills** — Agents can share reusable skill definitions
 - **Usage tracking** — Monitor token usage and costs across agents
 - **Claude Code integration** — Utilises your Claude Code installation and subscription
+
+## How It Works
+
+OpenNova runs as a background daemon that manages a pool of persistent AI agents, each powered by the Claude Agent SDK. Agents are defined in a YAML configuration and can communicate with users over Telegram or run autonomously via cron triggers. When a task is delegated, the daemon spawns a dedicated thread for the target agent, allowing multi-agent workflows with step-by-step progress tracking. All state — memory, tasks, and usage data — is stored locally on your device.
 
 ## Prerequisites
 
