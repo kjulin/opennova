@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { Task } from "../api";
+import type { Task, Resource } from "../api";
 
 interface TaskItemProps {
   task: Task;
@@ -8,6 +8,7 @@ interface TaskItemProps {
   onComplete: (id: string) => void;
   onCancel: (id: string) => void;
   onChat: (task: Task) => void;
+  onDeliverFile: (task: Task, resource: Resource) => void;
 }
 
 export function TaskItem({
@@ -17,6 +18,7 @@ export function TaskItem({
   onComplete,
   onCancel,
   onChat,
+  onDeliverFile,
 }: TaskItemProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [confirmCancel, setConfirmCancel] = useState(false);
@@ -106,6 +108,45 @@ export function TaskItem({
                     </span>
                     {step.taskId && (
                       <span className="text-blue-400 text-xs">#{step.taskId}</span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {task.resources.length > 0 && (
+            <div>
+              <label className="mb-1.5 block text-xs font-medium uppercase tracking-wider text-[#8b949e]">
+                Resources
+              </label>
+              <div className="rounded-lg bg-[#0d1117] px-3 py-2.5 text-sm text-[#c9d1d9] space-y-1.5">
+                {task.resources.map((resource, i) => (
+                  <div key={i} className="flex items-center gap-2">
+                    <span className="text-gray-500 text-xs shrink-0">
+                      {resource.type === "url" ? "\uD83D\uDD17" : "\uD83D\uDCC4"}
+                    </span>
+                    {resource.type === "url" ? (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          window.Telegram?.WebApp?.openLink?.(resource.value) ??
+                            window.open(resource.value, "_blank");
+                        }}
+                        className="text-blue-400 hover:text-blue-300 truncate text-left"
+                      >
+                        {resource.label || resource.value}
+                      </button>
+                    ) : (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onDeliverFile(task, resource);
+                        }}
+                        className="text-blue-400 hover:text-blue-300 truncate text-left"
+                      >
+                        {resource.label || resource.value.split("/").pop() || resource.value}
+                      </button>
                     )}
                   </div>
                 ))}

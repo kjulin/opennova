@@ -1,6 +1,6 @@
 import fs from "fs";
 import path from "path";
-import type { Task, Step, CreateTaskInput, UpdateTaskInput } from "./types.js";
+import type { Task, Step, Resource, CreateTaskInput, UpdateTaskInput } from "./types.js";
 
 interface TasksData {
   tasks: Task[];
@@ -33,7 +33,12 @@ function loadTasksData(workspaceDir: string): TasksData {
     const content = fs.readFileSync(file, "utf-8");
     const data = JSON.parse(content);
     return {
-      tasks: Array.isArray(data.tasks) ? data.tasks : [],
+      tasks: Array.isArray(data.tasks)
+        ? data.tasks.map((t: Task) => ({
+            ...t,
+            resources: Array.isArray(t.resources) ? t.resources : [],
+          }))
+        : [],
       nextId: typeof data.nextId === "number" ? data.nextId : 1,
     };
   } catch {
@@ -84,6 +89,7 @@ export function createTask(options: CreateTaskOptions): Task {
     createdBy,
     status: "active",
     steps: [],
+    resources: [],
     createdAt: now,
     updatedAt: now,
   };
@@ -212,6 +218,44 @@ export function loadHistory(
   } catch {
     return [];
   }
+}
+
+export function addResource(
+  workspaceDir: string,
+  id: string,
+  resource: Resource,
+): Task | undefined {
+  const data = loadTasksData(workspaceDir);
+  const index = data.tasks.findIndex((t) => t.id === id);
+  if (index === -1) return undefined;
+
+  const task = data.tasks[index]!;
+  task.resources.push(resource);
+  task.updatedAt = new Date().toISOString();
+  data.tasks[index] = task;
+  saveTasksData(workspaceDir, data);
+
+  return task;
+}
+
+export function removeResource(
+  workspaceDir: string,
+  id: string,
+  resourceIndex: number,
+): Task | undefined {
+  const data = loadTasksData(workspaceDir);
+  const index = data.tasks.findIndex((t) => t.id === id);
+  if (index === -1) return undefined;
+
+  const task = data.tasks[index]!;
+  if (resourceIndex < 0 || resourceIndex >= task.resources.length) return undefined;
+
+  task.resources.splice(resourceIndex, 1);
+  task.updatedAt = new Date().toISOString();
+  data.tasks[index] = task;
+  saveTasksData(workspaceDir, data);
+
+  return task;
 }
 
 export function linkSubtask(

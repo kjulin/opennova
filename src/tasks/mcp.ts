@@ -15,8 +15,10 @@ import {
   cancelTask,
   completeTask,
   linkSubtask,
+  addResource,
+  removeResource,
 } from "./storage.js";
-import type { Task, Step } from "./types.js";
+import type { Task, Step, Resource } from "./types.js";
 
 const StepSchema = z.object({
   title: z.string().describe("Step title"),
@@ -31,11 +33,18 @@ function formatTask(task: Task): string {
       }).join("\n")
     : "";
 
+  const resources = task.resources.length > 0
+    ? "\nResources:\n" + task.resources.map((r: Resource, i: number) => {
+        const label = r.label ? ` (${r.label})` : "";
+        return `  ${i}. [${r.type}] ${r.value}${label}`;
+      }).join("\n")
+    : "";
+
   return `Task #${task.id}: ${task.title}
 Status: ${task.status}
 Owner: ${task.owner}
 Created by: ${task.createdBy}
-Thread: ${task.threadId ?? "(not yet created)"}${steps}
+Thread: ${task.threadId ?? "(not yet created)"}${steps}${resources}
 Created: ${task.createdAt}
 Updated: ${task.updatedAt}`;
 }
@@ -344,6 +353,55 @@ export function createTasksMcpServer(
               type: "text" as const,
               text: `Created subtask #${subtask.id} for step ${args.stepIndex} of task #${args.taskId}:\n\n${formatTask({ ...subtask, threadId })}\n\nParent task updated:\n${formatTask(updatedParent!)}`,
             }],
+          };
+        },
+      ),
+
+      tool(
+        "add_resource",
+        "Add a resource (URL or file path) to a task. Resources are visible in the task dashboard.",
+        {
+          id: z.string().describe("Task ID"),
+          type: z.enum(["url", "file"]).describe("Resource type: 'url' for web links, 'file' for local file paths"),
+          value: z.string().describe("The URL or absolute file path"),
+          label: z.string().optional().describe("Display label for the resource"),
+        },
+        async (args) => {
+          const resource: Resource = {
+            type: args.type,
+            value: args.value,
+            ...(args.label !== undefined ? { label: args.label } : {}),
+          };
+          const task = addResource(workspaceDir, args.id, resource);
+          if (!task) {
+            return {
+              content: [{ type: "text" as const, text: `Task not found: ${args.id}` }],
+              isError: true,
+            };
+          }
+          return {
+            content: [{ type: "text" as const, text: `Resource added to task #${args.id}:\n\n${formatTask(task)}` }],
+          };
+        },
+      ),
+
+      tool(
+        "remove_resource",
+        "Remove a resource from a task by its index (0-based).",
+        {
+          id: z.string().describe("Task ID"),
+          index: z.number().describe("Resource index (0-based)"),
+        },
+        async (args) => {
+          const task = removeResource(workspaceDir, args.id, args.index);
+          if (!task) {
+            return {
+              content: [{ type: "text" as const, text: `Task or resource not found: task=${args.id} index=${args.index}` }],
+              isError: true,
+            };
+          }
+          return {
+            content: [{ type: "text" as const, text: `Resource removed from task #${args.id}:\n\n${formatTask(task)}` }],
           };
         },
       ),

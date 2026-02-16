@@ -4,6 +4,12 @@ export interface Step {
   taskId?: string;  // Linked subtask
 }
 
+export interface Resource {
+  type: "url" | "file";
+  value: string;
+  label?: string;
+}
+
 export interface Task {
   id: string;
   title: string;
@@ -12,6 +18,7 @@ export interface Task {
   createdBy: string;
   status: "active" | "waiting" | "done" | "canceled";
   steps: Step[];
+  resources: Resource[];
   threadId?: string;
   createdAt: string;
   updatedAt: string;
