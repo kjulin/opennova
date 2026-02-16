@@ -1,7 +1,7 @@
 import fs from "fs";
 import path from "path";
 import os from "os";
-import { Bot, InlineKeyboard, InputFile } from "grammy";
+import { Bot, InlineKeyboard, InputFile, Keyboard } from "grammy";
 import {
   Config,
   loadAgents,
@@ -20,8 +20,19 @@ import { bus } from "../events.js";
 import { runThread } from "../runner.js";
 import { createTriggerMcpServer } from "../triggers.js";
 import { getTask } from "#tasks/index.js";
+import { listNotes, getPinnedNotes } from "#notes/index.js";
 import { TELEGRAM_HELP_MESSAGE } from "./telegram-help.js";
 import { log } from "../logger.js";
+
+export const HTTPS_PORT = 3838;
+
+export function getWebAppHost(): string | null {
+  const certDir = path.join(os.homedir(), ".nova", "certs");
+  if (!fs.existsSync(certDir)) return null;
+  const certFile = fs.readdirSync(certDir).find((f) => f.endsWith(".crt"));
+  if (!certFile) return null;
+  return certFile.replace(".crt", "");
+}
 
 function loadTelegramConfig(): TelegramConfig | null {
   const filePath = path.join(Config.workspaceDir, "telegram.json");
@@ -135,6 +146,7 @@ export function startTelegram() {
   bot.api.setMyCommands([
     { command: "agent", description: "Select an agent" },
     { command: "threads", description: "List conversation threads" },
+    { command: "notes", description: "Browse agent notes" },
     { command: "stop", description: "Stop the running agent" },
     { command: "new", description: "Start a fresh conversation thread" },
     { command: "help", description: "Show help message" },
@@ -150,8 +162,19 @@ export function startTelegram() {
     log.warn("telegram", "failed to set menu button:", err);
   });
 
-  // Placeholder for Tasks web app button (will be re-added in Tasks v2)
-  const replyKeyboard = null;
+  function buildReplyKeyboard(): Keyboard | null {
+    const host = getWebAppHost();
+    if (!host || !config) return null;
+    const agentDir = path.join(Config.workspaceDir, "agents", config.activeAgentId);
+    const pinned = getPinnedNotes(agentDir);
+    if (pinned.length === 0) return null;
+    const keyboard = new Keyboard();
+    keyboard.webApp("Tasks", `https://${host}:${HTTPS_PORT}/web/tasklist/`).row();
+    for (const note of pinned) {
+      keyboard.webApp(note.title, `https://${host}:${HTTPS_PORT}/web/tasklist/#/note/${config.activeAgentId}/${note.slug}`).row();
+    }
+    return keyboard.resized().persistent();
+  }
 
   bus.on("thread:response", async (payload) => {
     if (payload.channel !== "telegram") return;
@@ -228,6 +251,39 @@ export function startTelegram() {
     }
   });
 
+  bus.on("thread:note", (payload) => {
+    if (payload.channel !== "telegram") return;
+    const chatId = Number(config.chatId);
+    const host = getWebAppHost();
+    if (!host) return;
+
+    const text = payload.message ?? `📝 ${payload.title}`;
+    const keyboard = new InlineKeyboard().webApp(
+      "Open note",
+      `https://${host}:${HTTPS_PORT}/web/tasklist/#/note/${payload.agentId}/${payload.slug}`,
+    );
+    bot.api.sendMessage(chatId, text, { reply_markup: keyboard }).catch((err) => {
+      log.error("telegram", "failed to deliver thread:note:", err);
+    });
+  });
+
+  bus.on("thread:pin", (payload) => {
+    if (payload.channel !== "telegram") return;
+    if (payload.agentId !== config.activeAgentId) return;
+    const chatId = Number(config.chatId);
+    const kb = buildReplyKeyboard();
+    if (kb) {
+      bot.api.sendMessage(chatId, "📌 Pinned notes updated", { reply_markup: kb }).catch((err) => {
+        log.error("telegram", "failed to send pin update:", err);
+      });
+    } else {
+      // No more pinned notes — remove the reply keyboard
+      bot.api.sendMessage(chatId, "📌 Pinned notes updated", { reply_markup: { remove_keyboard: true } }).catch((err) => {
+        log.error("telegram", "failed to send pin update:", err);
+      });
+    }
+  });
+
   bot.on("message:text", async (ctx) => {
     const chatId = ctx.chat.id;
     const text = ctx.message.text;
@@ -237,14 +293,11 @@ export function startTelegram() {
 
     // Handle /help command
     if (text === "/help" || text === "/start") {
-      if (replyKeyboard) {
-        await ctx.reply(TELEGRAM_HELP_MESSAGE, {
-          parse_mode: "Markdown",
-          reply_markup: replyKeyboard,
-        });
-      } else {
-        await ctx.reply(TELEGRAM_HELP_MESSAGE, { parse_mode: "Markdown" });
-      }
+      const kb = buildReplyKeyboard();
+      await ctx.reply(TELEGRAM_HELP_MESSAGE, {
+        parse_mode: "Markdown",
+        ...(kb ? { reply_markup: kb } : {}),
+      });
       return;
     }
 
@@ -290,6 +343,30 @@ export function startTelegram() {
         keyboard.text(`${active}${title} \u00b7 ${time}`, `thread:${t.id}`).row();
       }
       await ctx.reply("*Threads:*", { parse_mode: "Markdown", reply_markup: keyboard });
+      return;
+    }
+
+    // Handle /notes command
+    if (text === "/notes") {
+      const host = getWebAppHost();
+      if (!host) {
+        await ctx.reply("Notes requires HTTPS. Run `nova tailscale setup` first.");
+        return;
+      }
+      const agentDir = path.join(Config.workspaceDir, "agents", config.activeAgentId);
+      const notes = listNotes(agentDir);
+      if (notes.length === 0) {
+        await ctx.reply("No notes yet.");
+        return;
+      }
+      const keyboard = new InlineKeyboard();
+      for (const note of notes) {
+        keyboard.webApp(
+          note.title,
+          `https://${host}:${HTTPS_PORT}/web/tasklist/#/note/${config.activeAgentId}/${note.slug}`,
+        ).row();
+      }
+      await ctx.reply("*Notes:*", { parse_mode: "Markdown", reply_markup: keyboard });
       return;
     }
 
@@ -722,6 +799,14 @@ You can read, process, or move this file as needed.`;
 
     await ctx.editMessageText(`Switched to *${agent.name}*`, { parse_mode: "Markdown" });
     await ctx.answerCallbackQuery();
+
+    // Send/update reply keyboard for the new agent's pinned notes
+    const kb = buildReplyKeyboard();
+    if (kb) {
+      await bot.api.sendMessage(chatId, `_${agent.name}_`, { parse_mode: "Markdown", reply_markup: kb }).catch(() => {});
+    } else {
+      await bot.api.sendMessage(chatId, `_${agent.name}_`, { parse_mode: "Markdown", reply_markup: { remove_keyboard: true } }).catch(() => {});
+    }
 
     // Greet the user from the new agent
     const agentDir = path.join(Config.workspaceDir, "agents", agentId);

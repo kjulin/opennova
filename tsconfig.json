@@ -7,7 +7,8 @@
       "#core/*": ["./src/core/*"],
       "#daemon/*": ["./src/daemon/*"],
       "#tui/*": ["./src/tui/*"],
-      "#tasks/*": ["./src/tasks/*"]
+      "#tasks/*": ["./src/tasks/*"],
+      "#notes/*": ["./src/notes/*"]
     },
 
     "module": "nodenext",

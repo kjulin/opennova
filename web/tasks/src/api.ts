@@ -91,3 +91,35 @@ export async function createTask(input: CreateTaskInput): Promise<Task> {
   if (!res.ok) throw new Error("Failed to create task");
   return res.json();
 }
+
+// Notes API
+
+export interface Note {
+  agent: string;
+  title: string;
+  slug: string;
+  content: string;
+}
+
+export async function fetchNote(agent: string, slug: string): Promise<Note> {
+  const res = await fetch(`${API_BASE}/notes/${agent}/${slug}`);
+  if (!res.ok) throw new Error("Note not found");
+  return res.json();
+}
+
+export async function updateNote(agent: string, slug: string, content: string): Promise<Note> {
+  const res = await fetch(`${API_BASE}/notes/${agent}/${slug}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ content }),
+  });
+  if (!res.ok) throw new Error("Failed to update note");
+  return res.json();
+}
+
+export async function deleteNoteApi(agent: string, slug: string): Promise<void> {
+  const res = await fetch(`${API_BASE}/notes/${agent}/${slug}`, {
+    method: "DELETE",
+  });
+  if (!res.ok) throw new Error("Failed to delete note");
+}

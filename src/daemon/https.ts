@@ -17,6 +17,7 @@ import {
   isTaskInFlight,
 } from "#tasks/index.js";
 import { createThread } from "#core/threads.js";
+import { createNotesRouter } from "#notes/index.js";
 
 const PORT = 3838;
 
@@ -116,7 +117,7 @@ export function startHttpsServer(workspaceDir: string): HttpsServer | null {
   // CORS middleware
   app.use("*", async (c, next) => {
     c.header("Access-Control-Allow-Origin", "*");
-    c.header("Access-Control-Allow-Methods", "GET, POST, PATCH, OPTIONS");
+    c.header("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
     c.header("Access-Control-Allow-Headers", "Content-Type");
 
     if (c.req.method === "OPTIONS") {
@@ -216,6 +217,9 @@ export function startHttpsServer(workspaceDir: string): HttpsServer | null {
     }));
     return c.json({ agents: agentList });
   });
+
+  // Notes API
+  app.route("/api/notes", createNotesRouter(workspaceDir));
 
   // Webapp at /web/tasklist (for Telegram mini app compatibility)
   app.get("/web/tasklist", (c) => c.redirect("/web/tasklist/"));

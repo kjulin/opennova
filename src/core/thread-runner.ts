@@ -14,6 +14,7 @@ import { createNotifyUserMcpServer } from "./notify-user.js";
 import { createTranscriptionMcpServer } from "./transcription/index.js";
 import { appendUsage, createUsageMcpServer } from "./usage.js";
 import { createTasksMcpServer, getTask, buildTaskContext } from "#tasks/index.js";
+import { createNotesMcpServer } from "#notes/index.js";
 import {
   threadPath,
   loadManifest,
@@ -35,6 +36,8 @@ export interface ThreadRunnerCallbacks extends EngineCallbacks {
   onThreadResponse?: (agentId: string, threadId: string, channel: string, text: string) => void;
   onThreadError?: (agentId: string, threadId: string, channel: string, error: string) => void;
   onFileSend?: (agentId: string, threadId: string, channel: string, filePath: string, caption: string | undefined, fileType: FileType) => void;
+  onShareNote?: (agentId: string, threadId: string, channel: string, title: string, slug: string, message: string | undefined) => void;
+  onPinChange?: (agentId: string, channel: string) => void;
   onNotifyUser?: (agentId: string, threadId: string, channel: string, message: string) => void;
 }
 
@@ -138,6 +141,11 @@ If you need to notify the user about something important (questions, updates, co
             mcpServers: {
               memory: createMemoryMcpServer(),
               tasks: createTasksMcpServer(agentId, Config.workspaceDir),
+              notes: createNotesMcpServer(agentDir, (title, slug, message) => {
+                callbacks?.onShareNote?.(agentId, threadId, manifest.channel, title, slug, message);
+              }, () => {
+                callbacks?.onPinChange?.(agentId, manifest.channel);
+              }),
               ...(security !== "sandbox" ? { self: createSelfManagementMcpServer(agentDir) } : {}),
               ...(security !== "sandbox" ? {
                 "file-send": createFileSendMcpServer(agentDir, directories, (filePath, caption, fileType) => {
