@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { marked } from "marked";
 import { fetchNote, updateNote } from "../api";
 
 interface Props {
@@ -8,11 +9,13 @@ interface Props {
 
 export function NoteEditor({ agent, slug }: Props) {
   const [content, setContent] = useState("");
+  const [editing, setEditing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const contentRef = useRef(content);
   const originalRef = useRef("");
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     contentRef.current = content;
@@ -67,6 +70,24 @@ export function NoteEditor({ agent, slug }: Props) {
     };
   }, [agent, slug]);
 
+  const handleBlur = useCallback(async () => {
+    await save();
+    setEditing(false);
+  }, [save]);
+
+  const handleClick = useCallback(() => {
+    setEditing(true);
+  }, []);
+
+  // Focus textarea when entering edit mode
+  useEffect(() => {
+    if (editing && textareaRef.current) {
+      textareaRef.current.focus();
+    }
+  }, [editing]);
+
+  const html = useMemo(() => marked.parse(content), [content]);
+
   if (loading) {
     return (
       <div className="flex justify-center items-center h-screen text-gray-500">
@@ -84,17 +105,25 @@ export function NoteEditor({ agent, slug }: Props) {
           </div>
         )}
 
-        <textarea
-          value={content}
-          onChange={(e) => {
-            setContent(e.target.value);
-            scheduleSave();
-          }}
-          onBlur={save}
-          className="w-full min-h-[80vh] rounded-xl bg-white/5 border border-white/10 px-4 py-3 text-sm text-gray-200 font-mono resize-y focus:outline-none focus:border-blue-500/50 placeholder-gray-600"
-          placeholder="Write your note..."
-          autoFocus
-        />
+        {editing ? (
+          <textarea
+            ref={textareaRef}
+            value={content}
+            onChange={(e) => {
+              setContent(e.target.value);
+              scheduleSave();
+            }}
+            onBlur={handleBlur}
+            className="w-full min-h-[80vh] rounded-xl bg-white/5 border border-white/10 px-4 py-3 text-sm text-gray-200 font-mono resize-y focus:outline-none focus:border-blue-500/50 placeholder-gray-600"
+            placeholder="Write your note..."
+          />
+        ) : (
+          <div
+            onClick={handleClick}
+            className="min-h-[80vh] rounded-xl bg-white/5 border border-white/10 px-4 py-3 text-sm text-gray-200 prose prose-invert prose-sm max-w-none cursor-text"
+            dangerouslySetInnerHTML={{ __html: html as string }}
+          />
+        )}
       </div>
     </div>
   );
