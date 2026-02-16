@@ -22,6 +22,14 @@ interface DaemonEvents {
     caption?: string;
     fileType?: "document" | "photo" | "audio" | "video";
   }];
+  "thread:note": [payload: {
+    agentId: string;
+    threadId: string;
+    channel: ChannelType;
+    title: string;
+    slug: string;
+    message?: string;
+  }];
 }
 
 class TypedEmitter extends EventEmitter {

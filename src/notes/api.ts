@@ -1,5 +1,5 @@
 import path from "path";
-import { Hono } from "hono";
+import { Hono, type Context } from "hono";
 import { loadAllNotes, readNote, writeNote, deleteNote, unslugify } from "./storage.js";
 
 export function createNotesRouter(workspaceDir: string): Hono {
@@ -22,9 +22,10 @@ export function createNotesRouter(workspaceDir: string): Hono {
     return c.json({ agent, title: unslugify(slug), slug, content });
   });
 
-  // Update a note
-  app.put("/:agent/:slug", async (c) => {
-    const { agent, slug } = c.req.param();
+  // Update a note (PUT for normal saves, POST for sendBeacon flush on close)
+  const handleUpdate = async (c: Context) => {
+    const agent = c.req.param("agent")!;
+    const slug = c.req.param("slug")!;
     const body = await c.req.json();
     const { content } = body;
     if (typeof content !== "string") {
@@ -33,7 +34,9 @@ export function createNotesRouter(workspaceDir: string): Hono {
     const agentDir = path.join(workspaceDir, "agents", agent);
     writeNote(agentDir, slug, content);
     return c.json({ agent, title: unslugify(slug), slug, content });
-  });
+  };
+  app.put("/:agent/:slug", handleUpdate);
+  app.post("/:agent/:slug", handleUpdate);
 
   // Delete a note
   app.delete("/:agent/:slug", (c) => {

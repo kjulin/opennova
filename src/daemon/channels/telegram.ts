@@ -20,8 +20,19 @@ import { bus } from "../events.js";
 import { runThread } from "../runner.js";
 import { createTriggerMcpServer } from "../triggers.js";
 import { getTask } from "#tasks/index.js";
+import { listNotes } from "#notes/index.js";
 import { TELEGRAM_HELP_MESSAGE } from "./telegram-help.js";
 import { log } from "../logger.js";
+
+export const HTTPS_PORT = 3838;
+
+export function getWebAppHost(): string | null {
+  const certDir = path.join(os.homedir(), ".nova", "certs");
+  if (!fs.existsSync(certDir)) return null;
+  const certFile = fs.readdirSync(certDir).find((f) => f.endsWith(".crt"));
+  if (!certFile) return null;
+  return certFile.replace(".crt", "");
+}
 
 function loadTelegramConfig(): TelegramConfig | null {
   const filePath = path.join(Config.workspaceDir, "telegram.json");
@@ -135,6 +146,7 @@ export function startTelegram() {
   bot.api.setMyCommands([
     { command: "agent", description: "Select an agent" },
     { command: "threads", description: "List conversation threads" },
+    { command: "notes", description: "Browse agent notes" },
     { command: "stop", description: "Stop the running agent" },
     { command: "new", description: "Start a fresh conversation thread" },
     { command: "help", description: "Show help message" },
@@ -228,6 +240,22 @@ export function startTelegram() {
     }
   });
 
+  bus.on("thread:note", (payload) => {
+    if (payload.channel !== "telegram") return;
+    const chatId = Number(config.chatId);
+    const host = getWebAppHost();
+    if (!host) return;
+
+    const text = payload.message ?? `📝 ${payload.title}`;
+    const keyboard = new InlineKeyboard().webApp(
+      "Open note",
+      `https://${host}:${HTTPS_PORT}/web/tasklist/#/note/${payload.agentId}/${payload.slug}`,
+    );
+    bot.api.sendMessage(chatId, text, { reply_markup: keyboard }).catch((err) => {
+      log.error("telegram", "failed to deliver thread:note:", err);
+    });
+  });
+
   bot.on("message:text", async (ctx) => {
     const chatId = ctx.chat.id;
     const text = ctx.message.text;
@@ -290,6 +318,30 @@ export function startTelegram() {
         keyboard.text(`${active}${title} \u00b7 ${time}`, `thread:${t.id}`).row();
       }
       await ctx.reply("*Threads:*", { parse_mode: "Markdown", reply_markup: keyboard });
+      return;
+    }
+
+    // Handle /notes command
+    if (text === "/notes") {
+      const host = getWebAppHost();
+      if (!host) {
+        await ctx.reply("Notes requires HTTPS. Run `nova tailscale setup` first.");
+        return;
+      }
+      const agentDir = path.join(Config.workspaceDir, "agents", config.activeAgentId);
+      const notes = listNotes(agentDir);
+      if (notes.length === 0) {
+        await ctx.reply("No notes yet.");
+        return;
+      }
+      const keyboard = new InlineKeyboard();
+      for (const note of notes) {
+        keyboard.webApp(
+          note.title,
+          `https://${host}:${HTTPS_PORT}/web/tasklist/#/note/${config.activeAgentId}/${note.slug}`,
+        ).row();
+      }
+      await ctx.reply("*Notes:*", { parse_mode: "Markdown", reply_markup: keyboard });
       return;
     }
 
