@@ -56,6 +56,52 @@ export function noteExists(agentDir: string, slug: string): boolean {
   return fs.existsSync(path.join(notesDir(agentDir), `${slug}.md`));
 }
 
+function pinnedPath(agentDir: string): string {
+  return path.join(notesDir(agentDir), "pinned.json");
+}
+
+export function getPinnedSlugs(agentDir: string): string[] {
+  const filePath = pinnedPath(agentDir);
+  if (!fs.existsSync(filePath)) return [];
+  try {
+    const data = JSON.parse(fs.readFileSync(filePath, "utf-8"));
+    return Array.isArray(data) ? data : [];
+  } catch {
+    return [];
+  }
+}
+
+export function setPinnedSlugs(agentDir: string, slugs: string[]): void {
+  const dir = notesDir(agentDir);
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(pinnedPath(agentDir), JSON.stringify(slugs, null, 2));
+}
+
+export function pinNote(agentDir: string, slug: string): boolean {
+  if (!noteExists(agentDir, slug)) return false;
+  const slugs = getPinnedSlugs(agentDir);
+  if (slugs.includes(slug)) return true;
+  slugs.push(slug);
+  setPinnedSlugs(agentDir, slugs);
+  return true;
+}
+
+export function unpinNote(agentDir: string, slug: string): boolean {
+  const slugs = getPinnedSlugs(agentDir);
+  const idx = slugs.indexOf(slug);
+  if (idx === -1) return false;
+  slugs.splice(idx, 1);
+  setPinnedSlugs(agentDir, slugs);
+  return true;
+}
+
+export function getPinnedNotes(agentDir: string): Array<{ title: string; slug: string }> {
+  const slugs = getPinnedSlugs(agentDir);
+  return slugs
+    .filter((s) => noteExists(agentDir, s))
+    .map((s) => ({ title: unslugify(s), slug: s }));
+}
+
 export function loadAllNotes(workspaceDir: string): Array<{ agent: string; title: string; slug: string }> {
   const agentsDir = path.join(workspaceDir, "agents");
   if (!fs.existsSync(agentsDir)) return [];

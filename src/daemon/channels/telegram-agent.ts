@@ -1,6 +1,6 @@
 import fs from "fs";
 import path from "path";
-import { Bot, InlineKeyboard, InputFile } from "grammy";
+import { Bot, InlineKeyboard, InputFile, Keyboard } from "grammy";
 import {
   Config,
   loadAgents,
@@ -13,7 +13,7 @@ import {
 import { bus } from "../events.js";
 import { runThread } from "../runner.js";
 import { createTriggerMcpServer } from "../triggers.js";
-import { listNotes } from "#notes/index.js";
+import { listNotes, getPinnedNotes } from "#notes/index.js";
 import { relativeTime, getWebAppHost, HTTPS_PORT } from "./telegram.js";
 import { log } from "../logger.js";
 
@@ -160,6 +160,34 @@ export function startAgentTelegram(
     bot.api.sendMessage(chatId, text, { reply_markup: keyboard }).catch((err) => {
       log.error("telegram-agent", `agent ${agentId}: failed to deliver thread:note:`, err);
     });
+  });
+
+  function buildReplyKeyboard(): Keyboard | null {
+    const host = getWebAppHost();
+    if (!host) return null;
+    const pinned = getPinnedNotes(agentDir);
+    if (pinned.length === 0) return null;
+    const keyboard = new Keyboard();
+    keyboard.webApp("Tasks", `https://${host}:${HTTPS_PORT}/web/tasklist/`).row();
+    for (const note of pinned) {
+      keyboard.webApp(note.title, `https://${host}:${HTTPS_PORT}/web/tasklist/#/note/${agentId}/${note.slug}`).row();
+    }
+    return keyboard.resized().persistent();
+  }
+
+  bus.on("thread:pin", (payload) => {
+    if (payload.channel !== channel) return;
+    const chatId = Number(botConfig.chatId);
+    const kb = buildReplyKeyboard();
+    if (kb) {
+      bot.api.sendMessage(chatId, "📌 Pinned notes updated", { reply_markup: kb }).catch((err) => {
+        log.error("telegram-agent", `agent ${agentId}: failed to send pin update:`, err);
+      });
+    } else {
+      bot.api.sendMessage(chatId, "📌 Pinned notes updated", { reply_markup: { remove_keyboard: true } }).catch((err) => {
+        log.error("telegram-agent", `agent ${agentId}: failed to send pin update:`, err);
+      });
+    }
   });
 
   bot.on("message:text", async (ctx) => {

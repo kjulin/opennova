@@ -75,8 +75,21 @@ export function NoteEditor({ agent, slug }: Props) {
     setEditing(false);
   }, [save]);
 
-  const handleClick = useCallback(() => {
-    setEditing(true);
+  const lastTapRef = useRef(0);
+  const handleDoubleTap = useCallback((e: React.MouseEvent) => {
+    // Let links open in external browser instead of triggering edit
+    const target = e.target as HTMLElement;
+    if (target.tagName === "A" || target.closest("a")) {
+      const anchor = (target.tagName === "A" ? target : target.closest("a")) as HTMLAnchorElement;
+      e.preventDefault();
+      window.Telegram?.WebApp?.openLink?.(anchor.href) ?? window.open(anchor.href, "_blank");
+      return;
+    }
+    const now = Date.now();
+    if (now - lastTapRef.current < 400) {
+      setEditing(true);
+    }
+    lastTapRef.current = now;
   }, []);
 
   // Focus textarea when entering edit mode
@@ -119,11 +132,12 @@ export function NoteEditor({ agent, slug }: Props) {
           />
         ) : (
           <div
-            onClick={handleClick}
+            onClick={handleDoubleTap}
             className="min-h-[80vh] rounded-xl bg-white/5 border border-white/10 px-4 py-3 text-sm text-gray-200 prose prose-invert prose-sm max-w-none cursor-text"
             dangerouslySetInnerHTML={{ __html: html as string }}
           />
         )}
+        <p className="mt-2 text-center text-xs text-gray-600">Double-tap to edit</p>
       </div>
     </div>
   );

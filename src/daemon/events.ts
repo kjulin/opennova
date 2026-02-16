@@ -30,6 +30,10 @@ interface DaemonEvents {
     slug: string;
     message?: string;
   }];
+  "thread:pin": [payload: {
+    agentId: string;
+    channel: ChannelType;
+  }];
 }
 
 class TypedEmitter extends EventEmitter {

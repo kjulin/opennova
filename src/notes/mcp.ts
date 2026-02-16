@@ -4,11 +4,12 @@ import {
   tool,
   type McpSdkServerConfigWithInstance,
 } from "@anthropic-ai/claude-agent-sdk";
-import { slugify, listNotes, readNote, writeNote, deleteNote, noteExists } from "./storage.js";
+import { slugify, listNotes, readNote, writeNote, deleteNote, noteExists, pinNote, unpinNote, getPinnedSlugs } from "./storage.js";
 
 export type OnShareNoteCallback = (title: string, slug: string, message: string | undefined) => void;
+export type OnPinChangeCallback = () => void;
 
-export function createNotesMcpServer(agentDir: string, onShareNote?: OnShareNoteCallback): McpSdkServerConfigWithInstance {
+export function createNotesMcpServer(agentDir: string, onShareNote?: OnShareNoteCallback, onPinChange?: OnPinChangeCallback): McpSdkServerConfigWithInstance {
   return createSdkMcpServer({
     name: "notes",
     tools: [
@@ -141,6 +142,65 @@ export function createNotesMcpServer(agentDir: string, onShareNote?: OnShareNote
           }
           return {
             content: [{ type: "text" as const, text: `Shared note: ${args.title}` }],
+          };
+        },
+      ),
+
+      tool(
+        "pin_note",
+        "Pin a note so it appears as a quick-access button in the user's chat. Use for notes the user should reference often.",
+        {
+          title: z.string().describe("Note title"),
+        },
+        async (args) => {
+          const slug = slugify(args.title);
+          if (!pinNote(agentDir, slug)) {
+            return {
+              content: [{ type: "text" as const, text: `Note not found: ${args.title}` }],
+              isError: true,
+            };
+          }
+          onPinChange?.();
+          return {
+            content: [{ type: "text" as const, text: `Pinned note: ${args.title}` }],
+          };
+        },
+      ),
+
+      tool(
+        "unpin_note",
+        "Unpin a note, removing it from the user's quick-access buttons.",
+        {
+          title: z.string().describe("Note title"),
+        },
+        async (args) => {
+          const slug = slugify(args.title);
+          if (!unpinNote(agentDir, slug)) {
+            return {
+              content: [{ type: "text" as const, text: `Note is not pinned: ${args.title}` }],
+              isError: true,
+            };
+          }
+          onPinChange?.();
+          return {
+            content: [{ type: "text" as const, text: `Unpinned note: ${args.title}` }],
+          };
+        },
+      ),
+
+      tool(
+        "list_pinned_notes",
+        "List which notes are currently pinned.",
+        {},
+        async () => {
+          const pinned = getPinnedSlugs(agentDir);
+          if (pinned.length === 0) {
+            return {
+              content: [{ type: "text" as const, text: "No pinned notes." }],
+            };
+          }
+          return {
+            content: [{ type: "text" as const, text: pinned.map((s) => `- ${s}`).join("\n") }],
           };
         },
       ),

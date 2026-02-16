@@ -37,6 +37,7 @@ export interface ThreadRunnerCallbacks extends EngineCallbacks {
   onThreadError?: (agentId: string, threadId: string, channel: string, error: string) => void;
   onFileSend?: (agentId: string, threadId: string, channel: string, filePath: string, caption: string | undefined, fileType: FileType) => void;
   onShareNote?: (agentId: string, threadId: string, channel: string, title: string, slug: string, message: string | undefined) => void;
+  onPinChange?: (agentId: string, channel: string) => void;
   onNotifyUser?: (agentId: string, threadId: string, channel: string, message: string) => void;
 }
 
@@ -142,6 +143,8 @@ If you need to notify the user about something important (questions, updates, co
               tasks: createTasksMcpServer(agentId, Config.workspaceDir),
               notes: createNotesMcpServer(agentDir, (title, slug, message) => {
                 callbacks?.onShareNote?.(agentId, threadId, manifest.channel, title, slug, message);
+              }, () => {
+                callbacks?.onPinChange?.(agentId, manifest.channel);
               }),
               ...(security !== "sandbox" ? { self: createSelfManagementMcpServer(agentDir) } : {}),
               ...(security !== "sandbox" ? {
