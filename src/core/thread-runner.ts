@@ -14,6 +14,7 @@ import { createNotifyUserMcpServer } from "./notify-user.js";
 import { createTranscriptionMcpServer } from "./transcription/index.js";
 import { appendUsage, createUsageMcpServer } from "./usage.js";
 import { createTasksMcpServer, getTask, buildTaskContext } from "#tasks/index.js";
+import { createNotesMcpServer } from "#notes/index.js";
 import {
   threadPath,
   loadManifest,
@@ -138,6 +139,7 @@ If you need to notify the user about something important (questions, updates, co
             mcpServers: {
               memory: createMemoryMcpServer(),
               tasks: createTasksMcpServer(agentId, Config.workspaceDir),
+              notes: createNotesMcpServer(agentDir),
               ...(security !== "sandbox" ? { self: createSelfManagementMcpServer(agentDir) } : {}),
               ...(security !== "sandbox" ? {
                 "file-send": createFileSendMcpServer(agentDir, directories, (filePath, caption, fileType) => {
