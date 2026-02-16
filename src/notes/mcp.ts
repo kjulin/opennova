@@ -6,7 +6,9 @@ import {
 } from "@anthropic-ai/claude-agent-sdk";
 import { slugify, listNotes, readNote, writeNote, deleteNote, noteExists } from "./storage.js";
 
-export function createNotesMcpServer(agentDir: string): McpSdkServerConfigWithInstance {
+export type OnShareNoteCallback = (title: string, slug: string, message: string | undefined) => void;
+
+export function createNotesMcpServer(agentDir: string, onShareNote?: OnShareNoteCallback): McpSdkServerConfigWithInstance {
   return createSdkMcpServer({
     name: "notes",
     tools: [
@@ -115,6 +117,30 @@ export function createNotesMcpServer(agentDir: string): McpSdkServerConfigWithIn
           }
           return {
             content: [{ type: "text" as const, text: `Deleted note: ${args.title}` }],
+          };
+        },
+      ),
+
+      tool(
+        "share_note",
+        "Share a note with the user — sends them a link to open and edit it. Use after saving or updating a note you want them to review.",
+        {
+          title: z.string().describe("Note title"),
+          message: z.string().optional().describe("Optional message to accompany the note link"),
+        },
+        async (args) => {
+          const slug = slugify(args.title);
+          if (!noteExists(agentDir, slug)) {
+            return {
+              content: [{ type: "text" as const, text: `Note not found: ${args.title}` }],
+              isError: true,
+            };
+          }
+          if (onShareNote) {
+            onShareNote(args.title, slug, args.message);
+          }
+          return {
+            content: [{ type: "text" as const, text: `Shared note: ${args.title}` }],
           };
         },
       ),

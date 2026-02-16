@@ -49,6 +49,9 @@ export async function runThread(
           });
         }
       },
+      onShareNote(agentId, threadId, channel, title, slug, message) {
+        bus.emit("thread:note", { agentId, threadId, channel, title, slug, ...(message !== undefined ? { message } : {}) });
+      },
       onNotifyUser(agentId, threadId, channel, text) {
         // Always emit notify_user messages, even in silent mode
         bus.emit("thread:response", { agentId, threadId, channel, text });

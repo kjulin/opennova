@@ -13,7 +13,8 @@ import {
 import { bus } from "../events.js";
 import { runThread } from "../runner.js";
 import { createTriggerMcpServer } from "../triggers.js";
-import { relativeTime } from "./telegram.js";
+import { listNotes } from "#notes/index.js";
+import { relativeTime, getWebAppHost, HTTPS_PORT } from "./telegram.js";
 import { log } from "../logger.js";
 
 function resolveThreadId(config: AgentBotConfig, agentDir: string, channel: string): string {
@@ -88,6 +89,7 @@ export function startAgentTelegram(
 
   bot.api.setMyCommands([
     { command: "threads", description: "List conversation threads" },
+    { command: "notes", description: "Browse agent notes" },
     { command: "stop", description: "Stop the running agent" },
     { command: "new", description: "Start a fresh conversation thread" },
     { command: "help", description: "Show help message" },
@@ -144,6 +146,22 @@ export function startAgentTelegram(
     }
   });
 
+  bus.on("thread:note", (payload) => {
+    if (payload.channel !== channel) return;
+    const chatId = Number(botConfig.chatId);
+    const host = getWebAppHost();
+    if (!host) return;
+
+    const text = payload.message ?? `📝 ${payload.title}`;
+    const keyboard = new InlineKeyboard().webApp(
+      "Open note",
+      `https://${host}:${HTTPS_PORT}/web/tasklist/#/note/${agentId}/${payload.slug}`,
+    );
+    bot.api.sendMessage(chatId, text, { reply_markup: keyboard }).catch((err) => {
+      log.error("telegram-agent", `agent ${agentId}: failed to deliver thread:note:`, err);
+    });
+  });
+
   bot.on("message:text", async (ctx) => {
     const chatId = ctx.chat.id;
     const text = ctx.message.text;
@@ -184,6 +202,28 @@ export function startAgentTelegram(
         keyboard.text(`${active}${title} \u00b7 ${time}`, `thread:${t.id}`).row();
       }
       await ctx.reply("*Threads:*", { parse_mode: "Markdown", reply_markup: keyboard });
+      return;
+    }
+
+    if (text === "/notes") {
+      const host = getWebAppHost();
+      if (!host) {
+        await ctx.reply("Notes requires HTTPS. Run `nova tailscale setup` first.");
+        return;
+      }
+      const notes = listNotes(agentDir);
+      if (notes.length === 0) {
+        await ctx.reply("No notes yet.");
+        return;
+      }
+      const keyboard = new InlineKeyboard();
+      for (const note of notes) {
+        keyboard.webApp(
+          note.title,
+          `https://${host}:${HTTPS_PORT}/web/tasklist/#/note/${agentId}/${note.slug}`,
+        ).row();
+      }
+      await ctx.reply("*Notes:*", { parse_mode: "Markdown", reply_markup: keyboard });
       return;
     }
 
