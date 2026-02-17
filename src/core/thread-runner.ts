@@ -235,7 +235,9 @@ If you need to notify the user about something important (questions, updates, co
       log.info("thread-runner", `thread ${threadId} for agent ${agentId} completed (${responseText.length} chars)`);
 
       // Fire-and-forget: embed the user message and assistant response
-      if (isModelAvailable()) {
+      if (!isModelAvailable()) {
+        log.debug("episodic", `skipping embedding for ${threadId} — model not available (run 'nova init')`);
+      } else {
         const msgMessages = loadMessages(filePath);
         const userAssistantMessages = msgMessages.filter((m) => m.role === "user" || m.role === "assistant");
         const messageCount = userAssistantMessages.length;
@@ -257,6 +259,7 @@ If you need to notify the user about something important (questions, updates, co
               embedding,
               timestamp: lastUser.timestamp,
             });
+            log.debug("episodic", `embedded user message in ${threadId} for ${agentId} (idx=${lastUserIdx})`);
           }).catch((err) => {
             log.warn("episodic", `embedding failed for user message in ${threadId}:`, (err as Error).message);
           });
@@ -272,6 +275,7 @@ If you need to notify the user about something important (questions, updates, co
               embedding,
               timestamp: lastAssistant.timestamp,
             });
+            log.debug("episodic", `embedded assistant message in ${threadId} for ${agentId} (idx=${lastAssistantIdx})`);
           }).catch((err) => {
             log.warn("episodic", `embedding failed for assistant message in ${threadId}:`, (err as Error).message);
           });
