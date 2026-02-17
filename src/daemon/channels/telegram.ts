@@ -60,7 +60,7 @@ function resolveThreadId(config: TelegramConfig, agentDir: string): string {
   }
   // Fall back to most recent telegram thread for this agent
   const threads = listThreads(agentDir)
-    .filter((t) => t.manifest.channel === "telegram")
+    .filter((t) => t.manifest.channel === "telegram" && !t.manifest.taskId)
     .sort((a, b) => b.manifest.updatedAt.localeCompare(a.manifest.updatedAt));
   const id = threads.length > 0 ? threads[0]!.id : createThread(agentDir, "telegram");
   config.activeThreadId = id;
@@ -319,7 +319,7 @@ export function startTelegram() {
     if (text === "/threads") {
       const agentDir = path.join(Config.workspaceDir, "agents", config.activeAgentId);
       const threads = listThreads(agentDir)
-        .filter((t) => t.manifest.channel === "telegram")
+        .filter((t) => t.manifest.channel === "telegram" && !t.manifest.taskId)
         .sort((a, b) => b.manifest.updatedAt.localeCompare(a.manifest.updatedAt))
         .slice(0, 10);
 
