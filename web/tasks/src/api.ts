@@ -83,6 +83,13 @@ export async function cancelTask(id: string): Promise<Task> {
   return res.json();
 }
 
+export async function runTask(id: string): Promise<void> {
+  const res = await fetch(`${API_BASE}/tasks/${id}/run`, {
+    method: "POST",
+  });
+  if (!res.ok) throw new Error("Failed to run task");
+}
+
 export interface CreateTaskInput {
   title: string;
   description?: string;

@@ -7,6 +7,7 @@ interface TaskListProps {
   getOwnerName: (id: string) => string;
   onComplete: (id: string) => void;
   onCancel: (id: string) => void;
+  onRunNow: (id: string) => void;
   onChat: (task: Task) => void;
   onDeliverFile: (task: Task, resource: Resource) => void;
 }
@@ -17,6 +18,7 @@ export function TaskList({
   getOwnerName,
   onComplete,
   onCancel,
+  onRunNow,
   onChat,
   onDeliverFile,
 }: TaskListProps) {
@@ -41,6 +43,7 @@ export function TaskList({
                 ownerName={getOwnerName(task.owner)}
                 onComplete={onComplete}
                 onCancel={onCancel}
+                onRunNow={onRunNow}
                 onChat={onChat}
                 onDeliverFile={onDeliverFile}
               />
@@ -65,6 +68,7 @@ export function TaskList({
                 ownerName={getOwnerName(task.owner)}
                 onComplete={onComplete}
                 onCancel={onCancel}
+                onRunNow={onRunNow}
                 onChat={onChat}
                 onDeliverFile={onDeliverFile}
               />
