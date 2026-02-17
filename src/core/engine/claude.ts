@@ -42,8 +42,6 @@ function friendlyToolStatus(toolName: string, input: Record<string, unknown>): s
       const msg = input.message ? `: ${String(input.message).slice(0, 80)}` : "";
       return input.agent ? `Asking ${input.agent}${msg}…` : "Asking another agent…";
     }
-    case "mcp__usage__get_usage_stats":
-      return input.period ? `Checking ${input.period}'s usage…` : "Checking usage stats…";
     case "mcp__suggest-edit__suggest_edit":
       return input.file ? `Suggesting edit to ${shortPath(String(input.file))}…` : "Suggesting an edit…";
     default:
@@ -184,6 +182,7 @@ async function execQuery(
           inputTokens: usage.input_tokens ?? 0,
           outputTokens: usage.output_tokens ?? 0,
           cacheReadTokens: usage.cache_read_input_tokens ?? 0,
+          costUsd: event.total_cost_usd ?? 0,
           durationMs: event.duration_ms,
           turns: event.num_turns,
         };

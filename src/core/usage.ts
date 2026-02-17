@@ -1,12 +1,6 @@
 import fs from "fs";
 import os from "os";
 import path from "path";
-import { z } from "zod/v4";
-import {
-  createSdkMcpServer,
-  tool,
-  type McpSdkServerConfigWithInstance,
-} from "@anthropic-ai/claude-agent-sdk";
 import { Config } from "./config.js";
 
 // Claude Code stats types
@@ -73,6 +67,7 @@ export interface UsageRecord {
   inputTokens: number;
   outputTokens: number;
   cacheReadTokens: number;
+  costUsd?: number;
   durationMs: number;
   turns: number;
 }
@@ -307,31 +302,4 @@ export function getClaudeCodeStats(period: "today" | "week" | "month"): ClaudeCo
       firstSessionDate: stats.firstSessionDate,
     },
   };
-}
-
-export function createUsageMcpServer(): McpSdkServerConfigWithInstance {
-  return createSdkMcpServer({
-    name: "usage",
-    tools: [
-      tool(
-        "get_usage_stats",
-        "Get usage statistics for the Nova workspace. Returns total activity and per-agent breakdown for the specified time period.",
-        {
-          period: z
-            .enum(["today", "week", "month"])
-            .optional()
-            .default("week")
-            .describe("Time period to query"),
-        },
-        async (args) => {
-          const stats = getUsageStats(args.period);
-          return {
-            content: [
-              { type: "text" as const, text: JSON.stringify(stats, null, 2) },
-            ],
-          };
-        },
-      ),
-    ],
-  });
 }

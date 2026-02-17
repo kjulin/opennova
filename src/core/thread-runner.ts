@@ -14,7 +14,7 @@ import { createFileSendMcpServer, type FileType } from "./file-send.js";
 import { createNotifyUserMcpServer } from "./notify-user.js";
 import { resolveCapabilities, capabilityToolPatterns } from "./capabilities.js";
 import { createTranscriptionMcpServer } from "./transcription/index.js";
-import { appendUsage, createUsageMcpServer } from "./usage.js";
+import { appendUsage } from "./usage.js";
 import { createEpisodicMcpServer, generateEmbedding, appendEmbedding, isModelAvailable } from "./episodic/index.js";
 import { createTasksMcpServer, getTask, buildTaskContext } from "#tasks/index.js";
 import { createNotesMcpServer } from "#notes/index.js";
@@ -172,7 +172,7 @@ If you need to notify the user about something important (questions, updates, co
               ...extraMcpServers,
               ...resolveCapabilities(agent.capabilities),
               ...(agentId === "agent-builder" ? { agents: createAgentManagementMcpServer() } : {}),
-              ...(agentId === "nova" ? { usage: createUsageMcpServer() } : {}),
+
               ...(agent.allowedAgents && security !== "sandbox" ? { "ask-agent": createAskAgentMcpServer(agent, askAgentDepth ?? 0, runThreadForAskAgent) } : {}),
               ...(overrides?.silent ? {
                 "notify-user": createNotifyUserMcpServer((message) => {

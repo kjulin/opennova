@@ -21,6 +21,7 @@ export interface EngineResult {
     inputTokens: number;
     outputTokens: number;
     cacheReadTokens: number;
+    costUsd: number;
     durationMs: number;
     turns: number;
   } | undefined;
