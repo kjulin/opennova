@@ -7,6 +7,7 @@ interface TaskItemProps {
   ownerName: string;
   onComplete: (id: string) => void;
   onCancel: (id: string) => void;
+  onRunNow: (id: string) => void;
   onChat: (task: Task) => void;
   onDeliverFile: (task: Task, resource: Resource) => void;
 }
@@ -17,6 +18,7 @@ export function TaskItem({
   ownerName,
   onComplete,
   onCancel,
+  onRunNow,
   onChat,
   onDeliverFile,
 }: TaskItemProps) {
@@ -155,6 +157,18 @@ export function TaskItem({
           )}
 
           <div className="flex flex-wrap justify-end gap-2 pt-2">
+            {task.owner !== "user" && !isInFlight && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onRunNow(task.id);
+                }}
+                className="rounded-lg px-3 py-1.5 text-xs text-purple-400 hover:text-purple-300 hover:bg-purple-500/10 transition-colors"
+              >
+                Work now
+              </button>
+            )}
+
             {task.threadId && (
               <button
                 onClick={(e) => {

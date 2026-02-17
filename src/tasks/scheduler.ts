@@ -2,13 +2,48 @@ import path from "path";
 import cron from "node-cron";
 import { Config } from "#core/config.js";
 import { createThread } from "#core/threads.js";
-import { loadTasks, updateTask } from "./storage.js";
+import { getTask, loadTasks, updateTask } from "./storage.js";
 import { TASK_WORK_PROMPT } from "./prompts.js";
 import { runThread } from "#daemon/runner.js";
 import { log } from "#daemon/logger.js";
 
 // Track in-flight task invocations to avoid double-invoking
 const inFlightTasks = new Set<string>();
+
+async function invokeTask(workspaceDir: string, taskId: string, owner: string, title: string, threadId: string) {
+  inFlightTasks.add(taskId);
+  log.info("tasks", `invoking agent ${owner} for task ${taskId} (${title})`);
+
+  try {
+    const agentDir = path.join(workspaceDir, "agents", owner);
+    await runThread(agentDir, threadId, TASK_WORK_PROMPT, undefined, undefined, undefined, undefined, { silent: true });
+    log.info("tasks", `task ${taskId} invocation completed`);
+  } catch (err) {
+    log.error("tasks", `task ${taskId} invocation failed:`, err);
+  } finally {
+    inFlightTasks.delete(taskId);
+  }
+}
+
+/** Run a single task immediately. Returns an error string or null on success. */
+export function runTaskNow(workspaceDir: string, taskId: string): string | null {
+  const task = getTask(workspaceDir, taskId);
+  if (!task) return "task not found";
+  if (task.owner === "user") return "user-owned task";
+  if (inFlightTasks.has(taskId)) return "already running";
+
+  let threadId = task.threadId;
+  if (!threadId) {
+    log.warn("tasks", `task ${taskId} has no thread, creating one`);
+    const agentDir = path.join(workspaceDir, "agents", task.owner);
+    threadId = createThread(agentDir, "telegram", { taskId });
+    updateTask(workspaceDir, taskId, { threadId });
+  }
+
+  // Fire and forget — caller gets immediate response
+  invokeTask(workspaceDir, taskId, task.owner, task.title, threadId);
+  return null;
+}
 
 export function startTaskScheduler() {
   const workspaceDir = Config.workspaceDir;
@@ -30,24 +65,13 @@ export function startTaskScheduler() {
       const agentDir = path.join(workspaceDir, "agents", task.owner);
       let threadId = task.threadId;
 
-      // Create thread if missing (shouldn't happen, but recover gracefully)
       if (!threadId) {
         log.warn("tasks", `task ${task.id} has no thread, creating one`);
         threadId = createThread(agentDir, "telegram", { taskId: task.id });
         updateTask(workspaceDir, task.id, { threadId });
       }
 
-      inFlightTasks.add(task.id);
-      log.info("tasks", `invoking agent ${task.owner} for task ${task.id} (${task.title})`);
-
-      try {
-        await runThread(agentDir, threadId, TASK_WORK_PROMPT, undefined, undefined, undefined, undefined, { silent: true });
-        log.info("tasks", `task ${task.id} invocation completed`);
-      } catch (err) {
-        log.error("tasks", `task ${task.id} invocation failed:`, err);
-      } finally {
-        inFlightTasks.delete(task.id);
-      }
+      await invokeTask(workspaceDir, task.id, task.owner, task.title, threadId);
     }
   }
 

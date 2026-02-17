@@ -15,6 +15,7 @@ import {
   cancelTask,
   loadHistory,
   isTaskInFlight,
+  runTaskNow,
 } from "#tasks/index.js";
 import { createThread } from "#core/threads.js";
 import { createNotesRouter } from "#notes/index.js";
@@ -207,6 +208,14 @@ export function startHttpsServer(workspaceDir: string): HttpsServer | null {
       return c.json({ error: "Task not found" }, 404);
     }
     return c.json(task);
+  });
+
+  app.post("/api/tasks/:id/run", (c) => {
+    const id = c.req.param("id");
+    const err = runTaskNow(workspaceDir, id);
+    if (err === "task not found") return c.json({ error: err }, 404);
+    if (err) return c.json({ error: err }, 409);
+    return c.json({ ok: true });
   });
 
   app.get("/api/agents", (c) => {

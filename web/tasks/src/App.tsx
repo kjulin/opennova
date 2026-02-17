@@ -5,6 +5,7 @@ import {
   createTask,
   completeTask,
   cancelTask,
+  runTask,
   type Task,
   type Resource,
   type ArchivedTask,
@@ -109,6 +110,15 @@ export default function App() {
   const handleCancel = async (id: string) => {
     try {
       await cancelTask(id);
+      await loadTasks();
+    } catch (err) {
+      setError((err as Error).message);
+    }
+  };
+
+  const handleRunNow = async (id: string) => {
+    try {
+      await runTask(id);
       await loadTasks();
     } catch (err) {
       setError((err as Error).message);
@@ -236,6 +246,7 @@ export default function App() {
               getOwnerName={getOwnerName}
               onComplete={handleComplete}
               onCancel={handleCancel}
+              onRunNow={handleRunNow}
               onChat={handleChat}
               onDeliverFile={handleDeliverFile}
             />
