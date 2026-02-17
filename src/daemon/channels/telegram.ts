@@ -20,7 +20,7 @@ import {
 import { bus } from "../events.js";
 import { runThread } from "../runner.js";
 import { createTriggerMcpServer } from "../triggers.js";
-import { getTask } from "#tasks/index.js";
+import { getTask, loadTasks } from "#tasks/index.js";
 import { listNotes, getPinnedNotes } from "#notes/index.js";
 import { TELEGRAM_HELP_MESSAGE } from "./telegram-help.js";
 import { log } from "../logger.js";
@@ -147,9 +147,10 @@ export function startTelegram() {
   bot.api.setMyCommands([
     { command: "agent", description: "Select an agent" },
     { command: "threads", description: "List conversation threads" },
+    { command: "tasks", description: "List tasks" },
     { command: "notes", description: "Browse agent notes" },
     { command: "stop", description: "Stop the running agent" },
-    { command: "new", description: "Start a fresh conversation thread" },
+    { command: "new", description: "Start a fresh conversation" },
     { command: "help", description: "Show help message" },
   ]).catch((err) => {
     log.warn("telegram", "failed to register commands:", err);
@@ -336,6 +337,21 @@ export function startTelegram() {
         keyboard.text(`${active}${title} \u00b7 ${time}`, `thread:${t.id}`).row();
       }
       await ctx.reply("*Threads:*", { parse_mode: "Markdown", reply_markup: keyboard });
+      return;
+    }
+
+    // Handle /tasks command
+    if (text === "/tasks") {
+      const tasks = loadTasks(Config.workspaceDir);
+      if (tasks.length === 0) {
+        await ctx.reply("No active tasks.");
+        return;
+      }
+      const keyboard = new InlineKeyboard();
+      for (const t of tasks) {
+        keyboard.text(`#${t.id} ${t.title}`, `task:${t.id}`).row();
+      }
+      await ctx.reply("*Tasks:*", { parse_mode: "Markdown", reply_markup: keyboard });
       return;
     }
 
@@ -814,6 +830,23 @@ You can read, process, or move this file as needed.`;
         await ctx.answerCallbackQuery({ text: "Thread not found" });
         return;
       }
+      await ctx.answerCallbackQuery();
+      return;
+    }
+
+    if (data.startsWith("task:")) {
+      const taskId = data.slice("task:".length);
+      const task = getTask(Config.workspaceDir, taskId);
+      if (!task || !task.threadId) {
+        await ctx.answerCallbackQuery({ text: "Task or thread not found" });
+        return;
+      }
+      if (task.owner !== "user" && task.owner !== config.activeAgentId) {
+        switchAgent(config, task.owner);
+      }
+      config.activeThreadId = task.threadId;
+      saveTelegramConfig(config);
+      await ctx.editMessageText(`Switched to task *#${task.id}*: ${task.title}`, { parse_mode: "Markdown" });
       await ctx.answerCallbackQuery();
       return;
     }

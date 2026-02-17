@@ -10,5 +10,6 @@ Nova comes with multiple agents you can switch between with /agent <name>.
 /threads — list and switch conversation threads
 /new — start a fresh conversation thread
 /agent — select an agent
+/tasks — list and switch to task threads
 /stop — stop the running agent
 /help — show this message`;
