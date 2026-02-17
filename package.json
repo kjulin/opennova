@@ -19,7 +19,7 @@
     "#notes/*": "./dist/notes/*"
   },
   "scripts": {
-    "dev": "tsx watch src/daemon/cli.ts daemon",
+    "dev": "tsx src/daemon/cli.ts daemon",
     "build": "tsc && npm run build:webapp",
     "build:webapp": "cd web/tasks && npm install --ignore-scripts && npm run build && mkdir -p ../../dist/webapp && cp -r dist/* ../../dist/webapp/",
     "start": "node dist/daemon/index.js",
@@ -64,6 +64,7 @@
     "hono": "^4.11.9",
     "ink": "^6.6.0",
     "node-cron": "^4.2.1",
+    "onnxruntime-node": "^1.21.0",
     "react": "^19.2.4",
     "zod": "^4.3.6"
   }

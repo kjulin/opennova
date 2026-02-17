@@ -128,6 +128,26 @@ export {
   type ClaudeCodePeriodStats,
 } from "./usage.js";
 
+// Episodic Memory
+export {
+  generateEmbedding,
+  cosineSimilarity,
+  isModelAvailable,
+  downloadEmbeddingModel,
+  loadEmbeddings,
+  appendEmbedding,
+  rewriteEmbeddings,
+  EmbeddingRecordSchema,
+  searchThreads,
+  backfillAgent,
+  createEpisodicMcpServer,
+  logSearch,
+  type EmbeddingRecord,
+  type SearchResult,
+  type SearchResultMessage,
+  type SearchAnalytics,
+} from "./episodic/index.js";
+
 // Transcription
 export {
   transcribe,

@@ -14,6 +14,7 @@ import { createFileSendMcpServer, type FileType } from "./file-send.js";
 import { createNotifyUserMcpServer } from "./notify-user.js";
 import { createTranscriptionMcpServer } from "./transcription/index.js";
 import { appendUsage, createUsageMcpServer } from "./usage.js";
+import { createEpisodicMcpServer, generateEmbedding, appendEmbedding, isModelAvailable } from "./episodic/index.js";
 import { createTasksMcpServer, getTask, buildTaskContext } from "#tasks/index.js";
 import { createNotesMcpServer } from "#notes/index.js";
 import {
@@ -151,6 +152,7 @@ If you need to notify the user about something important (questions, updates, co
             ...(agent.subagents ? { agents: agent.subagents } : {}),
             mcpServers: {
               memory: createMemoryMcpServer(),
+              episodic: createEpisodicMcpServer(agentDir, agentId, threadId),
               tasks: createTasksMcpServer(agentId, Config.workspaceDir),
               notes: createNotesMcpServer(agentDir, (title, slug, message) => {
                 callbacks?.onShareNote?.(agentId, threadId, manifest.channel, title, slug, message);
@@ -231,6 +233,54 @@ If you need to notify the user about something important (questions, updates, co
       callbacks?.onThreadResponse?.(agentId, threadId, manifest.channel, responseText);
 
       log.info("thread-runner", `thread ${threadId} for agent ${agentId} completed (${responseText.length} chars)`);
+
+      // Fire-and-forget: embed the user message and assistant response
+      if (!isModelAvailable()) {
+        log.debug("episodic", `skipping embedding for ${threadId} — model not available (run 'nova init')`);
+      } else {
+        const msgMessages = loadMessages(filePath);
+        const userAssistantMessages = msgMessages.filter((m) => m.role === "user" || m.role === "assistant");
+        const messageCount = userAssistantMessages.length;
+
+        // Embed the last user message and assistant response
+        const lastUserIdx = messageCount - 2;
+        const lastAssistantIdx = messageCount - 1;
+
+        const lastUser = userAssistantMessages[lastUserIdx];
+        const lastAssistant = userAssistantMessages[lastAssistantIdx];
+
+        if (lastUser && lastUser.role === "user") {
+          generateEmbedding(lastUser.text).then((embedding) => {
+            appendEmbedding(agentDir, {
+              threadId,
+              messageIndex: lastUserIdx,
+              role: "user",
+              text: lastUser.text,
+              embedding,
+              timestamp: lastUser.timestamp,
+            });
+            log.debug("episodic", `embedded user message in ${threadId} for ${agentId} (idx=${lastUserIdx})`);
+          }).catch((err) => {
+            log.warn("episodic", `embedding failed for user message in ${threadId}:`, (err as Error).message);
+          });
+        }
+
+        if (lastAssistant && lastAssistant.role === "assistant") {
+          generateEmbedding(lastAssistant.text).then((embedding) => {
+            appendEmbedding(agentDir, {
+              threadId,
+              messageIndex: lastAssistantIdx,
+              role: "assistant",
+              text: lastAssistant.text,
+              embedding,
+              timestamp: lastAssistant.timestamp,
+            });
+            log.debug("episodic", `embedded assistant message in ${threadId} for ${agentId} (idx=${lastAssistantIdx})`);
+          }).catch((err) => {
+            log.warn("episodic", `embedding failed for assistant message in ${threadId}:`, (err as Error).message);
+          });
+        }
+      }
 
       if (!manifest.title) {
         const messages = loadMessages(filePath);
