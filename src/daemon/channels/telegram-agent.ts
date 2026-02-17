@@ -190,7 +190,11 @@ export function startAgentTelegram(
     if (String(chatId) !== botConfig.chatId) return;
 
     if (text === "/help" || text === "/start") {
-      await ctx.reply(`This is *${agent.name}*'s dedicated bot.\n\n/threads — list and switch threads\n/new — start a fresh thread\n/stop — stop the running agent\n/help — show this message`, { parse_mode: "Markdown" });
+      const kb = buildReplyKeyboard();
+      await ctx.reply(`This is *${agent.name}*'s dedicated bot.\n\n/threads — list and switch threads\n/new — start a fresh thread\n/stop — stop the running agent\n/help — show this message`, {
+        parse_mode: "Markdown",
+        ...(kb ? { reply_markup: kb } : {}),
+      });
       return;
     }
 
