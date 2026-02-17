@@ -21,7 +21,7 @@
   "scripts": {
     "dev": "tsx watch src/daemon/cli.ts daemon",
     "build": "tsc && npm run build:webapp",
-    "build:webapp": "cd web/tasks && npm run build && mkdir -p ../../dist/webapp && cp -r dist/* ../../dist/webapp/",
+    "build:webapp": "cd web/tasks && npm install --ignore-scripts && npm run build && mkdir -p ../../dist/webapp && cp -r dist/* ../../dist/webapp/",
     "start": "node dist/daemon/index.js",
     "test": "vitest run",
     "test:watch": "vitest",

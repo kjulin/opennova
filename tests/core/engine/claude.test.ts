@@ -93,6 +93,7 @@ describe("ClaudeEngine", () => {
     expect(mockQuery).toHaveBeenCalledWith({
       prompt: "Continue",
       options: {
+        model: "opus",
         resume: "sess-123",
         settingSources: ["project"],
       },
@@ -160,7 +161,7 @@ describe("ClaudeEngine", () => {
     expect(callbacks.onToolUse).toHaveBeenCalledWith(
       "Read",
       { file_path: "/test.txt" },
-      "Reading /test.txt…"
+      "Reading test.txt…"
     );
   });
 
@@ -225,6 +226,7 @@ describe("ClaudeEngine", () => {
         permissionMode: "dontAsk",
         allowedTools: ["Read", "Write"],
         disallowedTools: ["Bash"],
+        model: "opus",
         settingSources: ["project"],
       },
     });

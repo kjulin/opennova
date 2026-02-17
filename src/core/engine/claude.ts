@@ -1,7 +1,13 @@
+import crypto from "node:crypto";
 import path from "path";
 import {query, type SettingSource} from "@anthropic-ai/claude-agent-sdk";
 import { log } from "../logger.js";
 import type { Engine, EngineOptions, EngineResult, EngineCallbacks } from "./types.js";
+
+/** Generate a short random run ID for log correlation */
+function runId(): string {
+  return crypto.randomBytes(3).toString("hex"); // 6 hex chars
+}
 
 /** Shorten a file path to parent/filename for display */
 function shortPath(filePath: string): string {
@@ -52,7 +58,8 @@ async function execQuery(
   callbacks: EngineCallbacks | undefined,
   abortController: AbortController | undefined,
 ): Promise<EngineResult> {
-  log.info("engine", `running${sessionId ? ` (session: ${sessionId})` : ""}`);
+  const tag = `engine:${runId()}`;
+  log.info(tag, `running${sessionId ? ` (session: ${sessionId})` : ""}`);
 
   const queryOptions = {
     ...(options.cwd ? { cwd: options.cwd } : {}),
@@ -73,7 +80,7 @@ async function execQuery(
 
   // Log options without mcpServers (may contain circular refs) and systemPrompt (too verbose)
   const { mcpServers, systemPrompt, ...loggableOptions } = queryOptions as Record<string, unknown>;
-  log.debug("engine", "options", JSON.stringify({
+  log.debug(tag, "options", JSON.stringify({
     ...loggableOptions,
     ...(systemPrompt ? { systemPrompt: "[omitted]" } : {}),
     ...(mcpServers ? { mcpServers: Object.keys(mcpServers as object) } : {}),
@@ -96,13 +103,13 @@ async function execQuery(
   let thinkingTimeout: ReturnType<typeof setTimeout> | null = null;
 
   for await (const event of result) {
-    log.debug("engine", `event: ${event.type}${("subtype" in event && event.subtype) ? `:${event.subtype}` : ""}`);
+    log.debug(tag, `event: ${event.type}${("subtype" in event && event.subtype) ? `:${event.subtype}` : ""}`);
 
     // Log model info from init event
     if (event.type === "system" && "subtype" in event && event.subtype === "init") {
       const initEvent = event as { model?: string };
       if (initEvent.model) {
-        log.info("engine", `model: ${initEvent.model}`);
+        log.info(tag, `model: ${initEvent.model}`);
       }
     }
 
@@ -121,7 +128,14 @@ async function execQuery(
       resultSessionId = event.message.session_id;
       const hasToolUse = event.message.content.some((b: { type: string }) => b.type === "tool_use");
       for (const block of event.message.content) {
-        log.debug("engine", `block: ${block.type}${"name" in block ? ` (${block.name})` : ""}`);
+        if (block.type === "text") {
+          log.debug(tag, `block: text — ${block.text.slice(0, 200)}`);
+        } else if (block.type === "tool_use") {
+          const inputStr = JSON.stringify(block.input);
+          log.debug(tag, `block: tool_use (${block.name}) — ${inputStr.slice(0, 300)}`);
+        } else {
+          log.debug(tag, `block: ${block.type}`);
+        }
         if (block.type === "text" && block.text.trim()) {
           // Only show as status if this message also contains tool calls (i.e. narration before tools).
           // Pure text messages are the final response — skip status to avoid duplication.
@@ -140,10 +154,10 @@ async function execQuery(
       const denials = (event as { permission_denials?: { tool_name: string }[] }).permission_denials ?? [];
       if (denials.length > 0) {
         for (const d of denials) {
-          log.warn("engine", `permission denied: ${d.tool_name}`);
+          log.warn(tag, `permission denied: ${d.tool_name}`);
         }
       }
-      log.info("engine", `done — session: ${resultSessionId}, cost: $${event.total_cost_usd}, duration: ${event.duration_ms}ms, turns: ${event.num_turns}${denials.length > 0 ? `, denials: ${denials.length}` : ""}`);
+      log.info(tag, `done — session: ${resultSessionId}, cost: $${event.total_cost_usd}, duration: ${event.duration_ms}ms, turns: ${event.num_turns}${denials.length > 0 ? `, denials: ${denials.length}` : ""}`);
 
       // Capture usage metrics
       const usage = (event as { usage?: { input_tokens?: number; output_tokens?: number; cache_read_input_tokens?: number } }).usage;
@@ -157,14 +171,14 @@ async function execQuery(
         };
       }
     } else if (event.type === "tool_use_summary") {
-      log.debug("engine", `summary: ${event.summary}`);
+      log.debug(tag, `summary: ${event.summary}`);
       callbacks?.onToolUseSummary?.(event.summary);
     } else if (event.type === "result" && (event.subtype === "error_during_execution" || event.subtype === "error_max_turns")) {
       const denials = (event as { permission_denials?: { tool_name: string }[] }).permission_denials ?? [];
       for (const d of denials) {
-        log.warn("engine", `permission denied: ${d.tool_name}`);
+        log.warn(tag, `permission denied: ${d.tool_name}`);
       }
-      log.error("engine", `${event.subtype}:`, "error" in event ? (event as { error: string }).error : "unknown error");
+      log.error(tag, `${event.subtype}:`, "error" in event ? (event as { error: string }).error : "unknown error");
     }
   }
 
@@ -174,7 +188,7 @@ async function execQuery(
   }
 
   if (abortController?.signal.aborted) {
-    log.info("engine", "aborted by caller");
+    log.info(tag, "aborted by caller");
     return { text: "", sessionId: resultSessionId, usage: resultUsage };
   }
 
