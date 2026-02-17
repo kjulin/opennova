@@ -23,7 +23,7 @@ function resolveThreadId(config: AgentBotConfig, agentDir: string, channel: stri
     if (fs.existsSync(file)) return config.activeThreadId;
   }
   const threads = listThreads(agentDir)
-    .filter((t) => t.manifest.channel === channel)
+    .filter((t) => t.manifest.channel === channel && !t.manifest.taskId)
     .sort((a, b) => b.manifest.updatedAt.localeCompare(a.manifest.updatedAt));
   const id = threads.length > 0 ? threads[0]!.id : createThread(agentDir, channel);
   config.activeThreadId = id;
@@ -210,7 +210,7 @@ export function startAgentTelegram(
 
     if (text === "/threads") {
       const threads = listThreads(agentDir)
-        .filter((t) => t.manifest.channel === channel)
+        .filter((t) => t.manifest.channel === channel && !t.manifest.taskId)
         .sort((a, b) => b.manifest.updatedAt.localeCompare(a.manifest.updatedAt))
         .slice(0, 10);
 
