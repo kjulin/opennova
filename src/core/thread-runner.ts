@@ -7,6 +7,7 @@ import { loadAgents, getAgentCwd, getAgentDirectories, resolveSecurityLevel } fr
 import { Config } from "./config.js";
 import { buildSystemPrompt } from "./prompts/index.js";
 import { createMemoryMcpServer } from "./memory.js";
+import { createSecretsMcpServer } from "./secrets.js";
 import { createAgentManagementMcpServer, createSelfManagementMcpServer } from "./agent-management.js";
 import { createAskAgentMcpServer } from "./ask-agent.js";
 import { createFileSendMcpServer, type FileType } from "./file-send.js";
@@ -152,6 +153,7 @@ If you need to notify the user about something important (questions, updates, co
                   callbacks?.onFileSend?.(agentId, threadId, manifest.channel, filePath, caption, fileType);
                 }),
                 transcription: createTranscriptionMcpServer(agentDir, directories),
+                secrets: createSecretsMcpServer(Config.workspaceDir),
               } : {}),
               ...extraMcpServers,
               ...(agentId === "agent-builder" ? { agents: createAgentManagementMcpServer() } : {}),
