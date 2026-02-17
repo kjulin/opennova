@@ -21,6 +21,43 @@ export interface ThreadMessage {
   timestamp: string;
 }
 
+export interface ThreadMessageEvent {
+  type: "message";
+  role: "user" | "assistant";
+  text: string;
+  timestamp: string;
+}
+
+export interface ThreadToolUseEvent {
+  type: "tool_use";
+  name: string;
+  input: Record<string, unknown>;
+  timestamp: string;
+}
+
+export interface ThreadAssistantTextEvent {
+  type: "assistant_text";
+  text: string;
+  timestamp: string;
+}
+
+export interface ThreadResultEvent {
+  type: "result";
+  cost?: number;
+  durationMs?: number;
+  turns?: number;
+  inputTokens?: number;
+  outputTokens?: number;
+  cacheReadTokens?: number;
+  timestamp: string;
+}
+
+export type ThreadEvent =
+  | ThreadMessageEvent
+  | ThreadToolUseEvent
+  | ThreadAssistantTextEvent
+  | ThreadResultEvent;
+
 export interface ThreadInfo {
   id: string;
   agentId: string;
@@ -102,7 +139,9 @@ export function loadMessages(filePath: string): ThreadMessage[] {
   for (const line of lines) {
     if (!line.trim()) continue;
     try {
-      messages.push(JSON.parse(line));
+      const parsed = JSON.parse(line);
+      if (parsed.type && parsed.type !== "message") continue;
+      messages.push(parsed);
     } catch {
       // skip corrupt lines
     }
@@ -142,6 +181,30 @@ export function findThread(workspaceDir: string, threadId: string): ThreadManife
 
 export function appendMessage(filePath: string, msg: ThreadMessage): void {
   fs.appendFileSync(filePath, JSON.stringify(msg) + "\n");
+}
+
+export function appendEvent(filePath: string, event: ThreadEvent): void {
+  fs.appendFileSync(filePath, JSON.stringify(event) + "\n");
+}
+
+export function loadEvents(filePath: string): ThreadEvent[] {
+  const content = fs.readFileSync(filePath, "utf-8");
+  const lines = content.split("\n").slice(1); // skip manifest line
+  const events: ThreadEvent[] = [];
+  for (const line of lines) {
+    if (!line.trim()) continue;
+    try {
+      const parsed = JSON.parse(line);
+      if (parsed.type) {
+        events.push(parsed);
+      } else {
+        events.push({ type: "message", ...parsed });
+      }
+    } catch {
+      // skip corrupt lines
+    }
+  }
+  return events;
 }
 
 // Per-thread promise queue to serialize concurrent writes

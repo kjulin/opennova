@@ -2,7 +2,7 @@ import path from "path";
 import type { McpServerConfig } from "@anthropic-ai/claude-agent-sdk";
 import { runtime as defaultRuntime, type Runtime } from "./runtime.js";
 import type { Model } from "./models.js";
-import { generateThreadTitle, type EngineCallbacks } from "./engine/index.js";
+import { generateThreadTitle, type EngineCallbacks, type EngineEvent } from "./engine/index.js";
 import { loadAgents, getAgentCwd, getAgentDirectories, resolveSecurityLevel } from "./agents.js";
 import { Config } from "./config.js";
 import { buildSystemPrompt } from "./prompts/index.js";
@@ -22,6 +22,7 @@ import {
   saveManifest,
   loadMessages,
   appendMessage,
+  appendEvent,
   withThreadLock,
 } from "./threads.js";
 import { log } from "./logger.js";
@@ -130,6 +131,15 @@ If you need to notify the user about something important (questions, updates, co
         const systemPrompt = overrides?.systemPromptSuffix
           ? `${baseSystemPrompt}${silentPrompt}\n\n${overrides.systemPromptSuffix}`
           : `${baseSystemPrompt}${silentPrompt}`;
+
+        const engineCallbacks: EngineCallbacks = {
+          ...callbacks,
+          onEvent: (event: EngineEvent) => {
+            appendEvent(filePath, { ...event, timestamp: new Date().toISOString() });
+            callbacks?.onEvent?.(event);
+          },
+        };
+
         result = await runtime.run(
           message,
           {
@@ -168,7 +178,7 @@ If you need to notify the user about something important (questions, updates, co
           },
           security,
           manifest.sessionId,
-          callbacks,
+          engineCallbacks,
           abortController,
         );
       } catch (err) {
