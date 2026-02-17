@@ -55,6 +55,11 @@ switch (command) {
     await run();
     break;
   }
+  case "skills": {
+    const { run } = await import("./commands/skills.js");
+    await run();
+    break;
+  }
   case "usage": {
     const { run } = await import("./commands/usage.js");
     run();
@@ -152,6 +157,10 @@ switch (command) {
     console.log("  agent <id> security <level>   Set agent security level");
     console.log("  agent <id> telegram           Set up a dedicated Telegram bot");
     console.log("  agent <id> telegram remove    Remove agent's dedicated bot");
+    console.log("  skills list [--agent <id>]                    List skills (all or per-agent)");
+    console.log("  skills link <name> --agent <id|all>           Link a Claude skill to agent(s)");
+    console.log("  skills link <name> --agent <id> --source <p>  Link a skill from a custom path");
+    console.log("  skills unlink <name> --agent <id|all>         Unlink a skill from agent(s)");
     console.log("  status                        Show workspace and configuration status");
     console.log("  usage [--today|--week|--month] Show current period usage by agent");
     console.log("  usage weekly                  Show week-by-week usage");
