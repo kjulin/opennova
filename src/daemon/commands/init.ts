@@ -5,6 +5,8 @@ import { resolveWorkspace } from "../workspace.js";
 import { detectAuth, hasClaudeCode, storeApiKey } from "../auth.js";
 import { askRequired, pairTelegramChat } from "../telegram-pairing.js";
 import { TELEGRAM_HELP_MESSAGE } from "../channels/telegram-help.js";
+import { Config } from "#core/config.js";
+import { downloadEmbeddingModel, isModelAvailable } from "#core/episodic/index.js";
 
 export async function run() {
   const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
@@ -150,6 +152,26 @@ export async function run() {
     JSON.stringify({ defaultSecurity: securityLevel }, null, 2) + "\n",
   );
   console.log("  Saved settings.json");
+
+  // --- Embedding model ---
+  Config.workspaceDir = workspace;
+  if (!isModelAvailable()) {
+    console.log("\n-- Episodic Memory --");
+    console.log("Downloading embedding model (all-MiniLM-L6-v2, ~80MB)...");
+    try {
+      let lastPercent = 0;
+      await downloadEmbeddingModel((file, percent) => {
+        if (percent >= lastPercent + 10) {
+          process.stdout.write(`  ${file}: ${percent}%\r`);
+          lastPercent = percent;
+        }
+      });
+      console.log("  Embedding model downloaded successfully.");
+    } catch (err) {
+      console.log(`  Warning: Failed to download embedding model: ${(err as Error).message}`);
+      console.log("  Episodic memory will be unavailable until the model is downloaded.");
+    }
+  }
 
   // --- Summary ---
   console.log("\n-- Setup Complete --\n");

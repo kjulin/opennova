@@ -8,6 +8,7 @@ import { ensureAuth } from "./auth.js";
 import { Config, loadSettings } from "#core/index.js";
 import { syncSharedSkills } from "#core/skills.js";
 import { startTaskScheduler } from "#tasks/index.js";
+import { startEpisodicBackfillScheduler } from "./episodic-backfill.js";
 import { log } from "./logger.js";
 
 export function start() {
@@ -48,12 +49,14 @@ export function start() {
 
   const triggerInterval = startTriggerScheduler();
   const taskScheduler = startTaskScheduler();
+  const episodicBackfillScheduler = startEpisodicBackfillScheduler();
   log.info("daemon", "nova daemon started");
 
   function handleSignal(signal: string) {
     log.info("daemon", `received ${signal}, shutting down…`);
     clearInterval(triggerInterval);
     taskScheduler.stop();
+    episodicBackfillScheduler.stop();
     httpsServer?.shutdown();
     shutdown();
     log.info("daemon", "nova daemon stopped");
