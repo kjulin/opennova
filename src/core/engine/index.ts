@@ -1,5 +1,6 @@
 export type {
   Engine,
+  EngineEvent,
   EngineOptions,
   EngineResult,
   EngineCallbacks,

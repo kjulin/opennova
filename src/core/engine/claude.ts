@@ -142,10 +142,12 @@ async function execQuery(
           if (hasToolUse) {
             callbacks?.onAssistantMessage?.(block.text);
           }
+          callbacks?.onEvent?.({ type: "assistant_text", text: block.text });
           responseText = block.text;
         } else if (block.type === "tool_use") {
           const input = block.input as Record<string, unknown>;
           callbacks?.onToolUse?.(block.name, input, friendlyToolStatus(block.name, input));
+          callbacks?.onEvent?.({ type: "tool_use", name: block.name, input });
         }
       }
     } else if (event.type === "result" && event.subtype === "success") {
@@ -170,6 +172,15 @@ async function execQuery(
           turns: event.num_turns,
         };
       }
+      callbacks?.onEvent?.({
+        type: "result",
+        cost: event.total_cost_usd,
+        durationMs: event.duration_ms,
+        turns: event.num_turns,
+        ...(usage?.input_tokens != null ? { inputTokens: usage.input_tokens } : {}),
+        ...(usage?.output_tokens != null ? { outputTokens: usage.output_tokens } : {}),
+        ...(usage?.cache_read_input_tokens != null ? { cacheReadTokens: usage.cache_read_input_tokens } : {}),
+      });
     } else if (event.type === "tool_use_summary") {
       log.debug(tag, `summary: ${event.summary}`);
       callbacks?.onToolUseSummary?.(event.summary);
