@@ -120,6 +120,15 @@ async function execQuery(
     }
 
     if (event.type === "user") {
+      // Log subagent-related tool results
+      const userEvent = event as { message?: { content?: Array<{ type: string; tool_use_id?: string; content?: string }> } };
+      const toolResults = userEvent.message?.content?.filter((b) => b.type === "tool_result") ?? [];
+      for (const tr of toolResults) {
+        const preview = typeof tr.content === "string" ? tr.content.slice(0, 200) : "";
+        if (preview.includes("task_id") || preview.includes("Task")) {
+          log.info(tag, `subagent result received (tool_use_id: ${tr.tool_use_id ?? "?"}, preview: ${preview})`);
+        }
+      }
       // Tool results delivered — show "Thinking..." after 3s delay if no other event
       thinkingTimeout = setTimeout(() => {
         callbacks?.onThinking?.();
@@ -146,6 +155,13 @@ async function execQuery(
           responseText = block.text;
         } else if (block.type === "tool_use") {
           const input = block.input as Record<string, unknown>;
+          if (block.name === "Task") {
+            log.info(tag, `subagent spawned: "${input.description ?? "unnamed"}" (prompt: ${String(input.prompt ?? "").slice(0, 120)})`);
+          } else if (block.name === "TaskOutput") {
+            log.info(tag, `waiting for subagent output (task_id: ${input.task_id ?? "unknown"}, block: ${input.block ?? true}, timeout: ${input.timeout ?? "default"})`);
+          } else if (block.name === "TaskStop") {
+            log.info(tag, `stopping subagent (task_id: ${input.task_id ?? "unknown"})`);
+          }
           callbacks?.onToolUse?.(block.name, input, friendlyToolStatus(block.name, input));
           callbacks?.onEvent?.({ type: "tool_use", name: block.name, input });
         }

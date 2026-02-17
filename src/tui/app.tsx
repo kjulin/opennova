@@ -151,7 +151,7 @@ export function App({ agentId: initialAgentId }: Props) {
 
     // Load threads and pick most recent TUI thread
     const threads = loadThreadsForAgent(agentId);
-    const tuiThreads = threads.filter((t) => t.manifest.channel === "tui");
+    const tuiThreads = threads.filter((t) => t.manifest.channel === "tui" && !t.manifest.taskId);
 
     if (tuiThreads.length > 0) {
       loadThread(agentId, tuiThreads[0]!.id);
