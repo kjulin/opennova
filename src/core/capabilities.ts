@@ -1,5 +1,16 @@
 import type { McpServerConfig } from "@anthropic-ai/claude-agent-sdk";
 
+/**
+ * Static registry of platform capabilities.
+ * Each entry maps a capability name to the MCP server config that provides it.
+ *
+ * Adding a new capability is a code change — capabilities are curated platform
+ * features, not user config.
+ *
+ * Prerequisites:
+ * - browser: Requires Playwright browsers. Run `npx playwright install chromium`
+ *   once before first use, or the first invocation will auto-download (~150MB).
+ */
 const CAPABILITY_REGISTRY: Record<string, McpServerConfig> = {
   browser: {
     type: "stdio",
