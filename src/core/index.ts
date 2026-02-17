@@ -121,7 +121,6 @@ export {
   getUsageStats,
   loadClaudeCodeStats,
   getClaudeCodeStats,
-  createUsageMcpServer,
   type UsageRecord,
   type UsageStats,
   type ClaudeCodeStats,

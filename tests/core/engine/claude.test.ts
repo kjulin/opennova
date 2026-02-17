@@ -68,6 +68,7 @@ describe("ClaudeEngine", () => {
       inputTokens: 10,
       outputTokens: 20,
       cacheReadTokens: 0,
+      costUsd: 0.01,
       durationMs: 100,
       turns: 1,
     });

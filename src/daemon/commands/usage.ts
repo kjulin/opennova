@@ -22,6 +22,12 @@ function formatDuration(ms: number): string {
   return `${seconds.toFixed(0)}s`;
 }
 
+function formatCost(usd: number): string {
+  if (usd >= 100) return `$${usd.toFixed(0)}`;
+  if (usd >= 10) return `$${usd.toFixed(1)}`;
+  return `$${usd.toFixed(2)}`;
+}
+
 function formatDate(d: Date): string {
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
@@ -79,6 +85,7 @@ interface PeriodStats {
   inputTokens: number;
   outputTokens: number;
   cacheReadTokens: number;
+  costUsd: number;
   durationMs: number;
 }
 
@@ -88,6 +95,7 @@ function aggregateRecords(records: UsageRecord[]): PeriodStats {
     inputTokens: 0,
     outputTokens: 0,
     cacheReadTokens: 0,
+    costUsd: 0,
     durationMs: 0,
   };
   for (const r of records) {
@@ -95,6 +103,7 @@ function aggregateRecords(records: UsageRecord[]): PeriodStats {
     stats.inputTokens += r.inputTokens;
     stats.outputTokens += r.outputTokens;
     stats.cacheReadTokens += r.cacheReadTokens;
+    stats.costUsd += r.costUsd ?? 0;
     stats.durationMs += r.durationMs;
   }
   return stats;
@@ -133,7 +142,7 @@ function runCurrentPeriod(period: "today" | "week" | "month") {
 
   // Column widths
   const agentCol = Math.max(11, ...agents.map((a) => a.id.length));
-  const cols = { msgs: 4, input: 6, output: 6, cache: 6, dur: 6 };
+  const cols = { msgs: 4, input: 6, output: 6, cache: 6, cost: 7, dur: 6 };
 
   const header = [
     "Agent".padEnd(agentCol),
@@ -141,6 +150,7 @@ function runCurrentPeriod(period: "today" | "week" | "month") {
     "Input".padStart(cols.input),
     "Output".padStart(cols.output),
     "Cache".padStart(cols.cache),
+    "Cost".padStart(cols.cost),
     "Time".padStart(cols.dur),
   ].join("  ");
   const sep = "-".repeat(header.length);
@@ -155,6 +165,7 @@ function runCurrentPeriod(period: "today" | "week" | "month") {
       formatTokens(stats.inputTokens).padStart(cols.input),
       formatTokens(stats.outputTokens).padStart(cols.output),
       formatTokens(stats.cacheReadTokens).padStart(cols.cache),
+      formatCost(stats.costUsd).padStart(cols.cost),
       formatDuration(stats.durationMs).padStart(cols.dur),
     ].join("  "));
   }
@@ -168,6 +179,7 @@ function runCurrentPeriod(period: "today" | "week" | "month") {
     formatTokens(totals.inputTokens).padStart(cols.input),
     formatTokens(totals.outputTokens).padStart(cols.output),
     formatTokens(totals.cacheReadTokens).padStart(cols.cache),
+    formatCost(totals.costUsd).padStart(cols.cost),
     formatDuration(totals.durationMs).padStart(cols.dur),
   ].join("  "));
 
@@ -207,7 +219,7 @@ function runWeekly() {
     .sort((a, b) => a.date.getTime() - b.date.getTime());
 
   // Column widths
-  const cols = { week: 12, msgs: 4, input: 6, output: 6, cache: 6, dur: 6 };
+  const cols = { week: 12, msgs: 4, input: 6, output: 6, cache: 6, cost: 7, dur: 6 };
 
   const header = [
     "Week".padEnd(cols.week),
@@ -215,6 +227,7 @@ function runWeekly() {
     "Input".padStart(cols.input),
     "Output".padStart(cols.output),
     "Cache".padStart(cols.cache),
+    "Cost".padStart(cols.cost),
     "Time".padStart(cols.dur),
   ].join("  ");
   const sep = "-".repeat(header.length);
@@ -222,7 +235,7 @@ function runWeekly() {
   console.log(header);
   console.log(sep);
 
-  let totalStats: PeriodStats = { msgs: 0, inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, durationMs: 0 };
+  let totalStats: PeriodStats = { msgs: 0, inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, costUsd: 0, durationMs: 0 };
 
   for (const { date, stats } of weeks) {
     console.log([
@@ -231,6 +244,7 @@ function runWeekly() {
       formatTokens(stats.inputTokens).padStart(cols.input),
       formatTokens(stats.outputTokens).padStart(cols.output),
       formatTokens(stats.cacheReadTokens).padStart(cols.cache),
+      formatCost(stats.costUsd).padStart(cols.cost),
       formatDuration(stats.durationMs).padStart(cols.dur),
     ].join("  "));
 
@@ -238,6 +252,7 @@ function runWeekly() {
     totalStats.inputTokens += stats.inputTokens;
     totalStats.outputTokens += stats.outputTokens;
     totalStats.cacheReadTokens += stats.cacheReadTokens;
+    totalStats.costUsd += stats.costUsd;
     totalStats.durationMs += stats.durationMs;
   }
 
@@ -248,6 +263,7 @@ function runWeekly() {
     formatTokens(totalStats.inputTokens).padStart(cols.input),
     formatTokens(totalStats.outputTokens).padStart(cols.output),
     formatTokens(totalStats.cacheReadTokens).padStart(cols.cache),
+    formatCost(totalStats.costUsd).padStart(cols.cost),
     formatDuration(totalStats.durationMs).padStart(cols.dur),
   ].join("  "));
 
@@ -287,7 +303,7 @@ function runMonthly() {
     .sort((a, b) => a.date.getTime() - b.date.getTime());
 
   // Column widths
-  const cols = { month: 10, msgs: 4, input: 6, output: 6, cache: 6, dur: 6 };
+  const cols = { month: 10, msgs: 4, input: 6, output: 6, cache: 6, cost: 7, dur: 6 };
 
   const header = [
     "Month".padEnd(cols.month),
@@ -295,6 +311,7 @@ function runMonthly() {
     "Input".padStart(cols.input),
     "Output".padStart(cols.output),
     "Cache".padStart(cols.cache),
+    "Cost".padStart(cols.cost),
     "Time".padStart(cols.dur),
   ].join("  ");
   const sep = "-".repeat(header.length);
@@ -302,7 +319,7 @@ function runMonthly() {
   console.log(header);
   console.log(sep);
 
-  let totalStats: PeriodStats = { msgs: 0, inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, durationMs: 0 };
+  let totalStats: PeriodStats = { msgs: 0, inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, costUsd: 0, durationMs: 0 };
 
   for (const { date, stats } of months) {
     console.log([
@@ -311,6 +328,7 @@ function runMonthly() {
       formatTokens(stats.inputTokens).padStart(cols.input),
       formatTokens(stats.outputTokens).padStart(cols.output),
       formatTokens(stats.cacheReadTokens).padStart(cols.cache),
+      formatCost(stats.costUsd).padStart(cols.cost),
       formatDuration(stats.durationMs).padStart(cols.dur),
     ].join("  "));
 
@@ -318,6 +336,7 @@ function runMonthly() {
     totalStats.inputTokens += stats.inputTokens;
     totalStats.outputTokens += stats.outputTokens;
     totalStats.cacheReadTokens += stats.cacheReadTokens;
+    totalStats.costUsd += stats.costUsd;
     totalStats.durationMs += stats.durationMs;
   }
 
@@ -328,6 +347,7 @@ function runMonthly() {
     formatTokens(totalStats.inputTokens).padStart(cols.input),
     formatTokens(totalStats.outputTokens).padStart(cols.output),
     formatTokens(totalStats.cacheReadTokens).padStart(cols.cache),
+    formatCost(totalStats.costUsd).padStart(cols.cost),
     formatDuration(totalStats.durationMs).padStart(cols.dur),
   ].join("  "));
 

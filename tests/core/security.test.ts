@@ -96,7 +96,6 @@ describe("securityOptions", () => {
       expect(allowed).toContain("mcp__triggers__*");
       expect(allowed).toContain("mcp__agents__*");
       expect(allowed).toContain("mcp__ask-agent__*");
-      expect(allowed).toContain("mcp__usage__*");
     });
 
     it("explicitly disallows Bash", () => {

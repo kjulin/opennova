@@ -7,7 +7,7 @@ import { log } from "./logger.js";
 const STANDARD_ALLOWED_TOOLS = [
   "Skill", "Read", "Write", "Edit", "Glob", "Grep",
   "WebSearch", "WebFetch", "Task", "TaskOutput", "NotebookEdit",
-  "mcp__memory__*", "mcp__episodic__*", "mcp__triggers__*", "mcp__agents__*", "mcp__ask-agent__*", "mcp__usage__*", "mcp__suggest-edit__*", "mcp__self__*", "mcp__file-send__*", "mcp__transcription__*", "mcp__tasks__*", "mcp__notes__*", "mcp__notify-user__*", "mcp__secrets__*",
+  "mcp__memory__*", "mcp__episodic__*", "mcp__triggers__*", "mcp__agents__*", "mcp__ask-agent__*", "mcp__suggest-edit__*", "mcp__self__*", "mcp__file-send__*", "mcp__transcription__*", "mcp__tasks__*", "mcp__notes__*", "mcp__notify-user__*", "mcp__secrets__*",
 ];
 
 /**
@@ -31,7 +31,7 @@ function buildOptions(level: SecurityLevel): Record<string, unknown> {
     case "sandbox":
       return {
         permissionMode: "dontAsk",
-        allowedTools: ["Skill", "WebSearch", "WebFetch", "Task", "TaskOutput", "mcp__memory__*", "mcp__episodic__*", "mcp__agents__*", "mcp__triggers__*", "mcp__usage__*", "mcp__suggest-edit__*", "mcp__tasks__*", "mcp__notes__*", "mcp__notify-user__*"],
+        allowedTools: ["Skill", "WebSearch", "WebFetch", "Task", "TaskOutput", "mcp__memory__*", "mcp__episodic__*", "mcp__agents__*", "mcp__triggers__*", "mcp__suggest-edit__*", "mcp__tasks__*", "mcp__notes__*", "mcp__notify-user__*"],
       };
     case "standard":
       return {
