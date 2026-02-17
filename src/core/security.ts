@@ -17,8 +17,11 @@ const STANDARD_ALLOWED_TOOLS = [
  * - standard:     dontAsk — file tools, web, MCP tools; Bash blocked.
  * - unrestricted: bypassPermissions — all tools, no restrictions.
  */
-export function securityOptions(level: SecurityLevel = "standard"): Record<string, unknown> {
+export function securityOptions(level: SecurityLevel = "standard", extraAllowedTools?: string[]): Record<string, unknown> {
   const opts = buildOptions(level);
+  if (extraAllowedTools?.length && opts.allowedTools) {
+    (opts.allowedTools as string[]).push(...extraAllowedTools);
+  }
   log.info("security", `level=${level} permissionMode=${opts.permissionMode} allowedTools=${(opts.allowedTools as string[])?.join(",") ?? "all"} disallowedTools=${(opts.disallowedTools as string[])?.join(",") ?? "none"}`);
   return opts;
 }
