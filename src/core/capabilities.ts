@@ -19,6 +19,17 @@ const CAPABILITY_REGISTRY: Record<string, McpServerConfig> = {
   },
 };
 
+/**
+ * Return `mcp__<name>__*` wildcard patterns for each declared capability.
+ * Used to add capability tools to the security allowedTools list.
+ */
+export function capabilityToolPatterns(
+  capabilities: string[] | undefined,
+): string[] {
+  if (!capabilities || capabilities.length === 0) return [];
+  return capabilities.map((cap) => `mcp__${cap}__*`);
+}
+
 export function resolveCapabilities(
   capabilities: string[] | undefined,
 ): Record<string, McpServerConfig> {

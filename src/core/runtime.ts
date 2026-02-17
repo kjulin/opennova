@@ -10,6 +10,7 @@ export interface RuntimeOptions {
   maxTurns?: number | undefined;
   agents?: EngineOptions["agents"];
   mcpServers?: EngineOptions["mcpServers"];
+  extraAllowedTools?: string[] | undefined;
 }
 
 export interface Runtime {
@@ -28,7 +29,7 @@ export function createRuntime(engine: Engine = claudeEngine): Runtime {
     async run(message, options, security, sessionId, callbacks, abortController) {
       const securedOptions: EngineOptions = {
         ...options,
-        ...securityOptions(security),
+        ...securityOptions(security, options.extraAllowedTools),
       };
       return engine.run(message, securedOptions, sessionId, callbacks, abortController);
     },
