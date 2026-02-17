@@ -65,6 +65,11 @@ switch (command) {
     run();
     break;
   }
+  case "secrets": {
+    const { run } = await import("./commands/secrets.js");
+    await run();
+    break;
+  }
   case "tailscale": {
     const { run } = await import("./commands/tailscale.js");
     await run();
@@ -161,6 +166,10 @@ switch (command) {
     console.log("  skills link <name> --agent <id|all>           Link a Claude skill to agent(s)");
     console.log("  skills link <name> --agent <id> --source <p>  Link a skill from a custom path");
     console.log("  skills unlink <name> --agent <id|all>         Unlink a skill from agent(s)");
+    console.log("  secrets set <name>                Set a secret (prompts for value)");
+    console.log("  secrets get <name>                Get a secret value");
+    console.log("  secrets list                      List secret names");
+    console.log("  secrets delete <name>             Delete a secret");
     console.log("  status                        Show workspace and configuration status");
     console.log("  usage [--today|--week|--month] Show current period usage by agent");
     console.log("  usage weekly                  Show week-by-week usage");
