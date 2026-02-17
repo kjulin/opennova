@@ -12,6 +12,7 @@ import { createAgentManagementMcpServer, createSelfManagementMcpServer } from ".
 import { createAskAgentMcpServer } from "./ask-agent.js";
 import { createFileSendMcpServer, type FileType } from "./file-send.js";
 import { createNotifyUserMcpServer } from "./notify-user.js";
+import { resolveCapabilities } from "./capabilities.js";
 import { createTranscriptionMcpServer } from "./transcription/index.js";
 import { appendUsage, createUsageMcpServer } from "./usage.js";
 import { createEpisodicMcpServer, generateEmbedding, appendEmbedding, isModelAvailable } from "./episodic/index.js";
@@ -168,6 +169,7 @@ If you need to notify the user about something important (questions, updates, co
                 secrets: createSecretsMcpServer(Config.workspaceDir),
               } : {}),
               ...extraMcpServers,
+              ...resolveCapabilities(agent.capabilities),
               ...(agentId === "agent-builder" ? { agents: createAgentManagementMcpServer() } : {}),
               ...(agentId === "nova" ? { usage: createUsageMcpServer() } : {}),
               ...(agent.allowedAgents && security !== "sandbox" ? { "ask-agent": createAskAgentMcpServer(agent, askAgentDepth ?? 0, runThreadForAskAgent) } : {}),
