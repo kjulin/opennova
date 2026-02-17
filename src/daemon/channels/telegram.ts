@@ -14,6 +14,7 @@ import {
   safeParseJsonFile,
   transcribe,
   checkTranscriptionDependencies,
+  getAgentDirectories,
   type TelegramConfig,
 } from "#core/index.js";
 import { bus } from "../events.js";
@@ -165,12 +166,10 @@ export function startTelegram() {
   function buildReplyKeyboard(): Keyboard | null {
     const host = getWebAppHost();
     if (!host || !config) return null;
-    const agentDir = path.join(Config.workspaceDir, "agents", config.activeAgentId);
-    const pinned = getPinnedNotes(agentDir);
-    if (pinned.length === 0) return null;
     const keyboard = new Keyboard();
     keyboard.webApp("Tasks", `https://${host}:${HTTPS_PORT}/web/tasklist/`).row();
-    for (const note of pinned) {
+    const agentDir = path.join(Config.workspaceDir, "agents", config.activeAgentId);
+    for (const note of getPinnedNotes(agentDir)) {
       keyboard.webApp(note.title, `https://${host}:${HTTPS_PORT}/web/tasklist/#/note/${config.activeAgentId}/${note.slug}`).row();
     }
     return keyboard.resized().persistent();
@@ -272,16 +271,10 @@ export function startTelegram() {
     if (payload.agentId !== config.activeAgentId) return;
     const chatId = Number(config.chatId);
     const kb = buildReplyKeyboard();
-    if (kb) {
-      bot.api.sendMessage(chatId, "📌 Pinned notes updated", { reply_markup: kb }).catch((err) => {
-        log.error("telegram", "failed to send pin update:", err);
-      });
-    } else {
-      // No more pinned notes — remove the reply keyboard
-      bot.api.sendMessage(chatId, "📌 Pinned notes updated", { reply_markup: { remove_keyboard: true } }).catch((err) => {
-        log.error("telegram", "failed to send pin update:", err);
-      });
-    }
+    if (!kb) return;
+    bot.api.sendMessage(chatId, "\uD83D\uDCCC Pinned notes updated", { reply_markup: kb }).catch((err) => {
+      log.error("telegram", "failed to send pin update:", err);
+    });
   });
 
   bot.on("message:text", async (ctx) => {
@@ -756,6 +749,46 @@ You can read, process, or move this file as needed.`;
           parse_mode: "Markdown",
         });
       }
+
+      if (data.action === "deliver_file" && data.agentId && data.threadId && data.filePath) {
+        const agents = loadAgents();
+        const agent = agents.get(data.agentId);
+
+        if (!agent) {
+          await ctx.reply(`Agent "${data.agentId}" not found.`);
+          return;
+        }
+
+        // Switch to the task's agent and thread
+        config.activeAgentId = data.agentId;
+        config.activeThreadId = data.threadId;
+        saveTelegramConfig(config);
+
+        // Validate file path is within agent dir or allowed directories
+        const agentDir = path.join(Config.workspaceDir, "agents", data.agentId);
+        const directories = getAgentDirectories(agent);
+        const allowedDirs = [agentDir, ...directories];
+        const resolvedPath = path.resolve(data.filePath);
+
+        if (!allowedDirs.some((dir) => resolvedPath.startsWith(path.resolve(dir)))) {
+          await ctx.reply("File path not allowed.");
+          return;
+        }
+
+        if (!fs.existsSync(resolvedPath)) {
+          await ctx.reply("File not found.");
+          return;
+        }
+
+        bus.emit("thread:file", {
+          agentId: data.agentId,
+          threadId: data.threadId,
+          channel: "telegram",
+          filePath: resolvedPath,
+        });
+
+        log.info("telegram", `delivering file ${path.basename(resolvedPath)} via Mini App`);
+      }
     } catch (err) {
       log.error("telegram", "failed to parse Mini App data:", err);
     }
@@ -804,8 +837,6 @@ You can read, process, or move this file as needed.`;
     const kb = buildReplyKeyboard();
     if (kb) {
       await bot.api.sendMessage(chatId, `_${agent.name}_`, { parse_mode: "Markdown", reply_markup: kb }).catch(() => {});
-    } else {
-      await bot.api.sendMessage(chatId, `_${agent.name}_`, { parse_mode: "Markdown", reply_markup: { remove_keyboard: true } }).catch(() => {});
     }
 
     // Greet the user from the new agent

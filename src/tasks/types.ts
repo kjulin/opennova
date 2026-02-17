@@ -4,6 +4,12 @@ export interface Step {
   taskId?: string;  // Linked subtask
 }
 
+export interface Resource {
+  type: "url" | "file";
+  value: string;           // URL or absolute file path
+  label?: string;          // Display name
+}
+
 export interface Task {
   id: string;
   title: string;
@@ -12,6 +18,7 @@ export interface Task {
   createdBy: string;       // Agent ID or "user"
   status: "active" | "waiting" | "done" | "canceled";
   steps: Step[];
+  resources: Resource[];
   threadId?: string;       // Dedicated thread, created after task
   createdAt: string;       // ISO timestamp
   updatedAt: string;       // ISO timestamp

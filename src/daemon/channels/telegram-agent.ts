@@ -165,11 +165,9 @@ export function startAgentTelegram(
   function buildReplyKeyboard(): Keyboard | null {
     const host = getWebAppHost();
     if (!host) return null;
-    const pinned = getPinnedNotes(agentDir);
-    if (pinned.length === 0) return null;
     const keyboard = new Keyboard();
     keyboard.webApp("Tasks", `https://${host}:${HTTPS_PORT}/web/tasklist/`).row();
-    for (const note of pinned) {
+    for (const note of getPinnedNotes(agentDir)) {
       keyboard.webApp(note.title, `https://${host}:${HTTPS_PORT}/web/tasklist/#/note/${agentId}/${note.slug}`).row();
     }
     return keyboard.resized().persistent();
@@ -179,15 +177,10 @@ export function startAgentTelegram(
     if (payload.channel !== channel) return;
     const chatId = Number(botConfig.chatId);
     const kb = buildReplyKeyboard();
-    if (kb) {
-      bot.api.sendMessage(chatId, "📌 Pinned notes updated", { reply_markup: kb }).catch((err) => {
-        log.error("telegram-agent", `agent ${agentId}: failed to send pin update:`, err);
-      });
-    } else {
-      bot.api.sendMessage(chatId, "📌 Pinned notes updated", { reply_markup: { remove_keyboard: true } }).catch((err) => {
-        log.error("telegram-agent", `agent ${agentId}: failed to send pin update:`, err);
-      });
-    }
+    if (!kb) return;
+    bot.api.sendMessage(chatId, "\uD83D\uDCCC Pinned notes updated", { reply_markup: kb }).catch((err) => {
+      log.error("telegram-agent", `agent ${agentId}: failed to send pin update:`, err);
+    });
   });
 
   bot.on("message:text", async (ctx) => {
@@ -197,7 +190,11 @@ export function startAgentTelegram(
     if (String(chatId) !== botConfig.chatId) return;
 
     if (text === "/help" || text === "/start") {
-      await ctx.reply(`This is *${agent.name}*'s dedicated bot.\n\n/threads — list and switch threads\n/new — start a fresh thread\n/stop — stop the running agent\n/help — show this message`, { parse_mode: "Markdown" });
+      const kb = buildReplyKeyboard();
+      await ctx.reply(`This is *${agent.name}*'s dedicated bot.\n\n/threads — list and switch threads\n/new — start a fresh thread\n/stop — stop the running agent\n/help — show this message`, {
+        parse_mode: "Markdown",
+        ...(kb ? { reply_markup: kb } : {}),
+      });
       return;
     }
 

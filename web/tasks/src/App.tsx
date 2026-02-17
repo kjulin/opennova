@@ -6,6 +6,7 @@ import {
   completeTask,
   cancelTask,
   type Task,
+  type Resource,
   type ArchivedTask,
   type Agent,
 } from "./api";
@@ -29,6 +30,7 @@ declare global {
         expand: () => void;
         close: () => void;
         sendData: (data: string) => void;
+        openLink: (url: string) => void;
       };
     };
   }
@@ -134,6 +136,18 @@ export default function App() {
     window.Telegram?.WebApp?.sendData(data);
   };
 
+  const handleDeliverFile = (task: Task, resource: Resource) => {
+    if (!task.threadId) return;
+    const data = JSON.stringify({
+      action: "deliver_file",
+      agentId: task.owner,
+      threadId: task.threadId,
+      taskTitle: task.title,
+      filePath: resource.value,
+    });
+    window.Telegram?.WebApp?.sendData(data);
+  };
+
   const getOwnerName = (ownerId: string) => {
     if (ownerId === "user") return "You";
     const agent = agents.find((a) => a.id === ownerId);
@@ -223,6 +237,7 @@ export default function App() {
               onComplete={handleComplete}
               onCancel={handleCancel}
               onChat={handleChat}
+              onDeliverFile={handleDeliverFile}
             />
 
             <button

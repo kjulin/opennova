@@ -1,4 +1,4 @@
-export type { Task, Step, CreateTaskInput, UpdateTaskInput } from "./types.js";
+export type { Task, Step, Resource, CreateTaskInput, UpdateTaskInput } from "./types.js";
 export {
   loadTasks,
   getTask,
@@ -9,6 +9,8 @@ export {
   completeTask,
   loadHistory,
   linkSubtask,
+  addResource,
+  removeResource,
   type CreateTaskOptions,
 } from "./storage.js";
 export { createTasksMcpServer } from "./mcp.js";

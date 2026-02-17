@@ -1,4 +1,4 @@
-import type { Task } from "../api";
+import type { Task, Resource } from "../api";
 import { TaskItem } from "./TaskItem";
 
 interface TaskListProps {
@@ -8,6 +8,7 @@ interface TaskListProps {
   onComplete: (id: string) => void;
   onCancel: (id: string) => void;
   onChat: (task: Task) => void;
+  onDeliverFile: (task: Task, resource: Resource) => void;
 }
 
 export function TaskList({
@@ -17,6 +18,7 @@ export function TaskList({
   onComplete,
   onCancel,
   onChat,
+  onDeliverFile,
 }: TaskListProps) {
   const active = tasks.filter((t) => t.status === "active");
   const waiting = tasks.filter((t) => t.status === "waiting");
@@ -40,6 +42,7 @@ export function TaskList({
                 onComplete={onComplete}
                 onCancel={onCancel}
                 onChat={onChat}
+                onDeliverFile={onDeliverFile}
               />
             ))}
           </div>
@@ -63,6 +66,7 @@ export function TaskList({
                 onComplete={onComplete}
                 onCancel={onCancel}
                 onChat={onChat}
+                onDeliverFile={onDeliverFile}
               />
             ))}
           </div>
