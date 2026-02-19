@@ -19,6 +19,10 @@ import {
 } from "#tasks/index.js";
 import { createThread } from "#core/threads.js";
 import { createNotesRouter } from "#notes/index.js";
+import { createConsoleAgentsRouter } from "#api/console-agents.js";
+import { createConsoleTriggersRouter } from "#api/console-triggers.js";
+import { createConsoleSkillsRouter } from "#api/console-skills.js";
+import { createConsoleSecretsRouter } from "#api/console-secrets.js";
 
 const PORT = 3838;
 
@@ -229,6 +233,12 @@ export function startHttpsServer(workspaceDir: string): HttpsServer | null {
 
   // Notes API
   app.route("/api/notes", createNotesRouter(workspaceDir));
+
+  // Console API
+  app.route("/api/console/agents", createConsoleAgentsRouter(workspaceDir));
+  app.route("/api/console/triggers", createConsoleTriggersRouter(workspaceDir));
+  app.route("/api/console/skills", createConsoleSkillsRouter(workspaceDir));
+  app.route("/api/console/secrets", createConsoleSecretsRouter(workspaceDir));
 
   // Webapp at /web/tasklist (for Telegram mini app compatibility)
   app.get("/web/tasklist", (c) => c.redirect("/web/tasklist/"));

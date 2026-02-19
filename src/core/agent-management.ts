@@ -11,7 +11,7 @@ import {
 import { Config } from "./config.js";
 import { syncSharedSkills } from "./skills.js";
 
-const PROTECTED_AGENTS = new Set(["nova", "agent-builder"]);
+export const PROTECTED_AGENTS = new Set(["nova", "agent-builder"]);
 
 function generateTriggerId(): string {
   return crypto.randomBytes(6).toString("hex");
