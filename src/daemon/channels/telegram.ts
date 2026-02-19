@@ -143,6 +143,7 @@ export function startTelegram() {
   log.info("telegram", "channel started");
 
   let activeAbortController: AbortController | null = null;
+  let pendingReplyMarkup: Keyboard | null = null;
 
   bot.api.setMyCommands([
     { command: "agent", description: "Select an agent" },
@@ -205,9 +206,14 @@ export function startTelegram() {
       text = `_Switched to ${name}${taskInfo}_\n\n${text}`;
     }
 
-    bot.api.sendMessage(chatId, text, { parse_mode: "Markdown" }).catch(() => {
+    const replyMarkup = pendingReplyMarkup;
+    pendingReplyMarkup = null;
+    const opts: Record<string, unknown> = { parse_mode: "Markdown" };
+    if (replyMarkup) opts.reply_markup = replyMarkup;
+
+    bot.api.sendMessage(chatId, text, opts).catch(() => {
       // Markdown parse failed (unmatched entities) — retry as plain text
-      bot.api.sendMessage(chatId, text).catch((err) => {
+      bot.api.sendMessage(chatId, text, replyMarkup ? { reply_markup: replyMarkup } : {}).catch((err) => {
         log.error("telegram", "failed to deliver thread:response:", err);
       });
     });
@@ -866,11 +872,8 @@ You can read, process, or move this file as needed.`;
     await ctx.editMessageText(`Switched to *${agent.name}*`, { parse_mode: "Markdown" });
     await ctx.answerCallbackQuery();
 
-    // Send/update reply keyboard for the new agent's pinned notes
-    const kb = buildReplyKeyboard();
-    if (kb) {
-      await bot.api.sendMessage(chatId, `_${agent.name}_`, { parse_mode: "Markdown", reply_markup: kb }).catch(() => {});
-    }
+    // Attach reply keyboard to the next outgoing message (the greeting)
+    pendingReplyMarkup = buildReplyKeyboard();
 
     // Greet the user from the new agent
     const agentDir = path.join(Config.workspaceDir, "agents", agentId);
