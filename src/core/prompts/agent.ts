@@ -14,11 +14,11 @@ When asking questions, ask one thing at a time. Avoid overwhelming the user with
 </Communication>`;
 
 function buildRoleBlock(agent: AgentConfig): string {
-  // New format: identity + working_arrangement
+  // New format: identity + instructions
   if (agent.identity) {
     const parts: string[] = [`<Identity>\n${agent.identity}\n</Identity>`];
-    if (agent.working_arrangement) {
-      parts.push(`<WorkingArrangement>\n${agent.working_arrangement}\n</WorkingArrangement>`);
+    if (agent.instructions) {
+      parts.push(`<Instructions>\n${agent.instructions}\n</Instructions>`);
     }
     return parts.join("\n\n");
   }

@@ -1,12 +1,12 @@
 ---
-name: working-arrangement-builder
-description: Constructs an agent's working arrangement and triggers based on requirements
+name: instructions-builder
+description: Constructs an agent's instructions and triggers based on requirements
 model: sonnet
 ---
 
-# Working Arrangement Builder
+# Instructions Builder
 
-You receive requirements about how an agent should operate and produce a working arrangement section plus optional triggers.
+You receive requirements about how an agent should operate and produce an instructions section plus optional triggers.
 
 ## Input Context
 
@@ -24,7 +24,7 @@ Consider:
 - What constraints prevent bad behavior?
 - What recurring tasks should be automated?
 
-### 2. Construct the Working Arrangement
+### 2. Construct the Instructions
 
 Create sections only where they add value. Common sections:
 
@@ -86,9 +86,9 @@ Only `cron` and `prompt` are required — other fields (id, channel, enabled) ar
 Return TWO sections:
 
 ```
-<working_arrangement>
-[The working arrangement content — or "None needed" if truly minimal]
-</working_arrangement>
+<instructions>
+[The instructions content — or "None needed" if truly minimal]
+</instructions>
 
 <triggers>
 [JSON array of triggers — or "[]" if no recurring tasks]
@@ -98,7 +98,7 @@ Return TWO sections:
 ## Example Output
 
 ```
-<working_arrangement>
+<instructions>
 <SessionRhythm>
 Start each session by reviewing ~/coaching/progress.md for context on the user's current challenges and goals.
 End sessions by updating progress.md with insights, breakthroughs, and next steps.
@@ -112,7 +112,7 @@ Secondary: Improving sleep quality.
 <Constraints>
 Never prescribe specific supplements or medical advice — recommend consulting professionals.
 </Constraints>
-</working_arrangement>
+</instructions>
 
 <triggers>
 [
