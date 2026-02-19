@@ -63,6 +63,7 @@ export function createTasksMcpServer(
           title: z.string().describe("What is the work - clear, actionable title"),
           description: z.string().describe("Context and brief for the task"),
           owner: z.string().optional().describe("Who drives this task - agent ID or 'user'. Defaults to you."),
+          draft: z.boolean().optional().describe("If true, create as draft — visible but not executed until started. Default: false."),
         },
         async (args) => {
           // Create the task first
@@ -72,6 +73,7 @@ export function createTasksMcpServer(
               title: args.title,
               description: args.description,
               ...(args.owner !== undefined ? { owner: args.owner } : {}),
+              ...(args.draft ? { status: "draft" as const } : {}),
             },
             createdBy: agentId,
           });
@@ -162,7 +164,7 @@ export function createTasksMcpServer(
           id: z.string().describe("Task ID"),
           title: z.string().optional().describe("New title"),
           description: z.string().optional().describe("New description"),
-          status: z.enum(["active", "done"]).optional().describe("New status. 'done' moves task to history."),
+          status: z.enum(["draft", "active", "done"]).optional().describe("New status. 'active' starts a draft task. 'done' moves task to history."),
           owner: z.string().optional().describe("New owner - agent ID or 'user'"),
         },
         async (args) => {

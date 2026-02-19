@@ -91,7 +91,7 @@ export function createTask(options: CreateTaskOptions): Task {
     description: input.description,
     owner: input.owner ?? createdBy,
     createdBy,
-    status: "active",
+    status: input.status ?? "active",
     steps: [],
     resources: [],
     createdAt: now,

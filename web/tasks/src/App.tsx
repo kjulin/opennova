@@ -3,6 +3,7 @@ import {
   fetchTasks,
   fetchHistory,
   createTask,
+  updateTask,
   completeTask,
   cancelTask,
   runTask,
@@ -125,6 +126,15 @@ export default function App() {
     }
   };
 
+  const handleStart = async (id: string) => {
+    try {
+      await updateTask(id, { status: "active" });
+      await loadTasks();
+    } catch (err) {
+      setError((err as Error).message);
+    }
+  };
+
   const handleCreateTask = async (data: { title: string; description: string; owner: string }) => {
     try {
       await createTask(data);
@@ -165,6 +175,7 @@ export default function App() {
   };
 
   const activeCount = tasks.filter((t) => t.status === "active").length;
+  const draftCount = tasks.filter((t) => t.status === "draft").length;
 
   if (loading) {
     return (
@@ -196,7 +207,7 @@ export default function App() {
           <div className="flex-1">
             <h1 className="text-2xl font-bold tracking-tight">Nova Tasks</h1>
             <p className="mt-0.5 text-sm text-gray-400">
-              {activeCount} active
+              {activeCount} active{draftCount > 0 ? `, ${draftCount} draft` : ""}
             </p>
           </div>
           {!showHistory && (
@@ -246,6 +257,7 @@ export default function App() {
               onComplete={handleComplete}
               onCancel={handleCancel}
               onRunNow={handleRunNow}
+              onStart={handleStart}
               onChat={handleChat}
               onDeliverFile={handleDeliverFile}
             />

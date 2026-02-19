@@ -8,6 +8,7 @@ interface TaskListProps {
   onComplete: (id: string) => void;
   onCancel: (id: string) => void;
   onRunNow: (id: string) => void;
+  onStart: (id: string) => void;
   onChat: (task: Task) => void;
   onDeliverFile: (task: Task, resource: Resource) => void;
 }
@@ -19,10 +20,12 @@ export function TaskList({
   onComplete,
   onCancel,
   onRunNow,
+  onStart,
   onChat,
   onDeliverFile,
 }: TaskListProps) {
   const active = tasks.filter((t) => t.status === "active");
+  const drafts = tasks.filter((t) => t.status === "draft");
 
   return (
     <div className="space-y-6">
@@ -43,6 +46,33 @@ export function TaskList({
                 onComplete={onComplete}
                 onCancel={onCancel}
                 onRunNow={onRunNow}
+                onStart={onStart}
+                onChat={onChat}
+                onDeliverFile={onDeliverFile}
+              />
+            ))}
+          </div>
+        </section>
+      )}
+
+      {drafts.length > 0 && (
+        <section>
+          <h2 className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-gray-400">
+            <span className="h-1.5 w-1.5 rounded-full bg-gray-500" />
+            Drafts
+            <span className="text-gray-500">({drafts.length})</span>
+          </h2>
+          <div className="space-y-2">
+            {drafts.map((task) => (
+              <TaskItem
+                key={task.id}
+                task={task}
+                isInFlight={false}
+                ownerName={getOwnerName(task.owner)}
+                onComplete={onComplete}
+                onCancel={onCancel}
+                onRunNow={onRunNow}
+                onStart={onStart}
                 onChat={onChat}
                 onDeliverFile={onDeliverFile}
               />
