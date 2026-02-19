@@ -29,6 +29,7 @@ async function invokeTask(workspaceDir: string, taskId: string, owner: string, t
 export function runTaskNow(workspaceDir: string, taskId: string): string | null {
   const task = getTask(workspaceDir, taskId);
   if (!task) return "task not found";
+  if (task.status !== "active") return "task is not active";
   if (task.owner === "user") return "user-owned task";
   if (inFlightTasks.has(taskId)) return "already running";
 
@@ -52,7 +53,7 @@ export function startTaskScheduler() {
     log.info("tasks", "scheduler tick");
 
     const tasks = loadTasks(workspaceDir);
-    const agentTasks = tasks.filter(t => t.owner !== "user" && !inFlightTasks.has(t.id));
+    const agentTasks = tasks.filter(t => t.status === "active" && t.owner !== "user" && !inFlightTasks.has(t.id));
 
     if (agentTasks.length === 0) {
       log.info("tasks", "no agent tasks to process");

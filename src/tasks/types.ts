@@ -16,7 +16,7 @@ export interface Task {
   description: string;
   owner: string;           // Agent ID or "user"
   createdBy: string;       // Agent ID or "user"
-  status: "active" | "done" | "canceled";
+  status: "draft" | "active" | "done" | "canceled";
   steps: Step[];
   resources: Resource[];
   threadId?: string;       // Dedicated thread, created after task
@@ -28,12 +28,13 @@ export interface CreateTaskInput {
   title: string;
   description: string;
   owner?: string;          // Defaults to creating agent
+  status?: "draft" | "active"; // Defaults to "active"
 }
 
 export interface UpdateTaskInput {
   title?: string;
   description?: string;
-  status?: "active" | "done" | "canceled";
+  status?: "draft" | "active" | "done" | "canceled";
   owner?: string;
   threadId?: string;
 }

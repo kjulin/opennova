@@ -8,6 +8,7 @@ interface TaskItemProps {
   onComplete: (id: string) => void;
   onCancel: (id: string) => void;
   onRunNow: (id: string) => void;
+  onStart: (id: string) => void;
   onChat: (task: Task) => void;
   onDeliverFile: (task: Task, resource: Resource) => void;
 }
@@ -19,6 +20,7 @@ export function TaskItem({
   onComplete,
   onCancel,
   onRunNow,
+  onStart,
   onChat,
   onDeliverFile,
 }: TaskItemProps) {
@@ -43,6 +45,12 @@ export function TaskItem({
             </p>
           )}
         </div>
+
+        {task.status === "draft" && (
+          <span className="rounded-md bg-gray-500/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-gray-400">
+            Draft
+          </span>
+        )}
 
         {isInFlight && (
           <span className="rounded-md bg-purple-500/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-purple-400 animate-pulse">
@@ -149,7 +157,19 @@ export function TaskItem({
           )}
 
           <div className="flex flex-wrap justify-end gap-2 pt-2">
-            {task.owner !== "user" && !isInFlight && (
+            {task.status === "draft" && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onStart(task.id);
+                }}
+                className="rounded-lg px-3 py-1.5 text-xs text-blue-400 hover:text-blue-300 hover:bg-blue-500/10 transition-colors"
+              >
+                Start
+              </button>
+            )}
+
+            {task.status === "active" && task.owner !== "user" && !isInFlight && (
               <button
                 onClick={(e) => {
                   e.stopPropagation();
@@ -173,15 +193,17 @@ export function TaskItem({
               </button>
             )}
 
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onComplete(task.id);
-              }}
-              className="rounded-lg px-3 py-1.5 text-xs text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10 transition-colors"
-            >
-              Complete
-            </button>
+            {task.status === "active" && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onComplete(task.id);
+                }}
+                className="rounded-lg px-3 py-1.5 text-xs text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10 transition-colors"
+              >
+                Complete
+              </button>
+            )}
 
             {confirmCancel ? (
               <>
