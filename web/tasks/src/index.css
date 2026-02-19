@@ -6,3 +6,19 @@ body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen,
     Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
 }
+
+/*
+ * Ensure prose list elements render as block list-items.
+ * Tailwind's base reset zeroes margin/padding and removes list-style,
+ * and the typography plugin restores them via @layer utilities — but some
+ * WebViews (e.g. Telegram on iOS) may not resolve the cascade correctly.
+ * These un-layered rules act as a safety net.
+ */
+.prose ol,
+.prose ul {
+  display: block;
+}
+
+.prose li {
+  display: list-item;
+}
