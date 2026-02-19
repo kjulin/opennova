@@ -130,12 +130,12 @@ describe("tasks storage", () => {
 
       const updated = updateTask(testDir, task.id, {
         title: "Updated",
-        status: "waiting",
+        status: "done",
       });
 
       expect(updated).toBeDefined();
       expect(updated!.title).toBe("Updated");
-      expect(updated!.status).toBe("waiting");
+      expect(updated!.status).toBe("done");
     });
 
     it("can set threadId after task creation", () => {

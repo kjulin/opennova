@@ -94,7 +94,7 @@ export function createTasksMcpServer(
 
       tool(
         "list_tasks",
-        "List your active and waiting tasks.",
+        "List your active tasks.",
         {},
         async () => {
           const allTasks = loadTasks(workspaceDir);
@@ -109,23 +109,12 @@ export function createTasksMcpServer(
             };
           }
 
-          const grouped = {
-            active: tasks.filter(t => t.status === "active"),
-            waiting: tasks.filter(t => t.status === "waiting"),
-          };
+          const active = tasks.filter(t => t.status === "active");
 
           let output = "";
-          if (grouped.active.length > 0) {
-            output += "## Active Tasks\n\n";
-            output += grouped.active.map(t =>
+          if (active.length > 0) {
+            output += active.map(t =>
               `- **#${t.id}: ${t.title}**\n  Owner: ${t.owner} | Steps: ${t.steps.filter(s => s.done).length}/${t.steps.length}`
-            ).join("\n\n");
-          }
-          if (grouped.waiting.length > 0) {
-            if (output) output += "\n\n";
-            output += "## Waiting Tasks\n\n";
-            output += grouped.waiting.map(t =>
-              `- **#${t.id}: ${t.title}**\n  Owner: ${t.owner} | Waiting for input`
             ).join("\n\n");
           }
 
@@ -173,7 +162,7 @@ export function createTasksMcpServer(
           id: z.string().describe("Task ID"),
           title: z.string().optional().describe("New title"),
           description: z.string().optional().describe("New description"),
-          status: z.enum(["active", "waiting", "done"]).optional().describe("New status. 'done' moves task to history."),
+          status: z.enum(["active", "done"]).optional().describe("New status. 'done' moves task to history."),
           owner: z.string().optional().describe("New owner - agent ID or 'user'"),
         },
         async (args) => {
@@ -277,7 +266,7 @@ export function createTasksMcpServer(
 
       tool(
         "create_subtask",
-        "Create a subtask linked to a specific step of your task. The subtask is a normal task that can be assigned to another agent. Only one subtask per step.",
+        "Create a subtask linked to a specific step of your task. The subtask starts immediately — only create it when prior steps are complete and it's ready to begin. One subtask per step.",
         {
           taskId: z.string().describe("Your task ID"),
           stepIndex: z.number().describe("Step index (0-based)"),

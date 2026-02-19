@@ -27,8 +27,6 @@ export function TaskItem({
 
   const completedSteps = task.steps.filter((s) => s.done).length;
   const totalSteps = task.steps.length;
-  const isWaiting = task.status === "waiting";
-
   return (
     <div className="rounded-xl border border-white/5 bg-[#161b22] transition-all hover:border-white/10 hover:bg-[#1c2129]">
       <div
@@ -49,12 +47,6 @@ export function TaskItem({
         {isInFlight && (
           <span className="rounded-md bg-purple-500/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-purple-400 animate-pulse">
             Running
-          </span>
-        )}
-
-        {isWaiting && !isInFlight && (
-          <span className="rounded-md bg-amber-500/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-amber-400">
-            Waiting
           </span>
         )}
 

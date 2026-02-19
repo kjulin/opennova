@@ -5,10 +5,11 @@ export const TASK_WORK_PROMPT = `Check your current task status and take appropr
 1. Review the task details in the <Task> block above
 2. Check your progress against the steps
 3. If steps are not defined, create a plan with update_steps
-4. Work on the next incomplete step
-5. Update step status as you make progress
-6. If you need user input, set status to "waiting" and explain what you need
-7. If complete, use complete_task to finish
+4. For steps with linked subtasks (#id), use get_task to check their status before proceeding
+5. Work on the next incomplete step
+6. Update step status as you make progress
+7. If you need user input, use notify_user to ask and continue when they respond
+8. If complete, use complete_task to finish
 
 Focus on making concrete progress. Be thorough but efficient.`;
 
