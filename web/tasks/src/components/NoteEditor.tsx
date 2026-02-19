@@ -99,7 +99,7 @@ export function NoteEditor({ agent, slug }: Props) {
     }
   }, [editing]);
 
-  const html = useMemo(() => marked.parse(content), [content]);
+  const html = useMemo(() => marked.parse(content, { breaks: true }), [content]);
 
   if (loading) {
     return (
