@@ -15,10 +15,10 @@ export function createNotesMcpServer(agentDir: string, onShareNote?: OnShareNote
     tools: [
       tool(
         "save_note",
-        "Create or overwrite a note. Use for new notes or when you want to replace existing content entirely.",
+        "Create or overwrite a note. Use for new notes or when you want to replace existing content entirely. Use standard markdown: **bold**, *italic*, - for lists.",
         {
           title: z.string().describe("Note title"),
-          content: z.string().describe("Markdown content"),
+          content: z.string().describe("Standard markdown content. Use **text** for bold, *text* for italic, - for bullet lists."),
         },
         async (args) => {
           if (!args.title.trim()) {
@@ -82,10 +82,10 @@ export function createNotesMcpServer(agentDir: string, onShareNote?: OnShareNote
 
       tool(
         "update_note",
-        "Update an existing note. Errors if the note doesn't exist — use save_note for new notes.",
+        "Update an existing note. Errors if the note doesn't exist — use save_note for new notes. Use standard markdown: **bold**, *italic*, - for lists.",
         {
           title: z.string().describe("Note title"),
-          content: z.string().describe("New markdown content"),
+          content: z.string().describe("Standard markdown content. Use **text** for bold, *text* for italic, - for bullet lists."),
         },
         async (args) => {
           const slug = slugify(args.title);
