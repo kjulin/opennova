@@ -133,7 +133,7 @@ export function NoteEditor({ agent, slug }: Props) {
         ) : (
           <div
             onClick={handleDoubleTap}
-            className="min-h-[80vh] rounded-xl bg-white/5 border border-white/10 px-4 py-3 text-sm text-gray-200 prose prose-invert prose-sm max-w-none cursor-text"
+            className="min-h-[80vh] rounded-xl bg-white/5 border border-white/10 px-4 py-3 prose prose-sm prose-invert max-w-none cursor-text"
             dangerouslySetInnerHTML={{ __html: html as string }}
           />
         )}
