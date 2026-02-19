@@ -23,35 +23,9 @@ export function TaskList({
   onDeliverFile,
 }: TaskListProps) {
   const active = tasks.filter((t) => t.status === "active");
-  const waiting = tasks.filter((t) => t.status === "waiting");
 
   return (
     <div className="space-y-6">
-      {waiting.length > 0 && (
-        <section>
-          <h2 className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-gray-400">
-            <span className="h-1.5 w-1.5 rounded-full bg-amber-400 animate-pulse" />
-            Waiting for Input
-            <span className="text-gray-500">({waiting.length})</span>
-          </h2>
-          <div className="space-y-2">
-            {waiting.map((task) => (
-              <TaskItem
-                key={task.id}
-                task={task}
-                isInFlight={inFlightIds.includes(task.id)}
-                ownerName={getOwnerName(task.owner)}
-                onComplete={onComplete}
-                onCancel={onCancel}
-                onRunNow={onRunNow}
-                onChat={onChat}
-                onDeliverFile={onDeliverFile}
-              />
-            ))}
-          </div>
-        </section>
-      )}
-
       {active.length > 0 && (
         <section>
           <h2 className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-gray-400">

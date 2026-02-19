@@ -165,7 +165,6 @@ export default function App() {
   };
 
   const activeCount = tasks.filter((t) => t.status === "active").length;
-  const waitingCount = tasks.filter((t) => t.status === "waiting").length;
 
   if (loading) {
     return (
@@ -197,7 +196,7 @@ export default function App() {
           <div className="flex-1">
             <h1 className="text-2xl font-bold tracking-tight">Nova Tasks</h1>
             <p className="mt-0.5 text-sm text-gray-400">
-              {activeCount} active, {waitingCount} waiting
+              {activeCount} active
             </p>
           </div>
           {!showHistory && (

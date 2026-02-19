@@ -16,7 +16,7 @@ export interface Task {
   description: string;
   owner: string;
   createdBy: string;
-  status: "active" | "waiting" | "done" | "canceled";
+  status: "active" | "done" | "canceled";
   steps: Step[];
   resources: Resource[];
   threadId?: string;

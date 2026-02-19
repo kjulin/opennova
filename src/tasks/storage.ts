@@ -65,7 +65,11 @@ function appendHistory(workspaceDir: string, task: Task): void {
 
 export function getTask(workspaceDir: string, id: string): Task | undefined {
   const tasks = loadTasks(workspaceDir);
-  return tasks.find((t) => t.id === id);
+  const active = tasks.find((t) => t.id === id);
+  if (active) return active;
+  // Fall back to history for completed/canceled tasks
+  const history = loadHistory(workspaceDir);
+  return history.find((t) => t.id === id);
 }
 
 export interface CreateTaskOptions {
