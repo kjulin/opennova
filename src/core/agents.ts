@@ -21,7 +21,7 @@ export interface AgentConfig {
   description?: string;
   role?: string; // Legacy - kept for backwards compatibility
   identity?: string; // Who: expertise, personality, methodology
-  working_arrangement?: string; // How: files, rhythm, focus, constraints
+  instructions?: string; // How: files, rhythm, focus, constraints
   directories?: string[];
   allowedAgents?: string[];
   security?: SecurityLevel;

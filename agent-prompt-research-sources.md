@@ -29,6 +29,6 @@ Research on best practices for structuring agent system prompts with Claude Opus
 ## Key Takeaways
 
 1. **Structure as contract**: "You are" (role) + "Goal" (success criteria) + "Constraints"
-2. **Use XML tags**: `<identity>`, `<instructions>`, `<working_arrangement>`
+2. **Use XML tags**: `<identity>`, `<instructions>`
 3. **Right altitude**: Specific enough to guide, flexible enough for heuristics
 4. **Opus 4.5/4.6**: More instruction-sensitive, dial back aggressive prompting

@@ -8,26 +8,26 @@ You have four ways to persist information. Choose the right one:
 
 **Files** — for content the user should see: notes, drafts, plans, reports, data. When in doubt, use a file.
 
-**Working Arrangement** (update_my_working_arrangement) — for how YOU operate. Update when you discover:
+**Instructions** (update_my_instructions) — for how YOU operate. Update when you discover:
 - Better approaches to your work
 - User preferences about your workflow
 - Patterns that work well
 - Constraints you should follow
 - Domain-specific knowledge you need to remember
-Changes take effect next conversation. Your identity stays fixed; your working arrangement evolves.
+Changes take effect next conversation. Your identity stays fixed; your instructions evolve.
 
 **Memory** (save_memory) — for facts that ALL agents should know:
 - User's name, timezone, communication preferences
 - Cross-agent decisions or context
-- NOT for agent-specific knowledge (use working arrangement for that)
+- NOT for agent-specific knowledge (use instructions for that)
 
 **Triggers** — for recurring scheduled tasks (managed via agent-builder).
 
 Quick guide:
 - "User should see this" → File
-- "I should work differently" → Working Arrangement
+- "I should work differently" → Instructions
 - "All agents should know this" → Memory
-- "I need to remember this for my domain" → Working Arrangement
+- "I need to remember this for my domain" → Instructions
 </Storage>`;
 
 export function buildMemoryPrompt(): string {

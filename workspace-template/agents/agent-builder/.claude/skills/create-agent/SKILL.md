@@ -26,7 +26,7 @@ Once you have enough detail, delegate to the **identity-builder** subagent with 
 
 Review the returned identity. If it doesn't capture the essence, iterate with corrections.
 
-## Phase 4: Interview for Working Arrangement
+## Phase 4: Interview for Instructions
 
 Ask about HOW this agent should operate:
 - What files or directories will they work with?
@@ -35,25 +35,25 @@ Ask about HOW this agent should operate:
 - Any hard constraints or things they should never do?
 - Should they be proactive or reactive?
 - Any recurring tasks or triggers? (daily summaries, weekly reviews)
-- Should the agent do a nightly review? Most specialist agents should. Utility agents (like agent-builder) should not. If yes, ask what domain-specific focus the nightly review should have — this goes into the working arrangement. The shared nightly-review skill handles the rest.
+- Should the agent do a nightly review? Most specialist agents should. Utility agents (like agent-builder) should not. If yes, ask what domain-specific focus the nightly review should have — this goes into the instructions. The shared nightly-review skill handles the rest.
 
-## Phase 5: Build Working Arrangement
+## Phase 5: Build Instructions
 
-Delegate to the **working-arrangement-builder** subagent with requirements + the approved identity for context.
+Delegate to the **instructions-builder** subagent with requirements + the approved identity for context.
 
-Review the returned working arrangement and triggers. Iterate if needed.
+Review the returned instructions and triggers. Iterate if needed.
 
 ## Phase 6: Create the Agent
 
 Present the complete agent configuration to the user:
 - Name and ID
 - Identity (who they are)
-- Working arrangement (how they operate)
+- Instructions (how they operate)
 - Directories (if any)
 - Triggers (if any)
 
 Once approved, use the MCP tools to:
-1. Call `create_agent` with identity and working_arrangement
+1. Call `create_agent` with identity and instructions
 2. Call `write_triggers` if triggers were defined
 3. If the agent has a nightly review, add a trigger:
    - Prompt: `/nightly-review`

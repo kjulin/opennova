@@ -39,7 +39,7 @@ interface AgentJson {
   description?: string;
   role?: string; // Legacy - kept for backwards compatibility
   identity?: string; // Who: expertise, personality, methodology
-  working_arrangement?: string; // How: files, rhythm, focus, constraints
+  instructions?: string; // How: files, rhythm, focus, constraints
   directories?: string[];
   allowedAgents?: string[];
   [key: string]: unknown;
@@ -98,13 +98,13 @@ export function createAgentManagementMcpServer(): McpSdkServerConfigWithInstance
 
       tool(
         "create_agent",
-        "Create a new agent. Use identity for who the agent is, and working_arrangement for how they operate. Cannot set the security field — security levels are managed by the user via CLI only.",
+        "Create a new agent. Use identity for who the agent is, and instructions for how they operate. Cannot set the security field — security levels are managed by the user via CLI only.",
         {
           id: z.string().describe("Agent identifier (lowercase alphanumeric with hyphens)"),
           name: z.string().describe("Display name"),
           description: z.string().optional().describe("Short description of what this agent does — shown to other agents for delegation discovery"),
           identity: z.string().describe("Who the agent is — expertise, personality, methodology"),
-          working_arrangement: z.string().optional().describe("How the agent operates — files, rhythm, focus, constraints"),
+          instructions: z.string().optional().describe("How the agent operates — files, rhythm, focus, constraints"),
           directories: z.array(z.string()).optional().describe("Directories the agent can access (optional)"),
           allowedAgents: z.array(z.string()).optional().describe("Agent IDs this agent can call via ask_agent (use [\"*\"] for any)"),
         },
@@ -121,7 +121,7 @@ export function createAgentManagementMcpServer(): McpSdkServerConfigWithInstance
 
           const data: AgentJson = { name: args.name, identity: args.identity };
           if (args.description) data.description = args.description;
-          if (args.working_arrangement) data.working_arrangement = args.working_arrangement;
+          if (args.instructions) data.instructions = args.instructions;
           if (args.directories && args.directories.length > 0) data.directories = args.directories;
           if (args.allowedAgents && args.allowedAgents.length > 0) data.allowedAgents = args.allowedAgents;
           writeAgentJson(args.id, data);
@@ -138,7 +138,7 @@ export function createAgentManagementMcpServer(): McpSdkServerConfigWithInstance
           name: z.string().optional().describe("New display name"),
           description: z.string().optional().describe("New short description"),
           identity: z.string().optional().describe("New identity — who the agent is"),
-          working_arrangement: z.string().optional().describe("New working arrangement — how the agent operates"),
+          instructions: z.string().optional().describe("New instructions — how the agent operates"),
           directories: z.array(z.string()).optional().describe("New list of directories (replaces existing list)"),
           allowedAgents: z.array(z.string()).optional().describe("Agent IDs this agent can call via ask_agent (use [\"*\"] for any)"),
         },
@@ -152,7 +152,7 @@ export function createAgentManagementMcpServer(): McpSdkServerConfigWithInstance
           if (args.name !== undefined) config.name = args.name;
           if (args.description !== undefined) config.description = args.description;
           if (args.identity !== undefined) config.identity = args.identity;
-          if (args.working_arrangement !== undefined) config.working_arrangement = args.working_arrangement;
+          if (args.instructions !== undefined) config.instructions = args.instructions;
           if (args.directories !== undefined) config.directories = args.directories;
           if (args.allowedAgents !== undefined) config.allowedAgents = args.allowedAgents;
 
@@ -305,7 +305,7 @@ export function createAgentManagementMcpServer(): McpSdkServerConfigWithInstance
   });
 }
 
-const MAX_WORKING_ARRANGEMENT_LENGTH = 10000;
+const MAX_INSTRUCTIONS_LENGTH = 10000;
 
 export function createSelfManagementMcpServer(
   agentDir: string,
@@ -314,13 +314,13 @@ export function createSelfManagementMcpServer(
     name: "self",
     tools: [
       tool(
-        "update_my_working_arrangement",
+        "update_my_instructions",
         "Update how you operate. Use when you discover better approaches, user preferences about your workflow, or patterns that work well. Takes effect next conversation.",
         {
           content: z.string()
-            .min(1, "Working arrangement cannot be empty")
-            .max(MAX_WORKING_ARRANGEMENT_LENGTH, `Working arrangement cannot exceed ${MAX_WORKING_ARRANGEMENT_LENGTH} characters`)
-            .describe("Your new working arrangement — how you operate"),
+            .min(1, "Instructions cannot be empty")
+            .max(MAX_INSTRUCTIONS_LENGTH, `Instructions cannot exceed ${MAX_INSTRUCTIONS_LENGTH} characters`)
+            .describe("Your new instructions — how you operate"),
         },
         async (args) => {
           const configPath = path.join(agentDir, "agent.json");
@@ -329,9 +329,9 @@ export function createSelfManagementMcpServer(
           }
           try {
             const config = JSON.parse(fs.readFileSync(configPath, "utf-8"));
-            config.working_arrangement = args.content;
+            config.instructions = args.content;
             fs.writeFileSync(configPath, JSON.stringify(config, null, 2) + "\n");
-            return ok(`Updated working arrangement (${args.content.length} chars)`);
+            return ok(`Updated instructions (${args.content.length} chars)`);
           } catch (e) {
             return err(`Failed to update: ${(e as Error).message}`);
           }
@@ -339,8 +339,8 @@ export function createSelfManagementMcpServer(
       ),
 
       tool(
-        "read_my_working_arrangement",
-        "Read your current working arrangement before updating.",
+        "read_my_instructions",
+        "Read your current instructions before updating.",
         {},
         async () => {
           const configPath = path.join(agentDir, "agent.json");
@@ -349,7 +349,7 @@ export function createSelfManagementMcpServer(
           }
           try {
             const config = JSON.parse(fs.readFileSync(configPath, "utf-8"));
-            return ok(config.working_arrangement ?? "(no working arrangement set)");
+            return ok(config.instructions ?? "(no instructions set)");
           } catch (e) {
             return err(`Failed to read: ${(e as Error).message}`);
           }
