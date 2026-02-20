@@ -22,14 +22,10 @@ export function AgentList({ agents }: { agents: Agent[] }) {
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
       {agents.map((agent) => (
-        <Link key={agent.id} to={`/agents/${agent.id}`}>
-          <Card className="cursor-pointer transition-colors hover:bg-muted/50">
+        <Link key={agent.id} to={`/agents/${agent.id}`} className="block">
+          <Card className="h-full cursor-pointer transition-colors hover:bg-muted/50">
             <CardHeader>
-              <div className="flex items-center justify-between">
-                <h3 className="font-semibold">{agent.name}</h3>
-                <SecurityBadge level={agent.security} />
-              </div>
-              <p className="text-xs text-muted-foreground font-mono">{agent.id}</p>
+              <h3 className="font-semibold">{agent.name}</h3>
             </CardHeader>
             <CardContent>
               {agent.description && (
@@ -37,11 +33,14 @@ export function AgentList({ agents }: { agents: Agent[] }) {
                   {agent.description}
                 </p>
               )}
-              <p className="text-xs text-muted-foreground">
-                {agent.triggers.length} trigger{agent.triggers.length !== 1 && "s"}
-                {" · "}
-                {agent.skills.length} skill{agent.skills.length !== 1 && "s"}
-              </p>
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <span>
+                  {agent.triggers.length} trigger{agent.triggers.length !== 1 && "s"}
+                  {" · "}
+                  {agent.skills.length} skill{agent.skills.length !== 1 && "s"}
+                </span>
+                <SecurityBadge level={agent.security} />
+              </div>
             </CardContent>
           </Card>
         </Link>
