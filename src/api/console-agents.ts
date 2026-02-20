@@ -7,7 +7,7 @@ import path from "path"
 
 const VALID_AGENT_ID = /^[a-z0-9][a-z0-9-]*$/
 
-function loadAgentDetail(workspaceDir: string, id: string, agent: { name: string; description?: string; identity?: string; instructions?: string; security?: string; capabilities?: string[]; directories?: string[]; allowedAgents?: string[] }) {
+function loadAgentDetail(workspaceDir: string, id: string, agent: { name: string; description?: string; identity?: string; instructions?: string; security?: string; capabilities?: string[]; directories?: string[]; allowedAgents?: string[]; model?: string }) {
   const agentDir = path.join(workspaceDir, "agents", id)
 
   // Load triggers
@@ -40,6 +40,7 @@ function loadAgentDetail(workspaceDir: string, id: string, agent: { name: string
     capabilities: agent.capabilities,
     directories: agent.directories,
     allowedAgents: agent.allowedAgents,
+    model: agent.model,
     skills,
     triggers,
   }
@@ -140,7 +141,30 @@ export function createConsoleAgentsRouter(workspaceDir: string): Hono {
     }
 
     const body = await c.req.json()
-    const allowedFields = ["name", "description", "identity", "instructions", "directories", "allowedAgents"]
+    const allowedFields = ["name", "description", "identity", "instructions", "directories", "allowedAgents", "security", "capabilities", "model"]
+
+    // Validate security
+    if ("security" in body) {
+      const validSecurity = ["sandbox", "standard", "unrestricted"]
+      if (!validSecurity.includes(body.security)) {
+        return c.json({ error: `Invalid security level. Must be one of: ${validSecurity.join(", ")}` }, 400)
+      }
+    }
+
+    // Validate model
+    if ("model" in body) {
+      const validModels = ["sonnet", "opus", "haiku"]
+      if (body.model != null && !validModels.includes(body.model)) {
+        return c.json({ error: `Invalid model. Must be one of: ${validModels.join(", ")}` }, 400)
+      }
+    }
+
+    // Validate capabilities
+    if ("capabilities" in body) {
+      if (!Array.isArray(body.capabilities) || !body.capabilities.every((c: unknown) => typeof c === "string")) {
+        return c.json({ error: "capabilities must be an array of strings" }, 400)
+      }
+    }
 
     let config: Record<string, unknown>
     try {
@@ -151,7 +175,12 @@ export function createConsoleAgentsRouter(workspaceDir: string): Hono {
 
     for (const field of allowedFields) {
       if (field in body) {
-        config[field] = body[field]
+        // Allow clearing model by setting to null/undefined
+        if (field === "model" && body[field] == null) {
+          delete config[field]
+        } else {
+          config[field] = body[field]
+        }
       }
     }
 
