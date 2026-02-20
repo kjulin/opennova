@@ -44,107 +44,105 @@ export function AgentHeader({
 
   return (
     <div className="space-y-4">
-      {/* Row 1: Name + Security */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-[1fr_auto]">
-        <div className="space-y-1.5">
-          <div className="flex items-center gap-2">
-            <Label htmlFor="agent-name">Name</Label>
-            <SaveStatusIndicator status={nameStatus} />
-          </div>
-          <Input
-            id="agent-name"
-            value={name}
-            onChange={(e) => onNameChange(e.target.value)}
-          />
-        </div>
-        <div className="space-y-1.5">
-          <div className="flex items-center gap-2">
-            <Label>Security</Label>
-            <SaveStatusIndicator status={securityStatus} />
-          </div>
-          <Select
-            key={securityKey}
-            value={security}
-            onValueChange={(value) => {
-              onSecurityChange(value);
-              saveSecurity({ security: value });
-              setSecurityKey((k) => k + 1);
-            }}
-          >
-            <SelectTrigger className="w-[160px]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="sandbox">
-                <span className="flex items-center gap-2">
-                  <span className="size-2 rounded-full bg-yellow-500" />
-                  sandbox
-                </span>
-              </SelectItem>
-              <SelectItem value="standard">
-                <span className="flex items-center gap-2">
-                  <span className="size-2 rounded-full bg-blue-500" />
-                  standard
-                </span>
-              </SelectItem>
-              <SelectItem value="unrestricted">
-                <span className="flex items-center gap-2">
-                  <span className="size-2 rounded-full bg-red-500" />
-                  unrestricted
-                </span>
-              </SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
+      {/* ID */}
+      <p className="font-mono text-xs text-muted-foreground">
+        ID: {agentId}
+      </p>
 
-      {/* Row 2: ID + Model */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-[1fr_auto]">
-        <div className="space-y-1.5">
-          <Label>ID</Label>
-          <p className="rounded-md border border-border bg-muted/50 px-3 py-2 font-mono text-sm text-muted-foreground">
-            {agentId}
-          </p>
-        </div>
-        <div className="space-y-1.5">
-          <div className="flex items-center gap-2">
-            <Label>Model</Label>
-            <SaveStatusIndicator status={modelStatus} />
+      {/* Name/Description (left) + Security/Model (right) */}
+      <div className="grid grid-cols-1 gap-6 sm:grid-cols-[1fr_auto]">
+        <div className="space-y-4">
+          <div className="space-y-1.5">
+            <div className="flex items-center gap-2">
+              <Label htmlFor="agent-name">Name</Label>
+              <SaveStatusIndicator status={nameStatus} />
+            </div>
+            <Input
+              id="agent-name"
+              value={name}
+              onChange={(e) => onNameChange(e.target.value)}
+            />
           </div>
-          <Select
-            key={modelKey}
-            value={model || "__default__"}
-            onValueChange={(value) => {
-              const newModel = value === "__default__" ? "" : value;
-              onModelChange(newModel);
-              saveModel({ model: newModel || null });
-              setModelKey((k) => k + 1);
-            }}
-          >
-            <SelectTrigger className="w-[160px]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="__default__">(system default)</SelectItem>
-              <SelectItem value="sonnet">sonnet</SelectItem>
-              <SelectItem value="opus">opus</SelectItem>
-              <SelectItem value="haiku">haiku</SelectItem>
-            </SelectContent>
-          </Select>
+          <div className="space-y-1.5">
+            <div className="flex items-center gap-2">
+              <Label htmlFor="agent-description">Description</Label>
+              <SaveStatusIndicator status={descriptionStatus} />
+            </div>
+            <Input
+              id="agent-description"
+              value={description}
+              onChange={(e) => onDescriptionChange(e.target.value)}
+            />
+          </div>
         </div>
-      </div>
 
-      {/* Row 3: Description */}
-      <div className="space-y-1.5">
-        <div className="flex items-center gap-2">
-          <Label htmlFor="agent-description">Description</Label>
-          <SaveStatusIndicator status={descriptionStatus} />
+        <div className="space-y-4">
+          <div className="space-y-1.5">
+            <div className="flex items-center gap-2">
+              <Label>Security</Label>
+              <SaveStatusIndicator status={securityStatus} />
+            </div>
+            <Select
+              key={securityKey}
+              value={security}
+              onValueChange={(value) => {
+                onSecurityChange(value);
+                saveSecurity({ security: value });
+                setSecurityKey((k) => k + 1);
+              }}
+            >
+              <SelectTrigger className="w-[160px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="sandbox">
+                  <span className="flex items-center gap-2">
+                    <span className="size-2 rounded-full bg-yellow-500" />
+                    sandbox
+                  </span>
+                </SelectItem>
+                <SelectItem value="standard">
+                  <span className="flex items-center gap-2">
+                    <span className="size-2 rounded-full bg-blue-500" />
+                    standard
+                  </span>
+                </SelectItem>
+                <SelectItem value="unrestricted">
+                  <span className="flex items-center gap-2">
+                    <span className="size-2 rounded-full bg-red-500" />
+                    unrestricted
+                  </span>
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1.5">
+            <div className="flex items-center gap-2">
+              <Label>Model</Label>
+              <SaveStatusIndicator status={modelStatus} />
+            </div>
+            <Select
+              key={modelKey}
+              value={model || "__default__"}
+              onValueChange={(value) => {
+                const newModel = value === "__default__" ? "" : value;
+                onModelChange(newModel);
+                saveModel({ model: newModel || null });
+                setModelKey((k) => k + 1);
+              }}
+            >
+              <SelectTrigger className="w-[160px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__default__">(system default)</SelectItem>
+                <SelectItem value="sonnet">sonnet</SelectItem>
+                <SelectItem value="opus">opus</SelectItem>
+                <SelectItem value="haiku">haiku</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
-        <Input
-          id="agent-description"
-          value={description}
-          onChange={(e) => onDescriptionChange(e.target.value)}
-        />
       </div>
     </div>
   );

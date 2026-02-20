@@ -91,7 +91,6 @@ export function AgentDetailPage() {
         </Link>
         <span className="text-muted-foreground">/</span>
         <span className="font-medium">{name}</span>
-        <span className="text-muted-foreground">({id})</span>
       </div>
 
       {/* Header */}
