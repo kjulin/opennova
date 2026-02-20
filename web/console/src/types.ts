@@ -14,6 +14,7 @@ export interface Agent {
   identity?: string;
   instructions?: string;
   security: string;
+  model?: string;
   capabilities?: string[];
   directories?: string[];
   allowedAgents?: string[];

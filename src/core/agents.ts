@@ -27,6 +27,7 @@ export interface AgentConfig {
   security?: SecurityLevel;
   subagents?: Record<string, SubagentConfig>;
   capabilities?: string[];
+  model?: Model;
 }
 
 export function loadAgents(): Map<string, AgentConfig> {
