@@ -16,7 +16,8 @@
     "#daemon/*": "./dist/daemon/*",
     "#tasks/*": "./dist/tasks/*",
     "#notes/*": "./dist/notes/*",
-    "#api/*": "./dist/api/*"
+    "#api/*": "./dist/api/*",
+    "#councils/*": "./dist/councils/*"
   },
   "scripts": {
     "dev": "tsx src/daemon/cli.ts daemon",

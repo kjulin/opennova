@@ -8,7 +8,8 @@
       "#daemon/*": ["./src/daemon/*"],
       "#tasks/*": ["./src/tasks/*"],
       "#notes/*": ["./src/notes/*"],
-      "#api/*": ["./src/api/*"]
+      "#api/*": ["./src/api/*"],
+      "#councils/*": ["./src/councils/*"]
     },
 
     "module": "nodenext",
