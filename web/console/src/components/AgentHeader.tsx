@@ -8,7 +8,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { SaveStatusIndicator } from "@/components/SaveStatusIndicator";
 import { useAutoSave, useImmediateSave } from "@/hooks/use-auto-save";
 
 interface AgentHeaderProps {
@@ -34,11 +33,10 @@ export function AgentHeader({
   onSecurityChange,
   onModelChange,
 }: AgentHeaderProps) {
-  const nameStatus = useAutoSave(agentId, "name", name);
-  const descriptionStatus = useAutoSave(agentId, "description", description);
-  const { status: securityStatus, save: saveSecurity } =
-    useImmediateSave(agentId);
-  const { status: modelStatus, save: saveModel } = useImmediateSave(agentId);
+  useAutoSave(agentId, "name", name);
+  useAutoSave(agentId, "description", description);
+  const { save: saveSecurity } = useImmediateSave(agentId);
+  const { save: saveModel } = useImmediateSave(agentId);
   const [securityKey, setSecurityKey] = useState(0);
   const [modelKey, setModelKey] = useState(0);
 
@@ -53,10 +51,7 @@ export function AgentHeader({
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-[1fr_auto]">
         <div className="space-y-4">
           <div className="space-y-1.5">
-            <div className="flex items-center gap-2">
-              <Label htmlFor="agent-name">Name</Label>
-              <SaveStatusIndicator status={nameStatus} />
-            </div>
+            <Label htmlFor="agent-name">Name</Label>
             <Input
               id="agent-name"
               value={name}
@@ -64,10 +59,7 @@ export function AgentHeader({
             />
           </div>
           <div className="space-y-1.5">
-            <div className="flex items-center gap-2">
-              <Label htmlFor="agent-description">Description</Label>
-              <SaveStatusIndicator status={descriptionStatus} />
-            </div>
+            <Label htmlFor="agent-description">Description</Label>
             <Input
               id="agent-description"
               value={description}
@@ -78,10 +70,7 @@ export function AgentHeader({
 
         <div className="space-y-4">
           <div className="space-y-1.5">
-            <div className="flex items-center gap-2">
-              <Label>Security</Label>
-              <SaveStatusIndicator status={securityStatus} />
-            </div>
+            <Label>Security</Label>
             <Select
               key={securityKey}
               value={security}
@@ -117,10 +106,7 @@ export function AgentHeader({
             </Select>
           </div>
           <div className="space-y-1.5">
-            <div className="flex items-center gap-2">
-              <Label>Model</Label>
-              <SaveStatusIndicator status={modelStatus} />
-            </div>
+            <Label>Model</Label>
             <Select
               key={modelKey}
               value={model || "__default__"}

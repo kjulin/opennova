@@ -2,7 +2,6 @@ import { useState } from "react";
 import { X, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { SaveStatusIndicator } from "@/components/SaveStatusIndicator";
 import { useImmediateSave } from "@/hooks/use-auto-save";
 
 interface AgentDirectoriesProps {
@@ -18,7 +17,7 @@ export function AgentDirectories({
 }: AgentDirectoriesProps) {
   const [adding, setAdding] = useState(false);
   const [newPath, setNewPath] = useState("");
-  const { status, save } = useImmediateSave(agentId);
+  const { save } = useImmediateSave(agentId);
 
   function handleRemove(index: number) {
     const updated = directories.filter((_, i) => i !== index);
@@ -41,7 +40,6 @@ export function AgentDirectories({
 
   return (
     <div className="space-y-2">
-      <SaveStatusIndicator status={status} />
       {directories.length === 0 && !adding && (
         <p className="text-sm text-muted-foreground">No directories configured</p>
       )}

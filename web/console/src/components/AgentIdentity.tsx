@@ -1,6 +1,5 @@
 import { Label } from "@/components/ui/label";
 import { AutoResizeTextarea } from "@/components/AutoResizeTextarea";
-import { SaveStatusIndicator } from "@/components/SaveStatusIndicator";
 import { useAutoSave } from "@/hooks/use-auto-save";
 
 interface AgentIdentityProps {
@@ -18,20 +17,13 @@ export function AgentIdentity({
   onIdentityChange,
   onInstructionsChange,
 }: AgentIdentityProps) {
-  const identityStatus = useAutoSave(agentId, "identity", identity);
-  const instructionsStatus = useAutoSave(
-    agentId,
-    "instructions",
-    instructions,
-  );
+  useAutoSave(agentId, "identity", identity);
+  useAutoSave(agentId, "instructions", instructions);
 
   return (
     <div className="space-y-6">
       <div className="space-y-2">
-        <div className="flex items-center gap-2">
-          <Label htmlFor="agent-identity">Identity</Label>
-          <SaveStatusIndicator status={identityStatus} />
-        </div>
+        <Label htmlFor="agent-identity">Identity</Label>
         <p className="text-xs text-muted-foreground">
           Who this agent is — role, expertise, personality
         </p>
@@ -44,10 +36,7 @@ export function AgentIdentity({
       </div>
 
       <div className="space-y-2">
-        <div className="flex items-center gap-2">
-          <Label htmlFor="agent-instructions">Instructions</Label>
-          <SaveStatusIndicator status={instructionsStatus} />
-        </div>
+        <Label htmlFor="agent-instructions">Instructions</Label>
         <p className="text-xs text-muted-foreground">
           How this agent operates — files, rhythm, focus, constraints
         </p>

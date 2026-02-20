@@ -3,7 +3,6 @@ import { fetchAgents } from "@/api";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { SaveStatusIndicator } from "@/components/SaveStatusIndicator";
 import { useImmediateSave } from "@/hooks/use-auto-save";
 
 interface AgentAllowedAgentsProps {
@@ -20,7 +19,7 @@ export function AgentAllowedAgents({
   const [allAgents, setAllAgents] = useState<{ id: string; name: string }[]>(
     [],
   );
-  const { status, save } = useImmediateSave(agentId);
+  const { save } = useImmediateSave(agentId);
 
   const isWildcard = allowedAgents.includes("*");
 
@@ -58,7 +57,6 @@ export function AgentAllowedAgents({
 
   return (
     <div className="space-y-3">
-      <SaveStatusIndicator status={status} />
       {isWildcard ? (
         <div className="flex items-center gap-3">
           <p className="text-sm">

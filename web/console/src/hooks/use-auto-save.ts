@@ -13,14 +13,20 @@ export function useAutoSave(
 ) {
   const [status, setStatus] = useState<SaveStatus>("idle");
   const timeoutRef = useRef<number>();
-  const initialRef = useRef(true);
+  const lastSavedRef = useRef(value);
+  const hasMountedRef = useRef(false);
 
   useEffect(() => {
-    // Skip the initial render — don't save the value that was just loaded
-    if (initialRef.current) {
-      initialRef.current = false;
+    // Don't save until the hook has been active for at least one render cycle.
+    // This prevents saving the initial value loaded from the API.
+    if (!hasMountedRef.current) {
+      hasMountedRef.current = true;
+      lastSavedRef.current = value;
       return;
     }
+
+    // Don't save if value hasn't actually changed from what's on the server
+    if (value === lastSavedRef.current) return;
 
     if (!enabled) return;
 
@@ -30,6 +36,7 @@ export function useAutoSave(
       setStatus("saving");
       try {
         await patchAgent(agentId, { [field]: value });
+        lastSavedRef.current = value;
         setStatus("saved");
       } catch {
         setStatus("error");
@@ -38,6 +45,12 @@ export function useAutoSave(
 
     return () => clearTimeout(timeoutRef.current);
   }, [agentId, field, value, enabled]);
+
+  // When agentId changes (navigating to different agent), reset
+  useEffect(() => {
+    hasMountedRef.current = false;
+    lastSavedRef.current = value;
+  }, [agentId]);
 
   return status;
 }

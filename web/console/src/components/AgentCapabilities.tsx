@@ -1,6 +1,5 @@
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import { SaveStatusIndicator } from "@/components/SaveStatusIndicator";
 import { useImmediateSave } from "@/hooks/use-auto-save";
 
 const AVAILABLE_CAPABILITIES = [
@@ -18,7 +17,7 @@ export function AgentCapabilities({
   capabilities,
   onCapabilitiesChange,
 }: AgentCapabilitiesProps) {
-  const { status, save } = useImmediateSave(agentId);
+  const { save } = useImmediateSave(agentId);
 
   function handleToggle(capId: string, checked: boolean) {
     const updated = checked
@@ -30,7 +29,6 @@ export function AgentCapabilities({
 
   return (
     <div className="space-y-3">
-      <SaveStatusIndicator status={status} />
       {AVAILABLE_CAPABILITIES.map((cap) => (
         <div key={cap.id} className="flex items-center gap-3">
           <Checkbox
