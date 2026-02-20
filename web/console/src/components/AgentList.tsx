@@ -17,12 +17,12 @@ export function AgentList({ agents }: { agents: Agent[] }) {
                   {agent.description}
                 </p>
               )}
-              <p className="text-xs text-muted-foreground mt-auto">
+              <p className="text-xs font-medium text-foreground/70 mt-auto">
                 {agent.triggers.length} trigger{agent.triggers.length !== 1 && "s"}
                 {" · "}
                 {agent.skills.length} skill{agent.skills.length !== 1 && "s"}
                 {" · "}
-                {agent.security}
+                {agent.security} access
               </p>
             </CardContent>
           </Card>
