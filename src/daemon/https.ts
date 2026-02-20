@@ -244,6 +244,24 @@ export function startHttpsServer(workspaceDir: string): HttpsServer | null {
   app.get("/web/tasklist", (c) => c.redirect("/web/tasklist/"));
   app.get("/web/tasklist/*", createStaticHandler(webappDir, "/web/tasklist"));
 
+  // Console app
+  const consoleDir = path.resolve(import.meta.dirname, "..", "console");
+  const consoleStaticHandler = createStaticHandler(consoleDir, "/web/console");
+  app.get("/web/console", (c) => c.redirect("/web/console/"));
+  app.get("/web/console/*", (c) => {
+    const result = consoleStaticHandler(c);
+    // SPA fallback: if static file not found, serve index.html for client-side routing
+    if (result instanceof Response && result.status === 404) {
+      const indexPath = path.join(consoleDir, "index.html");
+      if (fs.existsSync(indexPath)) {
+        const content = fs.readFileSync(indexPath);
+        c.header("Content-Type", "text/html");
+        return c.body(content.buffer.slice(content.byteOffset, content.byteOffset + content.byteLength));
+      }
+    }
+    return result;
+  });
+
   const server = serve({
     fetch: app.fetch,
     port: PORT,
