@@ -135,14 +135,13 @@ Agent {
   instructions: string    // how: files, rhythm, constraints
   directories: string[]   // filesystem access boundaries
   capabilities: string[]  // explicit list of MCP servers this agent gets
-  allowedAgents: string[] // inter-agent communication permissions
   trust: TrustLevel       // sandbox | default | unrestricted
   model: Model            // default model override
   subagents: Record<string, SubagentConfig>  // Claude SDK subagents
 }
 ```
 
-Protected agents (`nova`, `agent-builder`) cannot be modified or deleted through agent management MCP tools. It is still possible to modify or delete them manually via Console.
+All agents are equal. Agents created during `nova init` (`nova`, `agent-builder`) are defaults, not privileged. The user can modify, replace, or delete any agent.
 
 ### Thread
 
@@ -238,7 +237,7 @@ Each boundary below should have its own spec. This system spec defines how they 
 | capabilities | DONE | Registry, resolver pattern, run-time injections |
 | engine | DONE | Engine interface, trust levels, options, result shape, session management |
 | threads | DONE | Creation, locking, message flow, cognitive boundary, post-run effects |
-| Agent Model | TODO | Config shape, resolution, protected agents |
+| Agent Model | DONE | Config shape, field semantics, lifecycle, self-mutation boundaries |
 | System Prompt Assembly | TODO | Prompt building, context injection, formatting |
 | Channel Contract | TODO | Adapter pattern, event bus, message routing |
 | Scheduling | TODO | Triggers, task scheduler, backfill — timer-based concerns |

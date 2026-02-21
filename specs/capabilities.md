@@ -58,7 +58,7 @@ Not every resolver uses every field. But all resolvers receive the same context 
 | media | `createMediaMcpServer(agentDir, directories, callbacks)` — file send, transcription, future TTS |
 | secrets | `createSecretsMcpServer(workspaceDir)` |
 | triggers | `createTriggerMcpServer(agentDir, channel)` |
-| agents | `createAgentsMcpServer(agent, depth, runAgent)` — inter-agent communication, scoped by `agent.allowedAgents` |
+| agents | `createAgentsMcpServer(depth, runAgent)` — inter-agent communication, can reach any agent |
 | agent-management | `createAgentManagementMcpServer()` |
 | browser | external stdio: `npx @playwright/mcp@latest` |
 
