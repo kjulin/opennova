@@ -1,23 +1,59 @@
 import type { McpServerConfig } from "@anthropic-ai/claude-agent-sdk";
+import type { AgentConfig } from "./agents.js";
+import type { FileType } from "./media/mcp.js";
+import type { RunAgentFn } from "./ask-agent.js";
+import { createMemoryMcpServer } from "./memory.js";
+import { createHistoryMcpServer } from "./episodic/index.js";
+import { createTasksMcpServer } from "#tasks/index.js";
+import { createNotesMcpServer } from "#notes/index.js";
+import { createSelfManagementMcpServer, createAgentManagementMcpServer } from "./agent-management.js";
+import { createMediaMcpServer } from "./media/mcp.js";
+import { createSecretsMcpServer } from "./secrets.js";
+import { createAgentsMcpServer } from "./ask-agent.js";
+import { createTriggerMcpServer } from "./triggers.js";
 
-/**
- * Static registry of platform capabilities.
- * Each entry maps a capability name to the MCP server config that provides it.
- *
- * Adding a new capability is a code change — capabilities are curated platform
- * features, not user config.
- *
- * Prerequisites:
- * - browser: Requires Playwright browsers. Run `npx playwright install chromium`
- *   once before first use, or the first invocation will auto-download (~150MB).
- */
-const CAPABILITY_REGISTRY: Record<string, McpServerConfig> = {
-  browser: {
-    type: "stdio",
+export interface ResolverContext {
+  agentId: string;
+  agentDir: string;
+  workspaceDir: string;
+  threadId: string;
+  channel: string;
+  directories: string[];
+  callbacks: {
+    onFileSend?: (filePath: string, caption: string | undefined, fileType: FileType) => void;
+    onShareNote?: (title: string, slug: string, message: string | undefined) => void;
+    onPinChange?: () => void;
+    onNotifyUser?: (message: string) => void;
+  };
+  agent?: AgentConfig;
+  askAgentDepth?: number;
+  runAgentFn?: RunAgentFn;
+}
+
+type CapabilityResolver = (ctx: ResolverContext) => McpServerConfig | null;
+
+const CAPABILITY_REGISTRY: Record<string, CapabilityResolver> = {
+  memory: () => createMemoryMcpServer(),
+  history: (ctx) => createHistoryMcpServer(ctx.agentDir, ctx.agentId, ctx.threadId),
+  tasks: (ctx) => createTasksMcpServer(ctx.agentId, ctx.workspaceDir),
+  notes: (ctx) => createNotesMcpServer(ctx.agentDir, ctx.callbacks.onShareNote, ctx.callbacks.onPinChange),
+  self: (ctx) => createSelfManagementMcpServer(ctx.agentDir),
+  media: (ctx) => createMediaMcpServer(ctx.agentDir, ctx.directories, ctx.callbacks.onFileSend ?? (() => {})),
+  secrets: (ctx) => createSecretsMcpServer(ctx.workspaceDir),
+  agents: (ctx) => {
+    if (!ctx.agent?.allowedAgents || !ctx.runAgentFn) return null;
+    return createAgentsMcpServer(ctx.agent, ctx.askAgentDepth ?? 0, ctx.runAgentFn);
+  },
+  "agent-management": () => createAgentManagementMcpServer(),
+  triggers: (ctx) => createTriggerMcpServer(ctx.agentDir, ctx.channel),
+  browser: () => ({
+    type: "stdio" as const,
     command: "npx",
     args: ["@playwright/mcp@latest"],
-  },
+  }),
 };
+
+export const KNOWN_CAPABILITIES = Object.keys(CAPABILITY_REGISTRY);
 
 /**
  * Return `mcp__<name>__*` wildcard patterns for each declared capability.
@@ -32,16 +68,20 @@ export function capabilityToolPatterns(
 
 export function resolveCapabilities(
   capabilities: string[] | undefined,
+  ctx: ResolverContext,
 ): Record<string, McpServerConfig> {
   if (!capabilities || capabilities.length === 0) return {};
 
   const servers: Record<string, McpServerConfig> = {};
   for (const cap of capabilities) {
-    const config = CAPABILITY_REGISTRY[cap];
-    if (!config) {
-      throw new Error(`Unknown capability: "${cap}". Available: ${Object.keys(CAPABILITY_REGISTRY).join(", ")}`);
+    const resolver = CAPABILITY_REGISTRY[cap];
+    if (!resolver) {
+      throw new Error(`Unknown capability: "${cap}". Available: ${KNOWN_CAPABILITIES.join(", ")}`);
     }
-    servers[cap] = config;
+    const config = resolver(ctx);
+    if (config) {
+      servers[cap] = config;
+    }
   }
   return servers;
 }

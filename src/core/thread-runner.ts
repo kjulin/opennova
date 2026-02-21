@@ -5,17 +5,11 @@ import { claudeEngine, generateThreadTitle, type Engine, type EngineCallbacks, t
 import { loadAgents, getAgentCwd, getAgentDirectories } from "./agents.js";
 import { Config } from "./config.js";
 import { buildSystemPrompt } from "./prompts/index.js";
-import { createMemoryMcpServer } from "./memory.js";
-import { createSecretsMcpServer } from "./secrets.js";
-import { createAgentManagementMcpServer, createSelfManagementMcpServer } from "./agent-management.js";
-import { createAgentsMcpServer } from "./ask-agent.js";
-import { createMediaMcpServer, type FileType } from "./media/mcp.js";
 import { createNotifyUserMcpServer } from "./notify-user.js";
-import { resolveCapabilities } from "./capabilities.js";
+import { resolveCapabilities, type ResolverContext } from "./capabilities.js";
 import { appendUsage } from "./usage.js";
-import { createHistoryMcpServer, generateEmbedding, appendEmbedding, isModelAvailable } from "./episodic/index.js";
-import { createTasksMcpServer, getTask, buildTaskContext } from "#tasks/index.js";
-import { createNotesMcpServer } from "#notes/index.js";
+import { generateEmbedding, appendEmbedding, isModelAvailable } from "./episodic/index.js";
+import { getTask, buildTaskContext } from "#tasks/index.js";
 import {
   threadPath,
   loadManifest,
@@ -26,6 +20,7 @@ import {
   withThreadLock,
 } from "./threads.js";
 import { log } from "./logger.js";
+import type { FileType } from "./media/mcp.js";
 
 export interface RunAgentOverrides {
   model?: Model | undefined;
@@ -150,26 +145,24 @@ If you need to notify the user about something important (questions, updates, co
             ...(overrides?.maxTurns ? { maxTurns: overrides.maxTurns } : {}),
             ...(agent.subagents ? { agents: agent.subagents } : {}),
             mcpServers: {
-              memory: createMemoryMcpServer(),
-              history: createHistoryMcpServer(agentDir, agentId, threadId),
-              tasks: createTasksMcpServer(agentId, Config.workspaceDir),
-              notes: createNotesMcpServer(agentDir, (title, slug, message) => {
-                callbacks?.onShareNote?.(agentId, threadId, manifest.channel, title, slug, message);
-              }, () => {
-                callbacks?.onPinChange?.(agentId, manifest.channel);
+              ...resolveCapabilities(agent.capabilities, {
+                agentId,
+                agentDir,
+                workspaceDir: Config.workspaceDir,
+                threadId,
+                channel: manifest.channel,
+                directories,
+                callbacks: {
+                  onFileSend: (fp, caption, fileType) => callbacks?.onFileSend?.(agentId, threadId, manifest.channel, fp, caption, fileType),
+                  onShareNote: (title, slug, message) => callbacks?.onShareNote?.(agentId, threadId, manifest.channel, title, slug, message),
+                  onPinChange: () => callbacks?.onPinChange?.(agentId, manifest.channel),
+                  onNotifyUser: (message) => callbacks?.onNotifyUser?.(agentId, threadId, manifest.channel, message),
+                },
+                agent,
+                askAgentDepth: askAgentDepth ?? 0,
+                runAgentFn: runAgentForAskAgent,
               }),
-              ...(trust !== "sandbox" ? { self: createSelfManagementMcpServer(agentDir) } : {}),
-              ...(trust !== "sandbox" ? {
-                media: createMediaMcpServer(agentDir, directories, (filePath, caption, fileType) => {
-                  callbacks?.onFileSend?.(agentId, threadId, manifest.channel, filePath, caption, fileType);
-                }),
-                secrets: createSecretsMcpServer(Config.workspaceDir),
-              } : {}),
               ...extraMcpServers,
-              ...resolveCapabilities(agent.capabilities),
-              ...(agentId === "agent-builder" ? { "agent-management": createAgentManagementMcpServer() } : {}),
-
-              ...(agent.allowedAgents && trust !== "sandbox" ? { agents: createAgentsMcpServer(agent, askAgentDepth ?? 0, runAgentForAskAgent) } : {}),
               ...(overrides?.silent ? {
                 "notify-user": createNotifyUserMcpServer((message) => {
                   callbacks?.onNotifyUser?.(agentId, threadId, manifest.channel, message);

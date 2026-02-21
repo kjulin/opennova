@@ -100,6 +100,21 @@ export {
   type RunAgentOverrides,
 } from "./thread-runner.js";
 
+// Capabilities
+export {
+  resolveCapabilities,
+  capabilityToolPatterns,
+  KNOWN_CAPABILITIES,
+  type ResolverContext,
+} from "./capabilities.js";
+
+// Triggers
+export {
+  loadTriggers,
+  saveTriggers,
+  createTriggerMcpServer,
+} from "./triggers.js";
+
 // MCP Servers
 export { createMemoryMcpServer } from "./memory.js";
 export { createAgentManagementMcpServer, createSelfManagementMcpServer } from "./agent-management.js";
