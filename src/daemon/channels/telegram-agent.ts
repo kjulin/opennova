@@ -6,8 +6,7 @@ import {
   loadAgents,
   listThreads,
   createThread,
-  loadManifest,
-  threadPath,
+  getThreadManifest,
   type AgentBotConfig,
 } from "#core/index.js";
 import { bus } from "../events.js";
@@ -441,9 +440,8 @@ You can read, process, or move this file as needed.`;
     if (!data.startsWith("thread:")) return;
 
     const threadId = data.slice("thread:".length);
-    const filePath = threadPath(agentDir, threadId);
     try {
-      const manifest = loadManifest(filePath);
+      const manifest = getThreadManifest(agentId, threadId);
       botConfig.activeThreadId = threadId;
       saveConfig();
       const title = manifest.title || "Untitled";

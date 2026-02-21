@@ -7,9 +7,8 @@ import {
   loadAgents,
   listThreads,
   createThread,
-  loadManifest,
-  saveManifest,
-  threadPath,
+  getThreadManifest,
+  updateThreadChannel,
   TelegramConfigSchema,
   safeParseJsonFile,
   transcribe,
@@ -194,9 +193,7 @@ export function startTelegram() {
       // Include task title if thread is bound to a task
       let taskInfo = "";
       try {
-        const agentDir = path.join(Config.workspaceDir, "agents", payload.agentId);
-        const filePath = threadPath(agentDir, payload.threadId);
-        const manifest = loadManifest(filePath);
+        const manifest = getThreadManifest(payload.agentId, payload.threadId);
         const taskId = manifest.taskId as string | undefined;
         if (taskId) {
           const task = getTask(Config.workspaceDir, taskId);
@@ -751,13 +748,10 @@ You can read, process, or move this file as needed.`;
         saveTelegramConfig(config);
 
         // Update thread channel to telegram so responses are delivered here
-        const agentDir = path.join(Config.workspaceDir, "agents", data.agentId);
-        const filePath = threadPath(agentDir, data.threadId);
         try {
-          const manifest = loadManifest(filePath);
+          const manifest = getThreadManifest(data.agentId, data.threadId);
           if (manifest.channel !== "telegram") {
-            manifest.channel = "telegram";
-            saveManifest(filePath, manifest);
+            updateThreadChannel(data.agentId, data.threadId, "telegram");
             log.info("telegram", `updated thread ${data.threadId} channel to telegram`);
           }
         } catch {
@@ -824,10 +818,8 @@ You can read, process, or move this file as needed.`;
 
     if (data.startsWith("thread:")) {
       const threadId = data.slice("thread:".length);
-      const agentDir = path.join(Config.workspaceDir, "agents", config.activeAgentId);
-      const filePath = threadPath(agentDir, threadId);
       try {
-        const manifest = loadManifest(filePath);
+        const manifest = getThreadManifest(config.activeAgentId, threadId);
         config.activeThreadId = threadId;
         saveTelegramConfig(config);
         const title = manifest.title || "Untitled";
