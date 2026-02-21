@@ -102,18 +102,18 @@ export {
 
 // Thread Runner
 export {
-  threadRunner,
-  createThreadRunner,
-  runThread,
-  type ThreadRunner,
-  type ThreadRunnerCallbacks,
-  type RunThreadOverrides,
+  agentRunner,
+  createAgentRunner,
+  runAgent,
+  type AgentRunner,
+  type AgentRunnerCallbacks,
+  type RunAgentOverrides,
 } from "./thread-runner.js";
 
 // MCP Servers
 export { createMemoryMcpServer } from "./memory.js";
 export { createAgentManagementMcpServer, createSelfManagementMcpServer } from "./agent-management.js";
-export { createAskAgentMcpServer, type RunThreadFn } from "./ask-agent.js";
+export { createAskAgentMcpServer, type RunAgentFn } from "./ask-agent.js";
 export { createFileSendMcpServer, type FileType, type OnFileSendCallback } from "./file-send.js";
 export {
   appendUsage,

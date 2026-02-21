@@ -18,7 +18,7 @@ import {
   type TelegramConfig,
 } from "#core/index.js";
 import { bus } from "../events.js";
-import { runThread } from "../runner.js";
+import { runAgent } from "../runner.js";
 import { createTriggerMcpServer } from "../triggers.js";
 import { getTask, loadTasks } from "#tasks/index.js";
 import { listNotes, getPinnedNotes } from "#notes/index.js";
@@ -453,7 +453,7 @@ export function startTelegram() {
 
     // Don't await — let it run in the background so subsequent messages
     // (like /stop) can be processed while the agent is working.
-    runThread(
+    runAgent(
       agentDir, threadId, text,
       {
         onThinking() {
@@ -574,7 +574,7 @@ Please read it and respond to what I said.`;
       }, 4000);
       bot.api.sendChatAction(chatId, "typing").catch(() => {});
 
-      runThread(
+      runAgent(
         agentDir, threadId, prompt,
         {
           onThinking() {
@@ -666,7 +666,7 @@ You can read, process, or move this file as needed.`;
       }, 4000);
       bot.api.sendChatAction(chatId, "typing").catch(() => {});
 
-      runThread(
+      runAgent(
         agentDir, threadId, prompt,
         {
           onThinking() {},
@@ -882,7 +882,7 @@ You can read, process, or move this file as needed.`;
       bot.api.sendChatAction(chatId, "typing").catch(() => {});
     }, 4000);
     bot.api.sendChatAction(chatId, "typing").catch(() => {});
-    runThread(agentDir, threadId, "The user just switched to you. Greet them briefly, then in 1-2 sentences help them reorient — recap where you left off, any open questions or pending tasks. If there's no prior context, just say hi and what you can help with. Keep it short.", undefined, {
+    runAgent(agentDir, threadId, "The user just switched to you. Greet them briefly, then in 1-2 sentences help them reorient — recap where you left off, any open questions or pending tasks. If there's no prior context, just say hi and what you can help with. Keep it short.", undefined, {
       triggers: createTriggerMcpServer(agentDir, "telegram"),
     }, undefined, undefined, { model: "haiku", maxTurns: 1 }).catch((err) => {
       log.error("telegram", `greeting failed for ${agentId}:`, (err as Error).message);

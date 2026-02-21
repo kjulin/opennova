@@ -29,14 +29,14 @@ import {
 } from "./threads.js";
 import { log } from "./logger.js";
 
-export interface RunThreadOverrides {
+export interface RunAgentOverrides {
   model?: Model | undefined;
   maxTurns?: number | undefined;
   systemPromptSuffix?: string | undefined;
   silent?: boolean | undefined;  // Suppress channel notifications
 }
 
-export interface ThreadRunnerCallbacks extends EngineCallbacks {
+export interface AgentRunnerCallbacks extends EngineCallbacks {
   onThreadResponse?: (agentId: string, threadId: string, channel: string, text: string) => void;
   onThreadError?: (agentId: string, threadId: string, channel: string, error: string) => void;
   onFileSend?: (agentId: string, threadId: string, channel: string, filePath: string, caption: string | undefined, fileType: FileType) => void;
@@ -45,29 +45,29 @@ export interface ThreadRunnerCallbacks extends EngineCallbacks {
   onNotifyUser?: (agentId: string, threadId: string, channel: string, message: string) => void;
 }
 
-export interface ThreadRunner {
-  runThread(
+export interface AgentRunner {
+  runAgent(
     agentDir: string,
     threadId: string,
     message: string,
-    callbacks?: ThreadRunnerCallbacks,
+    callbacks?: AgentRunnerCallbacks,
     extraMcpServers?: Record<string, McpServerConfig>,
     askAgentDepth?: number,
     abortController?: AbortController,
-    overrides?: RunThreadOverrides,
+    overrides?: RunAgentOverrides,
   ): Promise<{ text: string }>;
 }
 
-export function createThreadRunner(runtime: Runtime = defaultRuntime): ThreadRunner {
-  const runThread = async (
+export function createAgentRunner(runtime: Runtime = defaultRuntime): AgentRunner {
+  const runAgent = async (
     agentDir: string,
     threadId: string,
     message: string,
-    callbacks?: ThreadRunnerCallbacks,
+    callbacks?: AgentRunnerCallbacks,
     extraMcpServers?: Record<string, McpServerConfig>,
     askAgentDepth?: number,
     abortController?: AbortController,
-    overrides?: RunThreadOverrides,
+    overrides?: RunAgentOverrides,
   ): Promise<{ text: string }> => {
     return withThreadLock(threadId, async () => {
       const filePath = threadPath(agentDir, threadId);
@@ -88,14 +88,14 @@ export function createThreadRunner(runtime: Runtime = defaultRuntime): ThreadRun
 
       const security = resolveSecurityLevel(agent);
 
-      // Create a runThread wrapper for ask-agent that maintains the callback chain
-      const runThreadForAskAgent = async (
+      // Create a runAgent wrapper for ask-agent that maintains the callback chain
+      const runAgentForAskAgent = async (
         targetAgentDir: string,
         targetThreadId: string,
         targetMessage: string,
         depth: number,
       ): Promise<{ text: string }> => {
-        return runThread(
+        return runAgent(
           targetAgentDir,
           targetThreadId,
           targetMessage,
@@ -173,7 +173,7 @@ If you need to notify the user about something important (questions, updates, co
               ...resolveCapabilities(agent.capabilities),
               ...(agentId === "agent-builder" ? { agents: createAgentManagementMcpServer() } : {}),
 
-              ...(agent.allowedAgents && security !== "sandbox" ? { "ask-agent": createAskAgentMcpServer(agent, askAgentDepth ?? 0, runThreadForAskAgent) } : {}),
+              ...(agent.allowedAgents && security !== "sandbox" ? { "ask-agent": createAskAgentMcpServer(agent, askAgentDepth ?? 0, runAgentForAskAgent) } : {}),
               ...(overrides?.silent ? {
                 "notify-user": createNotifyUserMcpServer((message) => {
                   callbacks?.onNotifyUser?.(agentId, threadId, manifest.channel, message);
@@ -307,11 +307,11 @@ If you need to notify the user about something important (questions, updates, co
     });
   };
 
-  return { runThread };
+  return { runAgent };
 }
 
 // Default instance
-export const threadRunner = createThreadRunner();
+export const agentRunner = createAgentRunner();
 
 // Convenience export for backwards compatibility
-export const runThread = threadRunner.runThread;
+export const runAgent = agentRunner.runAgent;

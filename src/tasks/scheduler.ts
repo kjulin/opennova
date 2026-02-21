@@ -4,7 +4,7 @@ import { Config } from "#core/config.js";
 import { createThread } from "#core/threads.js";
 import { getTask, loadTasks, updateTask } from "./storage.js";
 import { TASK_WORK_PROMPT } from "./prompts.js";
-import { runThread } from "#daemon/runner.js";
+import { runAgent } from "#daemon/runner.js";
 import { log } from "#daemon/logger.js";
 
 // Track in-flight task invocations to avoid double-invoking
@@ -16,7 +16,7 @@ async function invokeTask(workspaceDir: string, taskId: string, owner: string, t
 
   try {
     const agentDir = path.join(workspaceDir, "agents", owner);
-    await runThread(agentDir, threadId, TASK_WORK_PROMPT, undefined, undefined, undefined, undefined, { silent: true });
+    await runAgent(agentDir, threadId, TASK_WORK_PROMPT, undefined, undefined, undefined, undefined, { silent: true });
     log.info("tasks", `task ${taskId} invocation completed`);
   } catch (err) {
     log.error("tasks", `task ${taskId} invocation failed:`, err);

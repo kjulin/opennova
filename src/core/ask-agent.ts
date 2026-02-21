@@ -20,7 +20,7 @@ function err(text: string) {
   return { content: [{ type: "text" as const, text }], isError: true as const };
 }
 
-export type RunThreadFn = (
+export type RunAgentFn = (
   agentDir: string,
   threadId: string,
   message: string,
@@ -30,7 +30,7 @@ export type RunThreadFn = (
 export function createAskAgentMcpServer(
   caller: AgentConfig,
   depth: number,
-  runThreadFn: RunThreadFn,
+  runAgentFn: RunAgentFn,
 ): McpSdkServerConfigWithInstance {
   const allowed = caller.allowedAgents ?? [];
 
@@ -88,7 +88,7 @@ export function createAskAgentMcpServer(
           log.info("ask-agent", `${caller.id} → ${target.id} (depth ${depth}): ${args.message.slice(0, 100)}`);
 
           try {
-            const result = await runThreadFn(targetDir, threadId, prompt, depth + 1);
+            const result = await runAgentFn(targetDir, threadId, prompt, depth + 1);
             return ok(result.text);
           } catch (e) {
             log.error("ask-agent", `${caller.id} → ${target.id} failed:`, e);
