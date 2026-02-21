@@ -11,13 +11,13 @@ import { logSearch } from "./analytics.js";
 /**
  * Create an MCP server that exposes episodic memory search to agents.
  */
-export function createEpisodicMcpServer(
+export function createHistoryMcpServer(
   agentDir: string,
   agentId: string,
   threadId: string,
 ): McpSdkServerConfigWithInstance {
   return createSdkMcpServer({
-    name: "episodic",
+    name: "history",
     tools: [
       tool(
         "search_threads",

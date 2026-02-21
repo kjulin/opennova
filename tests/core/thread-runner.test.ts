@@ -41,7 +41,7 @@ vi.mock("#core/agent-management.js", () => ({
 }));
 
 vi.mock("#core/ask-agent.js", () => ({
-  createAskAgentMcpServer: vi.fn(() => ({})),
+  createAgentsMcpServer: vi.fn(() => ({})),
 }));
 
 vi.mock("#core/usage.js", () => ({

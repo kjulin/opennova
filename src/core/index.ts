@@ -103,8 +103,8 @@ export {
 // MCP Servers
 export { createMemoryMcpServer } from "./memory.js";
 export { createAgentManagementMcpServer, createSelfManagementMcpServer } from "./agent-management.js";
-export { createAskAgentMcpServer, type RunAgentFn } from "./ask-agent.js";
-export { createFileSendMcpServer, type FileType, type OnFileSendCallback } from "./file-send.js";
+export { createAgentsMcpServer, type RunAgentFn } from "./ask-agent.js";
+export { createMediaMcpServer, type FileType, type OnFileSendCallback } from "./media/mcp.js";
 export {
   appendUsage,
   loadUsageRecords,
@@ -117,7 +117,7 @@ export {
   type ClaudeCodePeriodStats,
 } from "./usage.js";
 
-// Episodic Memory
+// History (Episodic Memory)
 export {
   generateEmbedding,
   cosineSimilarity,
@@ -129,7 +129,7 @@ export {
   EmbeddingRecordSchema,
   searchThreads,
   backfillAgent,
-  createEpisodicMcpServer,
+  createHistoryMcpServer,
   logSearch,
   type EmbeddingRecord,
   type SearchResult,
@@ -148,7 +148,6 @@ export {
   MODEL_SIZES,
   checkFfmpeg,
   checkWhisper,
-  createTranscriptionMcpServer,
   type TranscriptionConfig,
   type TranscriptionResult,
   type TranscriptionOptions,

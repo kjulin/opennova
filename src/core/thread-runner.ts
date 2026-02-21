@@ -8,13 +8,12 @@ import { buildSystemPrompt } from "./prompts/index.js";
 import { createMemoryMcpServer } from "./memory.js";
 import { createSecretsMcpServer } from "./secrets.js";
 import { createAgentManagementMcpServer, createSelfManagementMcpServer } from "./agent-management.js";
-import { createAskAgentMcpServer } from "./ask-agent.js";
-import { createFileSendMcpServer, type FileType } from "./file-send.js";
+import { createAgentsMcpServer } from "./ask-agent.js";
+import { createMediaMcpServer, type FileType } from "./media/mcp.js";
 import { createNotifyUserMcpServer } from "./notify-user.js";
 import { resolveCapabilities } from "./capabilities.js";
-import { createTranscriptionMcpServer } from "./transcription/index.js";
 import { appendUsage } from "./usage.js";
-import { createEpisodicMcpServer, generateEmbedding, appendEmbedding, isModelAvailable } from "./episodic/index.js";
+import { createHistoryMcpServer, generateEmbedding, appendEmbedding, isModelAvailable } from "./episodic/index.js";
 import { createTasksMcpServer, getTask, buildTaskContext } from "#tasks/index.js";
 import { createNotesMcpServer } from "#notes/index.js";
 import {
@@ -152,7 +151,7 @@ If you need to notify the user about something important (questions, updates, co
             ...(agent.subagents ? { agents: agent.subagents } : {}),
             mcpServers: {
               memory: createMemoryMcpServer(),
-              episodic: createEpisodicMcpServer(agentDir, agentId, threadId),
+              history: createHistoryMcpServer(agentDir, agentId, threadId),
               tasks: createTasksMcpServer(agentId, Config.workspaceDir),
               notes: createNotesMcpServer(agentDir, (title, slug, message) => {
                 callbacks?.onShareNote?.(agentId, threadId, manifest.channel, title, slug, message);
@@ -161,17 +160,16 @@ If you need to notify the user about something important (questions, updates, co
               }),
               ...(trust !== "sandbox" ? { self: createSelfManagementMcpServer(agentDir) } : {}),
               ...(trust !== "sandbox" ? {
-                "file-send": createFileSendMcpServer(agentDir, directories, (filePath, caption, fileType) => {
+                media: createMediaMcpServer(agentDir, directories, (filePath, caption, fileType) => {
                   callbacks?.onFileSend?.(agentId, threadId, manifest.channel, filePath, caption, fileType);
                 }),
-                transcription: createTranscriptionMcpServer(agentDir, directories),
                 secrets: createSecretsMcpServer(Config.workspaceDir),
               } : {}),
               ...extraMcpServers,
               ...resolveCapabilities(agent.capabilities),
-              ...(agentId === "agent-builder" ? { agents: createAgentManagementMcpServer() } : {}),
+              ...(agentId === "agent-builder" ? { "agent-management": createAgentManagementMcpServer() } : {}),
 
-              ...(agent.allowedAgents && trust !== "sandbox" ? { "ask-agent": createAskAgentMcpServer(agent, askAgentDepth ?? 0, runAgentForAskAgent) } : {}),
+              ...(agent.allowedAgents && trust !== "sandbox" ? { agents: createAgentsMcpServer(agent, askAgentDepth ?? 0, runAgentForAskAgent) } : {}),
               ...(overrides?.silent ? {
                 "notify-user": createNotifyUserMcpServer((message) => {
                   callbacks?.onNotifyUser?.(agentId, threadId, manifest.channel, message);
