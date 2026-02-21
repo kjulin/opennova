@@ -111,17 +111,6 @@ export async function run() {
     }
   }
 
-  // --- Trust level ---
-  console.log("\n-- Trust Level --");
-  console.log("This controls what tools agents can use by default.");
-  console.log("You can override this per agent later with: nova agent <id> trust <level>\n");
-  const trustChoice = await askChoice(rl, "Default trust level:", [
-    "sandbox       — Chat and web search only, no local file access",
-    "default       — File access and web, no shell commands",
-    "unrestricted  — Full access including shell commands",
-  ]);
-  const trustLevel = (["sandbox", "default", "unrestricted"] as const)[trustChoice];
-
   rl.close();
 
   // Write workspace
@@ -145,13 +134,6 @@ export async function run() {
       console.log("  Created telegram.json");
     }
   }
-
-  // Always write settings.json (trust level is always chosen)
-  fs.writeFileSync(
-    path.join(workspace, "settings.json"),
-    JSON.stringify({ defaultTrust: trustLevel }, null, 2) + "\n",
-  );
-  console.log("  Saved settings.json");
 
   // --- Embedding model ---
   Config.workspaceDir = workspace;
@@ -184,8 +166,6 @@ export async function run() {
   } else {
     console.log("  Auth:       Not configured");
   }
-
-  console.log(`  Trust:      ${trustLevel}`);
 
   const hasTelegram = enableTelegram || (!configureTelegram && fs.existsSync(path.join(workspace, "telegram.json")));
   console.log(`  Telegram:   ${hasTelegram ? "Configured" : "Not configured"}`);

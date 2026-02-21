@@ -3,7 +3,7 @@ import os from "os";
 import path from "path";
 import { Config } from "./config.js";
 import type { Model } from "./models.js";
-import { SettingsSchema, type TrustLevel, type Settings } from "./schemas.js";
+import type { TrustLevel } from "./schemas.js";
 import { log } from "./logger.js";
 
 export interface SubagentConfig {
@@ -24,7 +24,7 @@ export interface AgentConfig {
   instructions?: string; // How: files, rhythm, focus, constraints
   directories?: string[];
   allowedAgents?: string[];
-  trust?: TrustLevel;
+  trust: TrustLevel;
   subagents?: Record<string, SubagentConfig>;
   capabilities?: string[];
   model?: Model;
@@ -77,25 +77,6 @@ export function getAgentDirectories(agent: AgentConfig): string[] {
     }
   }
   return dirs;
-}
-
-export function loadSettings(): Settings {
-  const settingsPath = path.join(Config.workspaceDir, "settings.json");
-  if (!fs.existsSync(settingsPath)) return { defaultTrust: "default" };
-  try {
-    const raw = JSON.parse(fs.readFileSync(settingsPath, "utf-8"));
-    const result = SettingsSchema.safeParse(raw);
-    if (result.success) return result.data;
-    log.warn("agents", `invalid settings.json: ${result.error.message}`);
-    return { defaultTrust: "default" };
-  } catch {
-    return { defaultTrust: "default" };
-  }
-}
-
-export function resolveTrustLevel(agent: AgentConfig): TrustLevel {
-  if (agent.trust) return agent.trust;
-  return loadSettings().defaultTrust;
 }
 
 /**

@@ -88,12 +88,6 @@ export const ThreadEventSchema = z.union([
 export const TrustLevel = z.enum(["sandbox", "default", "unrestricted"]);
 export type TrustLevel = z.infer<typeof TrustLevel>;
 
-export const SettingsSchema = z.object({
-  defaultTrust: TrustLevel,
-}).passthrough();
-
-export type Settings = z.infer<typeof SettingsSchema>;
-
 /**
  * Safely parse JSON from a file, returning null on failure.
  */

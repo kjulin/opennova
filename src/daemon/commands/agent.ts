@@ -30,8 +30,7 @@ export async function run() {
       if (!fs.existsSync(configPath)) continue;
       try {
         const config = JSON.parse(fs.readFileSync(configPath, "utf-8"));
-        const trust = config.trust ? ` [${config.trust}]` : "";
-        console.log(`${dir.name}  ${config.name || dir.name}${trust}`);
+        console.log(`${dir.name}  ${config.name || dir.name} [${config.trust}]`);
       } catch {
         console.log(dir.name);
       }
@@ -55,7 +54,7 @@ export async function run() {
     console.log(`Name:       ${config.name || agentId}`);
     console.log(`ID:         ${agentId}`);
     if (config.description) console.log(`Desc:       ${config.description}`);
-    console.log(`Trust:      ${config.trust || "(global default)"}`);
+    console.log(`Trust:      ${config.trust}`);
     if (config.cwd) console.log(`Directory:  ${config.cwd}`);
     if (config.directories && config.directories.length > 0) {
       console.log(`Extra dirs: ${config.directories.join(", ")}`);

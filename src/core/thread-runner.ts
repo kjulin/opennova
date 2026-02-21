@@ -3,7 +3,7 @@ import type { McpServerConfig } from "@anthropic-ai/claude-agent-sdk";
 import { runtime as defaultRuntime, type Runtime } from "./runtime.js";
 import type { Model } from "./models.js";
 import { generateThreadTitle, type EngineCallbacks, type EngineEvent } from "./engine/index.js";
-import { loadAgents, getAgentCwd, getAgentDirectories, resolveTrustLevel } from "./agents.js";
+import { loadAgents, getAgentCwd, getAgentDirectories } from "./agents.js";
 import { Config } from "./config.js";
 import { buildSystemPrompt } from "./prompts/index.js";
 import { createMemoryMcpServer } from "./memory.js";
@@ -86,7 +86,7 @@ export function createAgentRunner(runtime: Runtime = defaultRuntime): AgentRunne
         timestamp: new Date().toISOString(),
       });
 
-      const trust = resolveTrustLevel(agent);
+      const trust = agent.trust;
 
       // Create a runAgent wrapper for ask-agent that maintains the callback chain
       const runAgentForAskAgent = async (

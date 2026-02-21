@@ -24,12 +24,11 @@ vi.mock("#core/threads.js", () => ({
 
 vi.mock("#core/agents.js", () => ({
   loadAgents: vi.fn(() => new Map([
-    ["test-agent", { name: "Test Agent", role: "Test role" }],
+    ["test-agent", { name: "Test Agent", role: "Test role", trust: "default" }],
   ])),
   buildSystemPrompt: vi.fn(() => "System prompt"),
   getAgentCwd: vi.fn(() => "/test/cwd"),
   getAgentDirectories: vi.fn(() => []),
-  resolveTrustLevel: vi.fn(() => "default"),
 }));
 
 vi.mock("#core/memory.js", () => ({

@@ -25,19 +25,6 @@ export function run() {
     console.log("Auth:       Not configured");
   }
 
-  // Trust
-  const settingsPath = path.join(workspaceDir, "settings.json");
-  let defaultTrust = "not configured";
-  if (fs.existsSync(settingsPath)) {
-    try {
-      const settings = JSON.parse(fs.readFileSync(settingsPath, "utf-8"));
-      if (settings.defaultTrust) defaultTrust = settings.defaultTrust;
-    } catch {
-      // ignore
-    }
-  }
-  console.log(`Trust:      ${defaultTrust} (default)`);
-
   // Telegram
   const hasTelegram = fs.existsSync(path.join(workspaceDir, "telegram.json"));
   console.log(`Telegram:   ${hasTelegram ? "Configured" : "Not configured"}`);
@@ -57,8 +44,7 @@ export function run() {
       try {
         const config = JSON.parse(fs.readFileSync(configPath, "utf-8"));
         const label = config.name || dir.name;
-        const secOverride = config.trust ? ` [${config.trust}]` : "";
-        agentNames.push(label + secOverride);
+        agentNames.push(`${label} [${config.trust}]`);
       } catch {
         agentNames.push(dir.name);
       }
