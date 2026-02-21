@@ -85,11 +85,11 @@ export const ThreadEventSchema = z.union([
   ThreadResultEventSchema,
 ]);
 
-export const SecurityLevel = z.enum(["sandbox", "standard", "unrestricted"]);
-export type SecurityLevel = z.infer<typeof SecurityLevel>;
+export const TrustLevel = z.enum(["sandbox", "default", "unrestricted"]);
+export type TrustLevel = z.infer<typeof TrustLevel>;
 
 export const SettingsSchema = z.object({
-  defaultSecurity: SecurityLevel,
+  defaultTrust: TrustLevel,
 }).passthrough();
 
 export type Settings = z.infer<typeof SettingsSchema>;

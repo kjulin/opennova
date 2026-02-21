@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { securityOptions } from "#core/security.js";
+import { trustOptions } from "#core/security.js";
 
 // Mock the logger
 vi.mock("#core/logger.js", () => ({
@@ -11,34 +11,34 @@ vi.mock("#core/logger.js", () => ({
   },
 }));
 
-describe("securityOptions", () => {
+describe("trustOptions", () => {
   describe("sandbox", () => {
     it("uses dontAsk permission mode", () => {
-      const opts = securityOptions("sandbox");
+      const opts = trustOptions("sandbox");
       expect(opts.permissionMode).toBe("dontAsk");
     });
 
     it("allows web search and fetch", () => {
-      const opts = securityOptions("sandbox");
+      const opts = trustOptions("sandbox");
       const allowed = opts.allowedTools as string[];
       expect(allowed).toContain("WebSearch");
       expect(allowed).toContain("WebFetch");
     });
 
     it("allows Task for subtasks", () => {
-      const opts = securityOptions("sandbox");
+      const opts = trustOptions("sandbox");
       const allowed = opts.allowedTools as string[];
       expect(allowed).toContain("Task");
     });
 
     it("allows MCP memory tools", () => {
-      const opts = securityOptions("sandbox");
+      const opts = trustOptions("sandbox");
       const allowed = opts.allowedTools as string[];
       expect(allowed).toContain("mcp__memory__*");
     });
 
     it("does not allow file operations", () => {
-      const opts = securityOptions("sandbox");
+      const opts = trustOptions("sandbox");
       const allowed = opts.allowedTools as string[];
       expect(allowed).not.toContain("Read");
       expect(allowed).not.toContain("Write");
@@ -48,25 +48,25 @@ describe("securityOptions", () => {
     });
 
     it("does not allow Bash", () => {
-      const opts = securityOptions("sandbox");
+      const opts = trustOptions("sandbox");
       const allowed = opts.allowedTools as string[];
       expect(allowed).not.toContain("Bash");
     });
 
     it("does not bypass permissions", () => {
-      const opts = securityOptions("sandbox");
+      const opts = trustOptions("sandbox");
       expect(opts.allowDangerouslySkipPermissions).toBeUndefined();
     });
   });
 
-  describe("standard", () => {
+  describe("default", () => {
     it("uses dontAsk permission mode", () => {
-      const opts = securityOptions("standard");
+      const opts = trustOptions("default");
       expect(opts.permissionMode).toBe("dontAsk");
     });
 
     it("allows file operations", () => {
-      const opts = securityOptions("standard");
+      const opts = trustOptions("default");
       const allowed = opts.allowedTools as string[];
       expect(allowed).toContain("Read");
       expect(allowed).toContain("Write");
@@ -76,21 +76,21 @@ describe("securityOptions", () => {
     });
 
     it("allows web tools", () => {
-      const opts = securityOptions("standard");
+      const opts = trustOptions("default");
       const allowed = opts.allowedTools as string[];
       expect(allowed).toContain("WebSearch");
       expect(allowed).toContain("WebFetch");
     });
 
     it("allows Task and NotebookEdit", () => {
-      const opts = securityOptions("standard");
+      const opts = trustOptions("default");
       const allowed = opts.allowedTools as string[];
       expect(allowed).toContain("Task");
       expect(allowed).toContain("NotebookEdit");
     });
 
     it("allows MCP tools via wildcards", () => {
-      const opts = securityOptions("standard");
+      const opts = trustOptions("default");
       const allowed = opts.allowedTools as string[];
       expect(allowed).toContain("mcp__memory__*");
       expect(allowed).toContain("mcp__triggers__*");
@@ -99,38 +99,38 @@ describe("securityOptions", () => {
     });
 
     it("explicitly disallows Bash", () => {
-      const opts = securityOptions("standard");
+      const opts = trustOptions("default");
       const disallowed = opts.disallowedTools as string[];
       expect(disallowed).toContain("Bash");
     });
 
     it("does not bypass permissions", () => {
-      const opts = securityOptions("standard");
+      const opts = trustOptions("default");
       expect(opts.allowDangerouslySkipPermissions).toBeUndefined();
     });
   });
 
   describe("unrestricted", () => {
     it("uses bypassPermissions mode", () => {
-      const opts = securityOptions("unrestricted");
+      const opts = trustOptions("unrestricted");
       expect(opts.permissionMode).toBe("bypassPermissions");
     });
 
     it("enables dangerous skip permissions", () => {
-      const opts = securityOptions("unrestricted");
+      const opts = trustOptions("unrestricted");
       expect(opts.allowDangerouslySkipPermissions).toBe(true);
     });
 
     it("does not restrict tools", () => {
-      const opts = securityOptions("unrestricted");
+      const opts = trustOptions("unrestricted");
       expect(opts.allowedTools).toBeUndefined();
       expect(opts.disallowedTools).toBeUndefined();
     });
   });
 
-  describe("default", () => {
-    it("defaults to standard when not specified", () => {
-      const opts = securityOptions();
+  describe("no argument", () => {
+    it("defaults to default when not specified", () => {
+      const opts = trustOptions();
       expect(opts.permissionMode).toBe("dontAsk");
       const disallowed = opts.disallowedTools as string[];
       expect(disallowed).toContain("Bash");

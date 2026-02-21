@@ -1,8 +1,8 @@
 import type { AgentConfig } from "../agents.js";
-import type { SecurityLevel } from "../schemas.js";
+import type { TrustLevel } from "../schemas.js";
 import type { ChannelType } from "../threads.js";
 
-import { SECURITY_INSTRUCTIONS } from "./security.js";
+import { TRUST_INSTRUCTIONS } from "./security.js";
 import { STORAGE_INSTRUCTIONS, buildMemoryPrompt } from "./memory.js";
 import { getFormattingInstructions } from "./formatting.js";
 import { buildContextBlock } from "./context.js";
@@ -30,14 +30,14 @@ function buildRoleBlock(agent: AgentConfig): string {
 export function buildSystemPrompt(
   agent: AgentConfig,
   channel: ChannelType,
-  security: SecurityLevel,
+  trust: TrustLevel,
   cwd: string,
   directories: string[]
 ): string {
   const memories = buildMemoryPrompt();
-  const dirBlock = buildDirectoriesBlock(cwd, directories, security);
+  const dirBlock = buildDirectoriesBlock(cwd, directories, trust);
   const formatting = getFormattingInstructions(channel);
-  const storageInstructions = security !== "sandbox" ? STORAGE_INSTRUCTIONS : "";
+  const storageInstructions = trust !== "sandbox" ? STORAGE_INSTRUCTIONS : "";
 
-  return `${buildRoleBlock(agent)}\n${SECURITY_INSTRUCTIONS[security]}${dirBlock}${storageInstructions}\n${formatting}${COMMUNICATION_INSTRUCTIONS}${buildContextBlock()}${memories}`;
+  return `${buildRoleBlock(agent)}\n${TRUST_INSTRUCTIONS[trust]}${dirBlock}${storageInstructions}\n${formatting}${COMMUNICATION_INSTRUCTIONS}${buildContextBlock()}${memories}`;
 }

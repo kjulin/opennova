@@ -35,7 +35,7 @@ describe("Runtime", () => {
     await rt.run(
       "Hello",
       { cwd: "/test", systemPrompt: "Be helpful", model: "sonnet" },
-      "standard"
+      "default"
     );
 
     expect(mockEngine.calls).toHaveLength(1);
@@ -45,13 +45,13 @@ describe("Runtime", () => {
     expect(mockEngine.calls[0]?.options.model).toBe("sonnet");
   });
 
-  it("merges security options into engine options", async () => {
+  it("merges trust options into engine options", async () => {
     const mockEngine = createMockEngine();
     const rt = createRuntime(mockEngine);
 
-    await rt.run("Hello", { cwd: "/test" }, "standard");
+    await rt.run("Hello", { cwd: "/test" }, "default");
 
-    // Security options should be present (exact values tested in security.test.ts)
+    // Trust options should be present (exact values tested in security.test.ts)
     expect(mockEngine.calls[0]?.options.permissionMode).toBeDefined();
   });
 
@@ -59,7 +59,7 @@ describe("Runtime", () => {
     const mockEngine = createMockEngine();
     const rt = createRuntime(mockEngine);
 
-    await rt.run("Hello", {}, "standard", "sess-existing");
+    await rt.run("Hello", {}, "default", "sess-existing");
 
     expect(mockEngine.calls[0]?.sessionId).toBe("sess-existing");
   });
@@ -70,7 +70,7 @@ describe("Runtime", () => {
     const rt = createRuntime(mockEngine);
     const callbacks = { onToolUse: vi.fn() };
 
-    await rt.run("Hello", {}, "standard", undefined, callbacks);
+    await rt.run("Hello", {}, "default", undefined, callbacks);
 
     expect(runSpy).toHaveBeenCalledWith(
       "Hello",
@@ -87,7 +87,7 @@ describe("Runtime", () => {
     const rt = createRuntime(mockEngine);
     const abortController = new AbortController();
 
-    await rt.run("Hello", {}, "standard", undefined, undefined, abortController);
+    await rt.run("Hello", {}, "default", undefined, undefined, abortController);
 
     expect(runSpy).toHaveBeenCalledWith(
       "Hello",
@@ -102,19 +102,19 @@ describe("Runtime", () => {
     const mockEngine = createMockEngine();
     const rt = createRuntime(mockEngine);
 
-    const result = await rt.run("Hello", {}, "standard");
+    const result = await rt.run("Hello", {}, "default");
 
     expect(result.text).toBe("response");
     expect(result.sessionId).toBe("sess-123");
   });
 
-  it("requires security level parameter", async () => {
+  it("requires trust level parameter", async () => {
     const mockEngine = createMockEngine();
     const rt = createRuntime(mockEngine);
 
     // TypeScript enforces this, but we verify the call works with each level
     await rt.run("Hello", {}, "sandbox");
-    await rt.run("Hello", {}, "standard");
+    await rt.run("Hello", {}, "default");
     await rt.run("Hello", {}, "unrestricted");
 
     expect(mockEngine.calls).toHaveLength(3);

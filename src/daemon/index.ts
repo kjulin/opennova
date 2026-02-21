@@ -20,12 +20,12 @@ export function start() {
 
   const settingsPath = path.join(Config.workspaceDir, "settings.json");
   if (!fs.existsSync(settingsPath)) {
-    log.warn("security", "no settings.json found — defaulting to \"standard\"");
-    log.warn("security", "run 'nova init' to configure your security level");
+    log.warn("security", "no settings.json found — defaulting to \"default\"");
+    log.warn("security", "run 'nova init' to configure your trust level");
   }
 
   const settings = loadSettings();
-  log.info("daemon", `security: ${settings.defaultSecurity} (default)`);
+  log.info("daemon", `trust: ${settings.defaultTrust} (default)`);
 
   // Verify authentication before starting
   const auth = ensureAuth(Config.workspaceDir);

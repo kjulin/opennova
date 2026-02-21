@@ -19,7 +19,7 @@ export {
   ThreadAssistantTextEventSchema,
   ThreadResultEventSchema,
   ThreadEventSchema,
-  SecurityLevel,
+  TrustLevel,
   SettingsSchema,
   safeParseJsonFile,
   type AgentBotConfig,
@@ -29,7 +29,7 @@ export {
 } from "./schemas.js";
 
 // Security
-export { securityOptions, type SecurityLevel as SecurityLevelType } from "./security.js";
+export { trustOptions, type TrustLevel as TrustLevelType } from "./security.js";
 
 // Threads
 export {
@@ -66,7 +66,7 @@ export {
   getAgentDirectories,
   getAgentRole,
   loadSettings,
-  resolveSecurityLevel,
+  resolveTrustLevel,
   type SubagentConfig,
   type AgentConfig,
 } from "./agents.js";
@@ -78,7 +78,7 @@ export {
   buildContextBlock,
   buildDirectoriesBlock,
   getFormattingInstructions,
-  SECURITY_INSTRUCTIONS,
+  TRUST_INSTRUCTIONS,
   STORAGE_INSTRUCTIONS,
 } from "./prompts/index.js";
 

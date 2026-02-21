@@ -2,10 +2,10 @@ import fs from "fs";
 import path from "path";
 import readline from "readline/promises";
 import { resolveWorkspace } from "../workspace.js";
-import { SecurityLevel, TelegramConfigSchema, safeParseJsonFile } from "#core/index.js";
+import { TrustLevel, TelegramConfigSchema, safeParseJsonFile } from "#core/index.js";
 import { askRequired, pairTelegramChat } from "../telegram-pairing.js";
 
-const VALID_LEVELS = SecurityLevel.options;
+const VALID_LEVELS = TrustLevel.options;
 
 export async function run() {
   const workspaceDir = resolveWorkspace();
@@ -30,8 +30,8 @@ export async function run() {
       if (!fs.existsSync(configPath)) continue;
       try {
         const config = JSON.parse(fs.readFileSync(configPath, "utf-8"));
-        const security = config.security ? ` [${config.security}]` : "";
-        console.log(`${dir.name}  ${config.name || dir.name}${security}`);
+        const trust = config.trust ? ` [${config.trust}]` : "";
+        console.log(`${dir.name}  ${config.name || dir.name}${trust}`);
       } catch {
         console.log(dir.name);
       }
@@ -55,7 +55,7 @@ export async function run() {
     console.log(`Name:       ${config.name || agentId}`);
     console.log(`ID:         ${agentId}`);
     if (config.description) console.log(`Desc:       ${config.description}`);
-    console.log(`Security:   ${config.security || "(global default)"}`);
+    console.log(`Trust:      ${config.trust || "(global default)"}`);
     if (config.cwd) console.log(`Directory:  ${config.cwd}`);
     if (config.directories && config.directories.length > 0) {
       console.log(`Extra dirs: ${config.directories.join(", ")}`);
@@ -85,25 +85,25 @@ export async function run() {
     return;
   }
 
-  // nova agent <id> security <level>
-  if (subcommand === "security") {
+  // nova agent <id> trust <level>
+  if (subcommand === "trust") {
     const level = process.argv[5];
     if (!level) {
-      console.error("Usage: nova agent <id> security <level>");
+      console.error("Usage: nova agent <id> trust <level>");
       console.error(`Levels: ${VALID_LEVELS.join(", ")}`);
       process.exit(1);
     }
 
     if (!VALID_LEVELS.includes(level as typeof VALID_LEVELS[number])) {
-      console.error(`Invalid security level: ${level}`);
+      console.error(`Invalid trust level: ${level}`);
       console.error(`Valid levels: ${VALID_LEVELS.join(", ")}`);
       process.exit(1);
     }
 
     const config = JSON.parse(fs.readFileSync(configPath, "utf-8"));
-    config.security = level;
+    config.trust = level;
     fs.writeFileSync(configPath, JSON.stringify(config, null, 2) + "\n");
-    console.log(`Set ${agentId} security to ${level}`);
+    console.log(`Set ${agentId} trust to ${level}`);
     return;
   }
 
@@ -178,6 +178,6 @@ export async function run() {
   }
 
   console.error(`Unknown subcommand: ${subcommand}`);
-  console.error("Usage: nova agent [<id>] [security <level>] [telegram [remove]]");
+  console.error("Usage: nova agent [<id>] [trust <level>] [telegram [remove]]");
   process.exit(1);
 }
