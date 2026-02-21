@@ -233,11 +233,11 @@ All state lives under a single workspace directory (`~/.nova` by default).
 
 Each boundary below should have its own spec. This system spec defines how they relate.
 
-| Boundary | Status | What It Covers |
-|----------|--------|----------------|
-| Capability Resolution | DONE | Registry, resolver pattern, run-time injections |
-| Engine Contract | DONE | Engine interface, trust levels, options, result shape, session management |
-| Thread Lifecycle | TODO | Creation, locking, message flow, post-run effects |
+| Spec | Status | What It Covers |
+|------|--------|----------------|
+| capabilities | DONE | Registry, resolver pattern, run-time injections |
+| engine | DONE | Engine interface, trust levels, options, result shape, session management |
+| threads | DONE | Creation, locking, message flow, cognitive boundary, post-run effects |
 | Agent Model | TODO | Config shape, resolution, protected agents |
 | System Prompt Assembly | TODO | Prompt building, context injection, formatting |
 | Channel Contract | TODO | Adapter pattern, event bus, message routing |
