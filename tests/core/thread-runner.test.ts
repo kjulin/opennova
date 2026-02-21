@@ -1,7 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { createAgentRunner } from "#core/thread-runner.js";
-import type { Runtime } from "#core/runtime.js";
-import type { EngineResult } from "#core/engine/index.js";
+import type { Engine, EngineResult } from "#core/engine/index.js";
 
 // Mock all dependencies
 vi.mock("#core/logger.js", () => ({
@@ -19,6 +18,7 @@ vi.mock("#core/threads.js", () => ({
   saveManifest: vi.fn(),
   loadMessages: vi.fn(() => []),
   appendMessage: vi.fn(),
+  appendEvent: vi.fn(),
   withThreadLock: vi.fn((_threadId: string, fn: () => unknown) => fn()),
 }));
 
@@ -56,12 +56,12 @@ vi.mock("#core/claude.js", () => ({
 import { appendMessage, saveManifest } from "#core/threads.js";
 import { appendUsage } from "#core/usage.js";
 
-function createMockRuntime(): Runtime & { calls: Array<{ message: string; trust: string }> } {
-  const mock: Runtime & { calls: Array<{ message: string; trust: string }> } = {
+function createMockEngine(): Engine & { calls: Array<{ message: string; trust: string }> } {
+  const mock: Engine & { calls: Array<{ message: string; trust: string }> } = {
     calls: [],
     async run(message, options, trust, sessionId, callbacks, abortController): Promise<EngineResult> {
       mock.calls.push({ message, trust });
-      return { text: "Response from runtime", sessionId: "sess-456" };
+      return { text: "Response from engine", sessionId: "sess-456" };
     },
   };
   return mock;
@@ -73,8 +73,8 @@ describe("AgentRunner", () => {
   });
 
   it("appends user message to thread", async () => {
-    const mockRuntime = createMockRuntime();
-    const runner = createAgentRunner(mockRuntime);
+    const mockEngine = createMockEngine();
+    const runner = createAgentRunner(mockEngine);
 
     await runner.runAgent("/agents/test-agent", "thread-1", "Hello");
 
@@ -87,20 +87,20 @@ describe("AgentRunner", () => {
     );
   });
 
-  it("calls runtime with message and trust level", async () => {
-    const mockRuntime = createMockRuntime();
-    const runner = createAgentRunner(mockRuntime);
+  it("calls engine with message and trust level", async () => {
+    const mockEngine = createMockEngine();
+    const runner = createAgentRunner(mockEngine);
 
     await runner.runAgent("/agents/test-agent", "thread-1", "Hello");
 
-    expect(mockRuntime.calls).toHaveLength(1);
-    expect(mockRuntime.calls[0]?.message).toBe("Hello");
-    expect(mockRuntime.calls[0]?.trust).toBe("default");
+    expect(mockEngine.calls).toHaveLength(1);
+    expect(mockEngine.calls[0]?.message).toBe("Hello");
+    expect(mockEngine.calls[0]?.trust).toBe("default");
   });
 
   it("appends assistant message to thread", async () => {
-    const mockRuntime = createMockRuntime();
-    const runner = createAgentRunner(mockRuntime);
+    const mockEngine = createMockEngine();
+    const runner = createAgentRunner(mockEngine);
 
     await runner.runAgent("/agents/test-agent", "thread-1", "Hello");
 
@@ -108,14 +108,14 @@ describe("AgentRunner", () => {
       "/agents/test-agent/threads/thread-1.jsonl",
       expect.objectContaining({
         role: "assistant",
-        text: "Response from runtime",
+        text: "Response from engine",
       })
     );
   });
 
   it("saves manifest with updated sessionId", async () => {
-    const mockRuntime = createMockRuntime();
-    const runner = createAgentRunner(mockRuntime);
+    const mockEngine = createMockEngine();
+    const runner = createAgentRunner(mockEngine);
 
     await runner.runAgent("/agents/test-agent", "thread-1", "Hello");
 
@@ -128,8 +128,8 @@ describe("AgentRunner", () => {
   });
 
   it("fires onThreadResponse callback", async () => {
-    const mockRuntime = createMockRuntime();
-    const runner = createAgentRunner(mockRuntime);
+    const mockEngine = createMockEngine();
+    const runner = createAgentRunner(mockEngine);
     const onThreadResponse = vi.fn();
 
     await runner.runAgent("/agents/test-agent", "thread-1", "Hello", { onThreadResponse });
@@ -138,12 +138,12 @@ describe("AgentRunner", () => {
       "test-agent",
       "thread-1",
       "test",
-      "Response from runtime"
+      "Response from engine"
     );
   });
 
   it("records usage when present", async () => {
-    const mockRuntime: Runtime = {
+    const mockEngine: Engine = {
       async run() {
         return {
           text: "Response",
@@ -152,13 +152,14 @@ describe("AgentRunner", () => {
             inputTokens: 100,
             outputTokens: 50,
             cacheReadTokens: 10,
+            costUsd: 0.01,
             durationMs: 1000,
             turns: 2,
           },
         };
       },
     };
-    const runner = createAgentRunner(mockRuntime);
+    const runner = createAgentRunner(mockEngine);
 
     await runner.runAgent("/agents/test-agent", "thread-1", "Hello");
 
@@ -173,21 +174,21 @@ describe("AgentRunner", () => {
   });
 
   it("returns response text", async () => {
-    const mockRuntime = createMockRuntime();
-    const runner = createAgentRunner(mockRuntime);
+    const mockEngine = createMockEngine();
+    const runner = createAgentRunner(mockEngine);
 
     const result = await runner.runAgent("/agents/test-agent", "thread-1", "Hello");
 
-    expect(result.text).toBe("Response from runtime");
+    expect(result.text).toBe("Response from engine");
   });
 
   it("handles empty response", async () => {
-    const mockRuntime: Runtime = {
+    const mockEngine: Engine = {
       async run() {
         return { text: "" };
       },
     };
-    const runner = createAgentRunner(mockRuntime);
+    const runner = createAgentRunner(mockEngine);
 
     const result = await runner.runAgent("/agents/test-agent", "thread-1", "Hello");
 
@@ -195,8 +196,8 @@ describe("AgentRunner", () => {
   });
 
   it("throws for unknown agent", async () => {
-    const mockRuntime = createMockRuntime();
-    const runner = createAgentRunner(mockRuntime);
+    const mockEngine = createMockEngine();
+    const runner = createAgentRunner(mockEngine);
 
     await expect(
       runner.runAgent("/agents/unknown-agent", "thread-1", "Hello")
@@ -205,13 +206,13 @@ describe("AgentRunner", () => {
 
   it("handles abort gracefully", async () => {
     const abortController = new AbortController();
-    const mockRuntime: Runtime = {
+    const mockEngine: Engine = {
       async run() {
         abortController.abort();
         throw new Error("Aborted");
       },
     };
-    const runner = createAgentRunner(mockRuntime);
+    const runner = createAgentRunner(mockEngine);
 
     const result = await runner.runAgent(
       "/agents/test-agent",
@@ -234,23 +235,23 @@ describe("AgentRunner", () => {
   });
 
   it("fires onThreadError callback on error", async () => {
-    const mockRuntime: Runtime = {
+    const mockEngine: Engine = {
       async run() {
-        throw new Error("Runtime failed");
+        throw new Error("Engine failed");
       },
     };
-    const runner = createAgentRunner(mockRuntime);
+    const runner = createAgentRunner(mockEngine);
     const onThreadError = vi.fn();
 
     await expect(
       runner.runAgent("/agents/test-agent", "thread-1", "Hello", { onThreadError })
-    ).rejects.toThrow("Runtime failed");
+    ).rejects.toThrow("Engine failed");
 
     expect(onThreadError).toHaveBeenCalledWith(
       "test-agent",
       "thread-1",
       "test",
-      "Runtime failed"
+      "Engine failed"
     );
   });
 });

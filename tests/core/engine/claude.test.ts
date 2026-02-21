@@ -27,7 +27,6 @@ describe("ClaudeEngine", () => {
   });
 
   it("calls SDK with message and options", async () => {
-    // Create an async generator that yields a success result
     async function* mockGenerator() {
       yield {
         type: "result",
@@ -50,16 +49,19 @@ describe("ClaudeEngine", () => {
       cwd: "/test",
       systemPrompt: "You are helpful",
       model: "sonnet",
-    });
+    }, "default");
 
     expect(mockQuery).toHaveBeenCalledWith({
       prompt: "Hello",
-      options: {
+      options: expect.objectContaining({
         cwd: "/test",
         systemPrompt: "You are helpful",
         model: "sonnet",
         settingSources: ["project"],
-      },
+        // Trust "default" adds permissionMode, allowedTools, disallowedTools
+        permissionMode: "dontAsk",
+        disallowedTools: ["Bash"],
+      }),
     });
 
     expect(result.text).toBe("Hello from Claude");
@@ -89,15 +91,16 @@ describe("ClaudeEngine", () => {
     mockQuery.mockReturnValue(mockGenerator());
 
     const engine = createClaudeEngine();
-    await engine.run("Continue", {}, "sess-123");
+    await engine.run("Continue", {}, "default", "sess-123");
 
     expect(mockQuery).toHaveBeenCalledWith({
       prompt: "Continue",
-      options: {
+      options: expect.objectContaining({
         model: "opus",
         resume: "sess-123",
         settingSources: ["project"],
-      },
+        permissionMode: "dontAsk",
+      }),
     });
   });
 
@@ -123,7 +126,7 @@ describe("ClaudeEngine", () => {
     });
 
     const engine = createClaudeEngine();
-    const result = await engine.run("Hello", {}, "old-session");
+    const result = await engine.run("Hello", {}, "default", "old-session");
 
     expect(mockQuery).toHaveBeenCalledTimes(2);
     expect(result.text).toBe("Fresh start");
@@ -157,7 +160,7 @@ describe("ClaudeEngine", () => {
     };
 
     const engine = createClaudeEngine();
-    await engine.run("Read file", {}, undefined, callbacks);
+    await engine.run("Read file", {}, "default", undefined, callbacks);
 
     expect(callbacks.onToolUse).toHaveBeenCalledWith(
       "Read",
@@ -195,12 +198,40 @@ describe("ClaudeEngine", () => {
     };
 
     const engine = createClaudeEngine();
-    await engine.run("Read file", {}, undefined, callbacks);
+    await engine.run("Read file", {}, "default", undefined, callbacks);
 
     expect(callbacks.onAssistantMessage).toHaveBeenCalledWith("Let me check that file");
   });
 
-  it("passes security options to SDK", async () => {
+  it("applies trust level to SDK options", async () => {
+    async function* mockGenerator() {
+      yield {
+        type: "result",
+        subtype: "success",
+        result: "OK",
+        session_id: "sess-123",
+        total_cost_usd: 0.01,
+        duration_ms: 50,
+        num_turns: 1,
+      };
+    }
+    mockQuery.mockReturnValue(mockGenerator());
+
+    const engine = createClaudeEngine();
+    await engine.run("Hello", {}, "unrestricted");
+
+    expect(mockQuery).toHaveBeenCalledWith({
+      prompt: "Hello",
+      options: expect.objectContaining({
+        model: "opus",
+        settingSources: ["project"],
+        permissionMode: "bypassPermissions",
+        allowDangerouslySkipPermissions: true,
+      }),
+    });
+  });
+
+  it("derives MCP tool patterns from mcpServers", async () => {
     async function* mockGenerator() {
       yield {
         type: "result",
@@ -216,21 +247,16 @@ describe("ClaudeEngine", () => {
 
     const engine = createClaudeEngine();
     await engine.run("Hello", {
-      permissionMode: "dontAsk",
-      allowedTools: ["Read", "Write"],
-      disallowedTools: ["Bash"],
-    });
-
-    expect(mockQuery).toHaveBeenCalledWith({
-      prompt: "Hello",
-      options: {
-        permissionMode: "dontAsk",
-        allowedTools: ["Read", "Write"],
-        disallowedTools: ["Bash"],
-        model: "opus",
-        settingSources: ["project"],
+      mcpServers: {
+        memory: {} as any,
+        "custom-cap": {} as any,
       },
-    });
+    }, "sandbox");
+
+    const call = mockQuery.mock.calls[0]?.[0] as { options: { allowedTools?: string[] } };
+    const allowedTools = call.options.allowedTools ?? [];
+    expect(allowedTools).toContain("mcp__memory__*");
+    expect(allowedTools).toContain("mcp__custom-cap__*");
   });
 
   it("returns empty text when aborted", async () => {
@@ -251,7 +277,7 @@ describe("ClaudeEngine", () => {
     mockQuery.mockReturnValue(mockGenerator());
 
     const engine = createClaudeEngine();
-    const result = await engine.run("Hello", {}, undefined, undefined, abortController);
+    const result = await engine.run("Hello", {}, "default", undefined, undefined, abortController);
 
     expect(result.text).toBe("");
   });

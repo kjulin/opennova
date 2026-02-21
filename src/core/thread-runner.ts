@@ -1,8 +1,7 @@
 import path from "path";
 import type { McpServerConfig } from "@anthropic-ai/claude-agent-sdk";
-import { runtime as defaultRuntime, type Runtime } from "./runtime.js";
 import type { Model } from "./models.js";
-import { generateThreadTitle, type EngineCallbacks, type EngineEvent } from "./engine/index.js";
+import { claudeEngine, generateThreadTitle, type Engine, type EngineCallbacks, type EngineEvent } from "./engine/index.js";
 import { loadAgents, getAgentCwd, getAgentDirectories } from "./agents.js";
 import { Config } from "./config.js";
 import { buildSystemPrompt } from "./prompts/index.js";
@@ -12,7 +11,7 @@ import { createAgentManagementMcpServer, createSelfManagementMcpServer } from ".
 import { createAskAgentMcpServer } from "./ask-agent.js";
 import { createFileSendMcpServer, type FileType } from "./file-send.js";
 import { createNotifyUserMcpServer } from "./notify-user.js";
-import { resolveCapabilities, capabilityToolPatterns } from "./capabilities.js";
+import { resolveCapabilities } from "./capabilities.js";
 import { createTranscriptionMcpServer } from "./transcription/index.js";
 import { appendUsage } from "./usage.js";
 import { createEpisodicMcpServer, generateEmbedding, appendEmbedding, isModelAvailable } from "./episodic/index.js";
@@ -58,7 +57,7 @@ export interface AgentRunner {
   ): Promise<{ text: string }>;
 }
 
-export function createAgentRunner(runtime: Runtime = defaultRuntime): AgentRunner {
+export function createAgentRunner(engine: Engine = claudeEngine): AgentRunner {
   const runAgent = async (
     agentDir: string,
     threadId: string,
@@ -142,7 +141,7 @@ If you need to notify the user about something important (questions, updates, co
           },
         };
 
-        result = await runtime.run(
+        result = await engine.run(
           message,
           {
             cwd,
@@ -151,7 +150,6 @@ If you need to notify the user about something important (questions, updates, co
             ...(overrides?.model ? { model: overrides.model } : {}),
             ...(overrides?.maxTurns ? { maxTurns: overrides.maxTurns } : {}),
             ...(agent.subagents ? { agents: agent.subagents } : {}),
-            extraAllowedTools: capabilityToolPatterns(agent.capabilities),
             mcpServers: {
               memory: createMemoryMcpServer(),
               episodic: createEpisodicMcpServer(agentDir, agentId, threadId),
