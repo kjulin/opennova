@@ -25,3 +25,15 @@ export interface Agent {
 export interface AgentsResponse {
   agents: Agent[];
 }
+
+export interface Skill {
+  name: string;
+  description?: string;
+  content?: string;
+  assignedTo: string[];
+  hasContent: boolean;
+}
+
+export interface SkillsResponse {
+  skills: Skill[];
+}
