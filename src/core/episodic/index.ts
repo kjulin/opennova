@@ -21,6 +21,6 @@ export {
 
 export { backfillAgent } from "./backfill.js";
 
-export { createEpisodicMcpServer } from "./mcp.js";
+export { createHistoryMcpServer } from "./mcp.js";
 
 export { logSearch, type SearchAnalytics } from "./analytics.js";

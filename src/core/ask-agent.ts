@@ -27,7 +27,7 @@ export type RunAgentFn = (
   depth: number,
 ) => Promise<{ text: string }>;
 
-export function createAskAgentMcpServer(
+export function createAgentsMcpServer(
   caller: AgentConfig,
   depth: number,
   runAgentFn: RunAgentFn,
@@ -35,7 +35,7 @@ export function createAskAgentMcpServer(
   const allowed = caller.allowedAgents ?? [];
 
   return createSdkMcpServer({
-    name: "ask-agent",
+    name: "agents",
     tools: [
       tool(
         "list_available_agents",

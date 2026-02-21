@@ -63,7 +63,7 @@ function writeAgentJson(id: string, data: AgentJson): void {
 
 export function createAgentManagementMcpServer(): McpSdkServerConfigWithInstance {
   return createSdkMcpServer({
-    name: "agents",
+    name: "agent-management",
     tools: [
       tool(
         "list_agents",

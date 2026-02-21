@@ -95,7 +95,7 @@ describe("trustOptions", () => {
       expect(allowed).toContain("mcp__memory__*");
       expect(allowed).toContain("mcp__triggers__*");
       expect(allowed).toContain("mcp__agents__*");
-      expect(allowed).toContain("mcp__ask-agent__*");
+      expect(allowed).toContain("mcp__agent-management__*");
     });
 
     it("explicitly disallows Bash", () => {
