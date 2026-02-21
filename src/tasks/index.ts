@@ -11,6 +11,7 @@ export {
   linkSubtask,
   addResource,
   removeResource,
+  isValidOwner,
   type CreateTaskOptions,
 } from "./storage.js";
 export { createTasksMcpServer } from "./mcp.js";

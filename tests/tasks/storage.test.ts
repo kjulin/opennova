@@ -11,6 +11,7 @@ import {
   cancelTask,
   completeTask,
   loadHistory,
+  isValidOwner,
 } from "#tasks/index.js";
 
 describe("tasks storage", () => {
@@ -308,6 +309,34 @@ describe("tasks storage", () => {
 
       const history = loadHistory(testDir, 2);
       expect(history).toHaveLength(2);
+    });
+  });
+
+  describe("isValidOwner", () => {
+    it("returns true for 'user'", () => {
+      expect(isValidOwner(testDir, "user")).toBe(true);
+    });
+
+    it("returns true for an existing agent", () => {
+      const agentDir = path.join(testDir, "agents", "content-writer");
+      fs.mkdirSync(agentDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(agentDir, "agent.json"),
+        JSON.stringify({ name: "Content Writer" }),
+      );
+
+      expect(isValidOwner(testDir, "content-writer")).toBe(true);
+    });
+
+    it("returns false for a non-existent agent", () => {
+      expect(isValidOwner(testDir, "does-not-exist")).toBe(false);
+    });
+
+    it("returns false for a directory without agent.json", () => {
+      const agentDir = path.join(testDir, "agents", "incomplete-agent");
+      fs.mkdirSync(agentDir, { recursive: true });
+
+      expect(isValidOwner(testDir, "incomplete-agent")).toBe(false);
     });
   });
 });

@@ -63,6 +63,16 @@ function appendHistory(workspaceDir: string, task: Task): void {
   fs.appendFileSync(file, entry + "\n");
 }
 
+/**
+ * Check if an owner value is valid: either "user" or an existing agent
+ * (a directory under agents/ with an agent.json file).
+ */
+export function isValidOwner(workspaceDir: string, owner: string): boolean {
+  if (owner === "user") return true;
+  const configPath = path.join(workspaceDir, "agents", owner, "agent.json");
+  return fs.existsSync(configPath);
+}
+
 export function getTask(workspaceDir: string, id: string): Task | undefined {
   const tasks = loadTasks(workspaceDir);
   const active = tasks.find((t) => t.id === id);
