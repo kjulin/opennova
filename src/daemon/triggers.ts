@@ -17,7 +17,7 @@ import {
   type Trigger,
   type TelegramConfig,
 } from "#core/index.js";
-import { runThread } from "./runner.js";
+import { runAgent } from "./runner.js";
 import { log } from "./logger.js";
 
 export type { Trigger } from "#core/index.js";
@@ -249,7 +249,7 @@ export function startTriggerScheduler() {
 
             log.info("trigger", `firing for agent ${agentId} thread ${threadId}: "${trigger.prompt}"`);
 
-            runThread(agentDir, threadId, trigger.prompt, undefined, {
+            runAgent(agentDir, threadId, trigger.prompt, undefined, {
               triggers: createTriggerMcpServer(agentDir, effectiveChannel),
             })
               .then(() => {
