@@ -24,24 +24,15 @@ vi.mock("#core/threads.js", () => ({
 
 vi.mock("#core/agents.js", () => ({
   loadAgents: vi.fn(() => new Map([
-    ["test-agent", { name: "Test Agent", role: "Test role", trust: "default" }],
+    ["test-agent", { name: "Test Agent", role: "Test role", trust: "default", capabilities: ["memory"] }],
   ])),
   buildSystemPrompt: vi.fn(() => "System prompt"),
   getAgentCwd: vi.fn(() => "/test/cwd"),
   getAgentDirectories: vi.fn(() => []),
 }));
 
-vi.mock("#core/memory.js", () => ({
-  createMemoryMcpServer: vi.fn(() => ({})),
-}));
-
-vi.mock("#core/agent-management.js", () => ({
-  createAgentManagementMcpServer: vi.fn(() => ({})),
-  createSelfManagementMcpServer: vi.fn(() => ({})),
-}));
-
-vi.mock("#core/ask-agent.js", () => ({
-  createAgentsMcpServer: vi.fn(() => ({})),
+vi.mock("#core/capabilities.js", () => ({
+  resolveCapabilities: vi.fn(() => ({})),
 }));
 
 vi.mock("#core/usage.js", () => ({

@@ -1,6 +1,7 @@
 import { Hono } from "hono"
 import { loadAgents } from "#core/agents.js"
 import { PROTECTED_AGENTS } from "#core/agent-management.js"
+import { KNOWN_CAPABILITIES } from "#core/capabilities.js"
 import { syncSharedSkills } from "#core/skills.js"
 import fs from "fs"
 import path from "path"
@@ -100,6 +101,17 @@ export function createConsoleAgentsRouter(workspaceDir: string): Hono {
       return c.json({ error: "Cannot modify system agent" }, 403)
     }
 
+    // Validate capabilities
+    if (body.capabilities) {
+      if (!Array.isArray(body.capabilities) || !body.capabilities.every((c: unknown) => typeof c === "string")) {
+        return c.json({ error: "capabilities must be an array of strings" }, 400)
+      }
+      const unknown = body.capabilities.filter((c: string) => !KNOWN_CAPABILITIES.includes(c))
+      if (unknown.length > 0) {
+        return c.json({ error: `Unknown capabilities: ${unknown.join(", ")}. Valid: ${KNOWN_CAPABILITIES.join(", ")}` }, 400)
+      }
+    }
+
     const agentsMap = loadAgents()
     if (agentsMap.has(id)) {
       return c.json({ error: "Agent already exists" }, 409)
@@ -110,6 +122,7 @@ export function createConsoleAgentsRouter(workspaceDir: string): Hono {
     if (instructions) agentJson.instructions = instructions
     if (directories && Array.isArray(directories) && directories.length > 0) agentJson.directories = directories
     if (allowedAgents && Array.isArray(allowedAgents) && allowedAgents.length > 0) agentJson.allowedAgents = allowedAgents
+    if (body.capabilities && Array.isArray(body.capabilities) && body.capabilities.length > 0) agentJson.capabilities = body.capabilities
 
     const agentDir = path.join(workspaceDir, "agents", id)
     fs.mkdirSync(agentDir, { recursive: true })
@@ -167,6 +180,10 @@ export function createConsoleAgentsRouter(workspaceDir: string): Hono {
     if ("capabilities" in body) {
       if (!Array.isArray(body.capabilities) || !body.capabilities.every((c: unknown) => typeof c === "string")) {
         return c.json({ error: "capabilities must be an array of strings" }, 400)
+      }
+      const unknown = body.capabilities.filter((c: string) => !KNOWN_CAPABILITIES.includes(c))
+      if (unknown.length > 0) {
+        return c.json({ error: `Unknown capabilities: ${unknown.join(", ")}. Valid: ${KNOWN_CAPABILITIES.join(", ")}` }, 400)
       }
     }
 
