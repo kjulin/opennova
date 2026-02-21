@@ -2,6 +2,7 @@ import fs from "fs";
 import path from "path";
 import { randomBytes } from "crypto";
 import { ThreadManifestSchema } from "./schemas.js";
+import { Config } from "./config.js";
 
 export type ChannelType = string;
 
@@ -177,6 +178,20 @@ export function findThread(workspaceDir: string, threadId: string): ThreadManife
   }
 
   return null;
+}
+
+export function getThreadManifest(agentId: string, threadId: string): ThreadManifest {
+  const agentDir = path.join(Config.workspaceDir, "agents", agentId);
+  const filePath = threadPath(agentDir, threadId);
+  return loadManifest(filePath);
+}
+
+export function updateThreadChannel(agentId: string, threadId: string, channel: string): void {
+  const agentDir = path.join(Config.workspaceDir, "agents", agentId);
+  const filePath = threadPath(agentDir, threadId);
+  const manifest = loadManifest(filePath);
+  manifest.channel = channel;
+  saveManifest(filePath, manifest);
 }
 
 export function appendMessage(filePath: string, msg: ThreadMessage): void {

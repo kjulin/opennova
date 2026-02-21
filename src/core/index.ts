@@ -45,6 +45,8 @@ export {
   loadEvents,
   withThreadLock,
   findThread,
+  getThreadManifest,
+  updateThreadChannel,
   type ChannelType,
   type ThreadManifest,
   type ThreadMessage,
