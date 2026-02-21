@@ -1,5 +1,5 @@
 import { Hono } from "hono"
-import { loadAgents, resolveSecurityLevel } from "#core/agents.js"
+import { loadAgents, resolveTrustLevel } from "#core/agents.js"
 import { PROTECTED_AGENTS } from "#core/agent-management.js"
 import { syncSharedSkills } from "#core/skills.js"
 import fs from "fs"
@@ -7,7 +7,7 @@ import path from "path"
 
 const VALID_AGENT_ID = /^[a-z0-9][a-z0-9-]*$/
 
-function loadAgentDetail(workspaceDir: string, id: string, agent: { name: string; description?: string; identity?: string; instructions?: string; security?: string; capabilities?: string[]; directories?: string[]; allowedAgents?: string[]; model?: string }) {
+function loadAgentDetail(workspaceDir: string, id: string, agent: { name: string; description?: string; identity?: string; instructions?: string; trust?: string; capabilities?: string[]; directories?: string[]; allowedAgents?: string[]; model?: string }) {
   const agentDir = path.join(workspaceDir, "agents", id)
 
   // Load triggers
@@ -36,7 +36,7 @@ function loadAgentDetail(workspaceDir: string, id: string, agent: { name: string
     description: agent.description,
     identity: agent.identity,
     instructions: agent.instructions,
-    security: agent.security,
+    trust: agent.trust,
     capabilities: agent.capabilities,
     directories: agent.directories,
     allowedAgents: agent.allowedAgents,
@@ -55,7 +55,7 @@ export function createConsoleAgentsRouter(workspaceDir: string): Hono {
     const agents = Array.from(agentsMap.values()).map((agent) =>
       loadAgentDetail(workspaceDir, agent.id, {
         ...agent,
-        security: resolveSecurityLevel(agent),
+        trust: resolveTrustLevel(agent),
       }),
     )
     return c.json({ agents })
@@ -71,7 +71,7 @@ export function createConsoleAgentsRouter(workspaceDir: string): Hono {
     }
     return c.json(loadAgentDetail(workspaceDir, agent.id, {
       ...agent,
-      security: resolveSecurityLevel(agent),
+      trust: resolveTrustLevel(agent),
     }))
   })
 
@@ -122,7 +122,7 @@ export function createConsoleAgentsRouter(workspaceDir: string): Hono {
     }
     return c.json(loadAgentDetail(workspaceDir, id, {
       ...created,
-      security: resolveSecurityLevel(created),
+      trust: resolveTrustLevel(created),
     }), 201)
   })
 
@@ -141,13 +141,13 @@ export function createConsoleAgentsRouter(workspaceDir: string): Hono {
     }
 
     const body = await c.req.json()
-    const allowedFields = ["name", "description", "identity", "instructions", "directories", "allowedAgents", "security", "capabilities", "model"]
+    const allowedFields = ["name", "description", "identity", "instructions", "directories", "allowedAgents", "trust", "capabilities", "model"]
 
-    // Validate security
-    if ("security" in body) {
-      const validSecurity = ["sandbox", "standard", "unrestricted"]
-      if (!validSecurity.includes(body.security)) {
-        return c.json({ error: `Invalid security level. Must be one of: ${validSecurity.join(", ")}` }, 400)
+    // Validate trust
+    if ("trust" in body) {
+      const validTrust = ["sandbox", "default", "unrestricted"]
+      if (!validTrust.includes(body.trust)) {
+        return c.json({ error: `Invalid trust level. Must be one of: ${validTrust.join(", ")}` }, 400)
       }
     }
 
@@ -192,7 +192,7 @@ export function createConsoleAgentsRouter(workspaceDir: string): Hono {
     }
     return c.json(loadAgentDetail(workspaceDir, id, {
       ...updated,
-      security: resolveSecurityLevel(updated),
+      trust: resolveTrustLevel(updated),
     }))
   })
 

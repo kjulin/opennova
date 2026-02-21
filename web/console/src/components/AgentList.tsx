@@ -22,7 +22,7 @@ export function AgentList({ agents }: { agents: Agent[] }) {
                 {" · "}
                 {agent.skills.length} skill{agent.skills.length !== 1 && "s"}
                 {" · "}
-                {agent.security} access
+                {agent.trust} access
               </p>
             </CardContent>
           </Card>

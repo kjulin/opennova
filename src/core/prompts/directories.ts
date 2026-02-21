@@ -1,7 +1,7 @@
-import type { SecurityLevel } from "../schemas.js";
+import type { TrustLevel } from "../schemas.js";
 
-export function buildDirectoriesBlock(cwd: string, directories: string[], security: SecurityLevel): string {
-  if (security === "sandbox") return "";
+export function buildDirectoriesBlock(cwd: string, directories: string[], trust: TrustLevel): string {
+  if (trust === "sandbox") return "";
 
   const lines: string[] = [
     `Your working directory is: ${cwd}`,
@@ -16,7 +16,7 @@ export function buildDirectoriesBlock(cwd: string, directories: string[], securi
     }
   }
 
-  if (security === "standard") {
+  if (trust === "default") {
     lines.push("");
     if (directories.length > 0) {
       lines.push("Only read and write files within your working directory and the additional directories listed above.");

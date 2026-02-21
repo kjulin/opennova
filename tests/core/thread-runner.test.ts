@@ -29,7 +29,7 @@ vi.mock("#core/agents.js", () => ({
   buildSystemPrompt: vi.fn(() => "System prompt"),
   getAgentCwd: vi.fn(() => "/test/cwd"),
   getAgentDirectories: vi.fn(() => []),
-  resolveSecurityLevel: vi.fn(() => "standard"),
+  resolveTrustLevel: vi.fn(() => "default"),
 }));
 
 vi.mock("#core/memory.js", () => ({
@@ -57,11 +57,11 @@ vi.mock("#core/claude.js", () => ({
 import { appendMessage, saveManifest } from "#core/threads.js";
 import { appendUsage } from "#core/usage.js";
 
-function createMockRuntime(): Runtime & { calls: Array<{ message: string; security: string }> } {
-  const mock: Runtime & { calls: Array<{ message: string; security: string }> } = {
+function createMockRuntime(): Runtime & { calls: Array<{ message: string; trust: string }> } {
+  const mock: Runtime & { calls: Array<{ message: string; trust: string }> } = {
     calls: [],
-    async run(message, options, security, sessionId, callbacks, abortController): Promise<EngineResult> {
-      mock.calls.push({ message, security });
+    async run(message, options, trust, sessionId, callbacks, abortController): Promise<EngineResult> {
+      mock.calls.push({ message, trust });
       return { text: "Response from runtime", sessionId: "sess-456" };
     },
   };
@@ -88,7 +88,7 @@ describe("AgentRunner", () => {
     );
   });
 
-  it("calls runtime with message and security level", async () => {
+  it("calls runtime with message and trust level", async () => {
     const mockRuntime = createMockRuntime();
     const runner = createAgentRunner(mockRuntime);
 
@@ -96,7 +96,7 @@ describe("AgentRunner", () => {
 
     expect(mockRuntime.calls).toHaveLength(1);
     expect(mockRuntime.calls[0]?.message).toBe("Hello");
-    expect(mockRuntime.calls[0]?.security).toBe("standard");
+    expect(mockRuntime.calls[0]?.trust).toBe("default");
   });
 
   it("appends assistant message to thread", async () => {

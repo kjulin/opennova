@@ -111,16 +111,16 @@ export async function run() {
     }
   }
 
-  // --- Security level ---
-  console.log("\n-- Security Level --");
+  // --- Trust level ---
+  console.log("\n-- Trust Level --");
   console.log("This controls what tools agents can use by default.");
-  console.log("You can override this per agent later with: nova agent <id> security <level>\n");
-  const securityChoice = await askChoice(rl, "Default security level:", [
+  console.log("You can override this per agent later with: nova agent <id> trust <level>\n");
+  const trustChoice = await askChoice(rl, "Default trust level:", [
     "sandbox       — Chat and web search only, no local file access",
-    "standard      — File access and web, no shell commands",
+    "default       — File access and web, no shell commands",
     "unrestricted  — Full access including shell commands",
   ]);
-  const securityLevel = (["sandbox", "standard", "unrestricted"] as const)[securityChoice];
+  const trustLevel = (["sandbox", "default", "unrestricted"] as const)[trustChoice];
 
   rl.close();
 
@@ -146,10 +146,10 @@ export async function run() {
     }
   }
 
-  // Always write settings.json (security level is always chosen)
+  // Always write settings.json (trust level is always chosen)
   fs.writeFileSync(
     path.join(workspace, "settings.json"),
-    JSON.stringify({ defaultSecurity: securityLevel }, null, 2) + "\n",
+    JSON.stringify({ defaultTrust: trustLevel }, null, 2) + "\n",
   );
   console.log("  Saved settings.json");
 
@@ -185,7 +185,7 @@ export async function run() {
     console.log("  Auth:       Not configured");
   }
 
-  console.log(`  Security:   ${securityLevel}`);
+  console.log(`  Trust:      ${trustLevel}`);
 
   const hasTelegram = enableTelegram || (!configureTelegram && fs.existsSync(path.join(workspace, "telegram.json")));
   console.log(`  Telegram:   ${hasTelegram ? "Configured" : "Not configured"}`);

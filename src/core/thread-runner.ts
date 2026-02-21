@@ -3,7 +3,7 @@ import type { McpServerConfig } from "@anthropic-ai/claude-agent-sdk";
 import { runtime as defaultRuntime, type Runtime } from "./runtime.js";
 import type { Model } from "./models.js";
 import { generateThreadTitle, type EngineCallbacks, type EngineEvent } from "./engine/index.js";
-import { loadAgents, getAgentCwd, getAgentDirectories, resolveSecurityLevel } from "./agents.js";
+import { loadAgents, getAgentCwd, getAgentDirectories, resolveTrustLevel } from "./agents.js";
 import { Config } from "./config.js";
 import { buildSystemPrompt } from "./prompts/index.js";
 import { createMemoryMcpServer } from "./memory.js";
@@ -86,7 +86,7 @@ export function createAgentRunner(runtime: Runtime = defaultRuntime): AgentRunne
         timestamp: new Date().toISOString(),
       });
 
-      const security = resolveSecurityLevel(agent);
+      const trust = resolveTrustLevel(agent);
 
       // Create a runAgent wrapper for ask-agent that maintains the callback chain
       const runAgentForAskAgent = async (
@@ -111,7 +111,7 @@ export function createAgentRunner(runtime: Runtime = defaultRuntime): AgentRunne
       try {
         const cwd = getAgentCwd(agent);
         const directories = getAgentDirectories(agent);
-        let baseSystemPrompt = buildSystemPrompt(agent, manifest.channel, security, cwd, directories);
+        let baseSystemPrompt = buildSystemPrompt(agent, manifest.channel, trust, cwd, directories);
 
         // Inject task context if this thread is bound to a task
         const taskId = manifest.taskId as string | undefined;
@@ -161,8 +161,8 @@ If you need to notify the user about something important (questions, updates, co
               }, () => {
                 callbacks?.onPinChange?.(agentId, manifest.channel);
               }),
-              ...(security !== "sandbox" ? { self: createSelfManagementMcpServer(agentDir) } : {}),
-              ...(security !== "sandbox" ? {
+              ...(trust !== "sandbox" ? { self: createSelfManagementMcpServer(agentDir) } : {}),
+              ...(trust !== "sandbox" ? {
                 "file-send": createFileSendMcpServer(agentDir, directories, (filePath, caption, fileType) => {
                   callbacks?.onFileSend?.(agentId, threadId, manifest.channel, filePath, caption, fileType);
                 }),
@@ -173,7 +173,7 @@ If you need to notify the user about something important (questions, updates, co
               ...resolveCapabilities(agent.capabilities),
               ...(agentId === "agent-builder" ? { agents: createAgentManagementMcpServer() } : {}),
 
-              ...(agent.allowedAgents && security !== "sandbox" ? { "ask-agent": createAskAgentMcpServer(agent, askAgentDepth ?? 0, runAgentForAskAgent) } : {}),
+              ...(agent.allowedAgents && trust !== "sandbox" ? { "ask-agent": createAskAgentMcpServer(agent, askAgentDepth ?? 0, runAgentForAskAgent) } : {}),
               ...(overrides?.silent ? {
                 "notify-user": createNotifyUserMcpServer((message) => {
                   callbacks?.onNotifyUser?.(agentId, threadId, manifest.channel, message);
@@ -181,7 +181,7 @@ If you need to notify the user about something important (questions, updates, co
               } : {}),
             },
           },
-          security,
+          trust,
           manifest.sessionId,
           engineCallbacks,
           abortController,

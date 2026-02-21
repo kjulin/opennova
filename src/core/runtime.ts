@@ -1,5 +1,5 @@
 import { claudeEngine, type Engine, type EngineOptions, type EngineResult, type EngineCallbacks } from "./engine/index.js";
-import { securityOptions, type SecurityLevel } from "./security.js";
+import { trustOptions, type TrustLevel } from "./security.js";
 import type { Model } from "./models.js";
 
 export interface RuntimeOptions {
@@ -17,7 +17,7 @@ export interface Runtime {
   run(
     message: string,
     options: RuntimeOptions,
-    security: SecurityLevel,
+    trust: TrustLevel,
     sessionId?: string,
     callbacks?: EngineCallbacks,
     abortController?: AbortController,
@@ -26,10 +26,10 @@ export interface Runtime {
 
 export function createRuntime(engine: Engine = claudeEngine): Runtime {
   return {
-    async run(message, options, security, sessionId, callbacks, abortController) {
+    async run(message, options, trust, sessionId, callbacks, abortController) {
       const securedOptions: EngineOptions = {
         ...options,
-        ...securityOptions(security, options.extraAllowedTools),
+        ...trustOptions(trust, options.extraAllowedTools),
       };
       return engine.run(message, securedOptions, sessionId, callbacks, abortController);
     },
