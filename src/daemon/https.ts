@@ -15,6 +15,7 @@ import {
   cancelTask,
   loadHistory,
   isTaskInFlight,
+  isValidOwner,
   runTaskNow,
 } from "#tasks/index.js";
 import { createThread } from "#core/threads.js";
@@ -155,6 +156,10 @@ export function startHttpsServer(workspaceDir: string): HttpsServer | null {
       return c.json({ error: "Title is required" }, 400);
     }
 
+    if (owner && !isValidOwner(workspaceDir, owner)) {
+      return c.json({ error: `Agent not found: ${owner}. Owner must be 'user' or an existing agent ID.` }, 400);
+    }
+
     // Create the task
     const task = createTask({
       workspaceDir,
@@ -189,6 +194,11 @@ export function startHttpsServer(workspaceDir: string): HttpsServer | null {
   app.patch("/api/tasks/:id", async (c) => {
     const id = c.req.param("id");
     const body = await c.req.json();
+
+    if (body.owner && !isValidOwner(workspaceDir, body.owner)) {
+      return c.json({ error: `Agent not found: ${body.owner}. Owner must be 'user' or an existing agent ID.` }, 400);
+    }
+
     const task = updateTask(workspaceDir, id, body);
     if (!task) {
       return c.json({ error: "Task not found" }, 404);

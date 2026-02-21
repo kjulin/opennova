@@ -17,6 +17,7 @@ import {
   linkSubtask,
   addResource,
   removeResource,
+  isValidOwner,
 } from "./storage.js";
 import type { Task, Step, Resource } from "./types.js";
 
@@ -66,6 +67,18 @@ export function createTasksMcpServer(
           draft: z.boolean().optional().describe("If true, create as draft — visible but not executed until started. Default: false."),
         },
         async (args) => {
+          // Validate owner exists
+          const owner = args.owner ?? agentId;
+          if (!isValidOwner(workspaceDir, owner)) {
+            return {
+              content: [{
+                type: "text" as const,
+                text: `Agent not found: ${owner}. Owner must be 'user' or an existing agent ID.`,
+              }],
+              isError: true,
+            };
+          }
+
           // Create the task first
           const task = createTask({
             workspaceDir,
@@ -169,6 +182,17 @@ export function createTasksMcpServer(
         },
         async (args) => {
           const { id, ...updates } = args;
+
+          // Validate owner exists if being changed
+          if (updates.owner !== undefined && !isValidOwner(workspaceDir, updates.owner)) {
+            return {
+              content: [{
+                type: "text" as const,
+                text: `Agent not found: ${updates.owner}. Owner must be 'user' or an existing agent ID.`,
+              }],
+              isError: true,
+            };
+          }
 
           // Filter out undefined values
           const input: Record<string, unknown> = {};
@@ -315,6 +339,18 @@ export function createTasksMcpServer(
               content: [{
                 type: "text" as const,
                 text: `Step ${args.stepIndex} already has a linked subtask (#${step.taskId}).`,
+              }],
+              isError: true,
+            };
+          }
+
+          // Validate subtask owner exists
+          const subtaskOwner = args.owner ?? agentId;
+          if (!isValidOwner(workspaceDir, subtaskOwner)) {
+            return {
+              content: [{
+                type: "text" as const,
+                text: `Agent not found: ${subtaskOwner}. Owner must be 'user' or an existing agent ID.`,
               }],
               isError: true,
             };
