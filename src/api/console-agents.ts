@@ -1,5 +1,5 @@
 import { Hono } from "hono"
-import { loadAgents, resolveTrustLevel } from "#core/agents.js"
+import { loadAgents } from "#core/agents.js"
 import { PROTECTED_AGENTS } from "#core/agent-management.js"
 import { syncSharedSkills } from "#core/skills.js"
 import fs from "fs"
@@ -55,7 +55,7 @@ export function createConsoleAgentsRouter(workspaceDir: string): Hono {
     const agents = Array.from(agentsMap.values()).map((agent) =>
       loadAgentDetail(workspaceDir, agent.id, {
         ...agent,
-        trust: resolveTrustLevel(agent),
+        trust: agent.trust,
       }),
     )
     return c.json({ agents })
@@ -71,14 +71,14 @@ export function createConsoleAgentsRouter(workspaceDir: string): Hono {
     }
     return c.json(loadAgentDetail(workspaceDir, agent.id, {
       ...agent,
-      trust: resolveTrustLevel(agent),
+      trust: agent.trust,
     }))
   })
 
   // Create agent
   app.post("/", async (c) => {
     const body = await c.req.json()
-    const { id, name, description, identity, instructions, directories, allowedAgents } = body
+    const { id, name, description, identity, instructions, directories, allowedAgents, trust } = body
 
     if (!id || typeof id !== "string") {
       return c.json({ error: "id is required" }, 400)
@@ -92,6 +92,10 @@ export function createConsoleAgentsRouter(workspaceDir: string): Hono {
     if (!identity || typeof identity !== "string") {
       return c.json({ error: "identity is required" }, 400)
     }
+    const validTrustLevels = ["sandbox", "default", "unrestricted"]
+    if (!trust || !validTrustLevels.includes(trust)) {
+      return c.json({ error: `trust is required. Must be one of: ${validTrustLevels.join(", ")}` }, 400)
+    }
     if (PROTECTED_AGENTS.has(id)) {
       return c.json({ error: "Cannot modify system agent" }, 403)
     }
@@ -101,7 +105,7 @@ export function createConsoleAgentsRouter(workspaceDir: string): Hono {
       return c.json({ error: "Agent already exists" }, 409)
     }
 
-    const agentJson: Record<string, unknown> = { name, identity }
+    const agentJson: Record<string, unknown> = { name, identity, trust }
     if (description) agentJson.description = description
     if (instructions) agentJson.instructions = instructions
     if (directories && Array.isArray(directories) && directories.length > 0) agentJson.directories = directories
@@ -122,7 +126,7 @@ export function createConsoleAgentsRouter(workspaceDir: string): Hono {
     }
     return c.json(loadAgentDetail(workspaceDir, id, {
       ...created,
-      trust: resolveTrustLevel(created),
+      trust: created.trust,
     }), 201)
   })
 
@@ -192,7 +196,7 @@ export function createConsoleAgentsRouter(workspaceDir: string): Hono {
     }
     return c.json(loadAgentDetail(workspaceDir, id, {
       ...updated,
-      trust: resolveTrustLevel(updated),
+      trust: updated.trust,
     }))
   })
 

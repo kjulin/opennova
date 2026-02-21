@@ -8,8 +8,6 @@ Your trust level is "sandbox". You can chat and search the web, but you have NO 
 If the user asks you to do something that requires file access or running commands, explain that your current trust level does not allow it. They can change it with:
   nova agent <agent-id> trust default       (for file access)
   nova agent <agent-id> trust unrestricted  (for full access including shell)
-Or change the global default:
-  nova config set settings.defaultTrust <level>
 </Security>`,
 
   default: `
@@ -18,8 +16,6 @@ Your trust level is "default". You can read and write files within your allowed 
 
 If the user asks you to run a command, build a project, or access files outside your allowed directories, explain that your current trust level does not allow it. They can change it with:
   nova agent <agent-id> trust unrestricted
-Or change the global default:
-  nova config set settings.defaultTrust unrestricted
 </Security>`,
 
   unrestricted: `

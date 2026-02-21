@@ -1,11 +1,9 @@
-import fs from "fs";
-import path from "path";
 import { init } from "./init.js";
 import { loadChannels } from "./channels.js";
 import { startTriggerScheduler } from "./triggers.js";
-import { startHttpsServer, type HttpsServer } from "./https.js";
+import { startHttpsServer } from "./https.js";
 import { ensureAuth } from "./auth.js";
-import { Config, loadSettings } from "#core/index.js";
+import { Config } from "#core/index.js";
 import { syncSharedSkills } from "#core/skills.js";
 import { startTaskScheduler } from "#tasks/index.js";
 import { startEpisodicBackfillScheduler } from "./episodic-backfill.js";
@@ -17,15 +15,6 @@ export function start() {
 
   log.info("daemon", `workspace: ${Config.workspaceDir}`);
   log.info("daemon", `node: ${process.version}, platform: ${process.platform}`);
-
-  const settingsPath = path.join(Config.workspaceDir, "settings.json");
-  if (!fs.existsSync(settingsPath)) {
-    log.warn("security", "no settings.json found — defaulting to \"default\"");
-    log.warn("security", "run 'nova init' to configure your trust level");
-  }
-
-  const settings = loadSettings();
-  log.info("daemon", `trust: ${settings.defaultTrust} (default)`);
 
   // Verify authentication before starting
   const auth = ensureAuth(Config.workspaceDir);

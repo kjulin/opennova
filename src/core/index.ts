@@ -20,12 +20,10 @@ export {
   ThreadResultEventSchema,
   ThreadEventSchema,
   TrustLevel,
-  SettingsSchema,
   safeParseJsonFile,
   type AgentBotConfig,
   type TelegramConfig,
   type Trigger,
-  type Settings,
 } from "./schemas.js";
 
 // Security
@@ -65,8 +63,6 @@ export {
   getAgentCwd,
   getAgentDirectories,
   getAgentRole,
-  loadSettings,
-  resolveTrustLevel,
   type SubagentConfig,
   type AgentConfig,
 } from "./agents.js";
