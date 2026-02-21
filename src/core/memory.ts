@@ -27,11 +27,22 @@ export function createMemoryMcpServer(): McpSdkServerConfigWithInstance {
     tools: [
       tool(
         "save_memory",
-        "Save a global memory visible to all agents. Use for cross-agent facts (user's name, timezone, preferences).",
+        "Save a short global fact visible to all agents (max 200 chars). Use for cross-agent facts only: user's name, timezone, preferences. NOT for notes, meeting details, or task status — use files or instructions for those.",
         {
           memory: z.string().describe("The memory text to save"),
         },
         async (args) => {
+          if (args.memory.length > 200) {
+            return {
+              content: [
+                {
+                  type: "text" as const,
+                  text: `Memory too long (${args.memory.length} chars, max 200). Memories are for short cross-agent facts like "User's name is Klaus". For longer content, use files or agent instructions instead.`,
+                },
+              ],
+              isError: true,
+            };
+          }
           const memories = loadMemories(memoriesPath);
           if (memories.includes(args.memory)) {
             return {
