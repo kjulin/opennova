@@ -1,5 +1,6 @@
 import type { McpServerConfig } from "@anthropic-ai/claude-agent-sdk";
 import type { Model } from "../models.js";
+import type { TrustLevel } from "../schemas.js";
 
 export type EngineEvent =
   | { type: "assistant_text"; text: string }
@@ -47,18 +48,13 @@ export interface EngineOptions {
     maxTurns?: number;
   }> | undefined;
   mcpServers?: Record<string, McpServerConfig> | undefined;
-
-  // SDK security options (injected by Runtime)
-  permissionMode?: "default" | "dontAsk" | "bypassPermissions" | undefined;
-  allowedTools?: string[] | undefined;
-  disallowedTools?: string[] | undefined;
-  allowDangerouslySkipPermissions?: boolean | undefined;
 }
 
 export interface Engine {
   run(
     message: string,
     options: EngineOptions,
+    trust: TrustLevel,
     sessionId?: string,
     callbacks?: EngineCallbacks,
     abortController?: AbortController,
