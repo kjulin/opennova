@@ -11,7 +11,7 @@ import {
   type AgentBotConfig,
 } from "#core/index.js";
 import { bus } from "../events.js";
-import { runThread } from "../runner.js";
+import { runAgent } from "../runner.js";
 import { createTriggerMcpServer } from "../triggers.js";
 import { listNotes, getPinnedNotes } from "#notes/index.js";
 import { relativeTime, getWebAppHost, HTTPS_PORT } from "./telegram.js";
@@ -294,7 +294,7 @@ export function startAgentTelegram(
       }
     }
 
-    runThread(
+    runAgent(
       agentDir, threadId, text,
       {
         onThinking() {
@@ -371,7 +371,7 @@ You can read, process, or move this file as needed.`;
       }, 4000);
       bot.api.sendChatAction(chatId, "typing").catch(() => {});
 
-      runThread(
+      runAgent(
         agentDir, threadId, prompt,
         {
           onThinking() {},

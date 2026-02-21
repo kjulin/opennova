@@ -1,27 +1,27 @@
 import type { McpServerConfig } from "@anthropic-ai/claude-agent-sdk";
 import {
-  runThread as coreRunThread,
-  type ThreadRunnerCallbacks,
-  type RunThreadOverrides,
+  runAgent as coreRunAgent,
+  type AgentRunnerCallbacks,
+  type RunAgentOverrides,
 } from "#core/index.js";
 import { bus } from "./events.js";
 
 /**
- * Daemon wrapper for runThread that integrates with the event bus.
+ * Daemon wrapper for runAgent that integrates with the event bus.
  */
-export async function runThread(
+export async function runAgent(
   agentDir: string,
   threadId: string,
   message: string,
-  callbacks?: ThreadRunnerCallbacks,
+  callbacks?: AgentRunnerCallbacks,
   extraMcpServers?: Record<string, McpServerConfig>,
   askAgentDepth?: number,
   abortController?: AbortController,
-  overrides?: RunThreadOverrides,
+  overrides?: RunAgentOverrides,
 ): Promise<{ text: string }> {
   const silent = overrides?.silent ?? false;
 
-  return coreRunThread(
+  return coreRunAgent(
     agentDir,
     threadId,
     message,

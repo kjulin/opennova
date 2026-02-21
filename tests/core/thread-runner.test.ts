@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { createThreadRunner } from "#core/thread-runner.js";
+import { createAgentRunner } from "#core/thread-runner.js";
 import type { Runtime } from "#core/runtime.js";
 import type { EngineResult } from "#core/engine/index.js";
 
@@ -68,16 +68,16 @@ function createMockRuntime(): Runtime & { calls: Array<{ message: string; securi
   return mock;
 }
 
-describe("ThreadRunner", () => {
+describe("AgentRunner", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
   it("appends user message to thread", async () => {
     const mockRuntime = createMockRuntime();
-    const runner = createThreadRunner(mockRuntime);
+    const runner = createAgentRunner(mockRuntime);
 
-    await runner.runThread("/agents/test-agent", "thread-1", "Hello");
+    await runner.runAgent("/agents/test-agent", "thread-1", "Hello");
 
     expect(appendMessage).toHaveBeenCalledWith(
       "/agents/test-agent/threads/thread-1.jsonl",
@@ -90,9 +90,9 @@ describe("ThreadRunner", () => {
 
   it("calls runtime with message and security level", async () => {
     const mockRuntime = createMockRuntime();
-    const runner = createThreadRunner(mockRuntime);
+    const runner = createAgentRunner(mockRuntime);
 
-    await runner.runThread("/agents/test-agent", "thread-1", "Hello");
+    await runner.runAgent("/agents/test-agent", "thread-1", "Hello");
 
     expect(mockRuntime.calls).toHaveLength(1);
     expect(mockRuntime.calls[0]?.message).toBe("Hello");
@@ -101,9 +101,9 @@ describe("ThreadRunner", () => {
 
   it("appends assistant message to thread", async () => {
     const mockRuntime = createMockRuntime();
-    const runner = createThreadRunner(mockRuntime);
+    const runner = createAgentRunner(mockRuntime);
 
-    await runner.runThread("/agents/test-agent", "thread-1", "Hello");
+    await runner.runAgent("/agents/test-agent", "thread-1", "Hello");
 
     expect(appendMessage).toHaveBeenCalledWith(
       "/agents/test-agent/threads/thread-1.jsonl",
@@ -116,9 +116,9 @@ describe("ThreadRunner", () => {
 
   it("saves manifest with updated sessionId", async () => {
     const mockRuntime = createMockRuntime();
-    const runner = createThreadRunner(mockRuntime);
+    const runner = createAgentRunner(mockRuntime);
 
-    await runner.runThread("/agents/test-agent", "thread-1", "Hello");
+    await runner.runAgent("/agents/test-agent", "thread-1", "Hello");
 
     expect(saveManifest).toHaveBeenCalledWith(
       "/agents/test-agent/threads/thread-1.jsonl",
@@ -130,10 +130,10 @@ describe("ThreadRunner", () => {
 
   it("fires onThreadResponse callback", async () => {
     const mockRuntime = createMockRuntime();
-    const runner = createThreadRunner(mockRuntime);
+    const runner = createAgentRunner(mockRuntime);
     const onThreadResponse = vi.fn();
 
-    await runner.runThread("/agents/test-agent", "thread-1", "Hello", { onThreadResponse });
+    await runner.runAgent("/agents/test-agent", "thread-1", "Hello", { onThreadResponse });
 
     expect(onThreadResponse).toHaveBeenCalledWith(
       "test-agent",
@@ -159,9 +159,9 @@ describe("ThreadRunner", () => {
         };
       },
     };
-    const runner = createThreadRunner(mockRuntime);
+    const runner = createAgentRunner(mockRuntime);
 
-    await runner.runThread("/agents/test-agent", "thread-1", "Hello");
+    await runner.runAgent("/agents/test-agent", "thread-1", "Hello");
 
     expect(appendUsage).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -175,9 +175,9 @@ describe("ThreadRunner", () => {
 
   it("returns response text", async () => {
     const mockRuntime = createMockRuntime();
-    const runner = createThreadRunner(mockRuntime);
+    const runner = createAgentRunner(mockRuntime);
 
-    const result = await runner.runThread("/agents/test-agent", "thread-1", "Hello");
+    const result = await runner.runAgent("/agents/test-agent", "thread-1", "Hello");
 
     expect(result.text).toBe("Response from runtime");
   });
@@ -188,19 +188,19 @@ describe("ThreadRunner", () => {
         return { text: "" };
       },
     };
-    const runner = createThreadRunner(mockRuntime);
+    const runner = createAgentRunner(mockRuntime);
 
-    const result = await runner.runThread("/agents/test-agent", "thread-1", "Hello");
+    const result = await runner.runAgent("/agents/test-agent", "thread-1", "Hello");
 
     expect(result.text).toBe("(empty response)");
   });
 
   it("throws for unknown agent", async () => {
     const mockRuntime = createMockRuntime();
-    const runner = createThreadRunner(mockRuntime);
+    const runner = createAgentRunner(mockRuntime);
 
     await expect(
-      runner.runThread("/agents/unknown-agent", "thread-1", "Hello")
+      runner.runAgent("/agents/unknown-agent", "thread-1", "Hello")
     ).rejects.toThrow("Agent not found: unknown-agent");
   });
 
@@ -212,9 +212,9 @@ describe("ThreadRunner", () => {
         throw new Error("Aborted");
       },
     };
-    const runner = createThreadRunner(mockRuntime);
+    const runner = createAgentRunner(mockRuntime);
 
-    const result = await runner.runThread(
+    const result = await runner.runAgent(
       "/agents/test-agent",
       "thread-1",
       "Hello",
@@ -240,11 +240,11 @@ describe("ThreadRunner", () => {
         throw new Error("Runtime failed");
       },
     };
-    const runner = createThreadRunner(mockRuntime);
+    const runner = createAgentRunner(mockRuntime);
     const onThreadError = vi.fn();
 
     await expect(
-      runner.runThread("/agents/test-agent", "thread-1", "Hello", { onThreadError })
+      runner.runAgent("/agents/test-agent", "thread-1", "Hello", { onThreadError })
     ).rejects.toThrow("Runtime failed");
 
     expect(onThreadError).toHaveBeenCalledWith(
