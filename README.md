@@ -13,10 +13,16 @@ OpenNova is inspired by [OpenClaw](https://github.com/openclaw/openclaw) and bor
 ## Features
 
 - **Persistent agents** — Define agents with custom roles, working directories, and sub-agents
-- **Telegram** — Chat with your agents through Telegram (supports per-agent bots)
+- **Telegram** — Chat with your agents through Telegram (supports per-agent bots and voice transcription)
 - **Cron triggers** — Schedule agents to run autonomously on a cron schedule
-- **Memory** — Agents remember things across conversations (global)
+- **Tasks** — Web-based task management with scheduler and Telegram Mini App
+- **Notes** — Shared notes with web editor and Telegram integration
+- **Skills** — Link Claude Code skills to agents for reusable capabilities
+- **Secrets** — Secure secret storage accessible to agents via MCP tools
+- **Memory** — Agents remember things across conversations, with episodic search
 - **Agent delegation** — Agents can delegate tasks to other agents via `ask_agent`
+- **Capabilities** — Declarative capability system (e.g. browser via Playwright)
+- **Console** — Web-based admin console for managing agents, skills, secrets, and triggers
 - **Usage tracking** — Monitor token usage and costs across agents
 - **Claude Code integration** — Utilises your Claude Code installation and subscription
 
@@ -39,17 +45,24 @@ nova daemon
 ## CLI
 
 ```
-nova init                          Set up workspace (interactive)
-nova daemon                        Start the daemon
-nova config list|get|set           Manage configuration
-nova agent [<id>]                  List agents or show agent details
-nova agent <id> security <level>   Set agent security level
-nova usage [--today]               Show usage statistics
-nova status                        Show workspace and configuration status
-nova backup                        Back up workspace
-nova restore                       Restore workspace from backup
-nova uninstall                     Remove workspace and data
-nova --version                     Show version
+nova init                              Set up workspace (interactive)
+nova daemon                            Start the daemon
+nova config list|get|set               Manage configuration
+nova agent [<id>]                      List agents or show agent details
+nova agent <id> security <level>       Set agent security level
+nova agent <id> telegram [remove]      Set up or remove a dedicated Telegram bot
+nova skills list [--agent <id>]        List skills (all or per-agent)
+nova skills link|unlink <name>         Link or unlink a skill to agent(s)
+nova secrets set|get|list|delete       Manage secrets
+nova usage [--today|--week|--month]    Show usage by agent
+nova usage weekly|monthly              Show usage over time
+nova status                            Show workspace and configuration status
+nova tailscale setup                   Set up Tailscale HTTPS for Mini App
+nova transcription setup|status        Set up local voice transcription
+nova backup                            Back up workspace
+nova restore                           Restore workspace from backup
+nova uninstall                         Remove workspace and data
+nova --version                         Show version
 ```
 
 ## Security
