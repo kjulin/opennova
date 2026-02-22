@@ -28,7 +28,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import { Switch } from "@/components/ui/switch";
 import { AutoResizeTextarea } from "@/components/AutoResizeTextarea";
 import { TriggerCronPreview } from "@/components/TriggerCronPreview";
 import { useTriggerAutoSave, useImmediateTriggerSave, type SaveStatus } from "@/hooks/use-trigger-auto-save";
@@ -91,14 +90,12 @@ export function TriggerDrawer({
   const [cron, setCron] = useState("");
   const [tz, setTz] = useState("Europe/Helsinki");
   const [prompt, setPrompt] = useState("");
-  const [enabled, setEnabled] = useState(true);
 
   // Create mode state
   const [createAgentId, setCreateAgentId] = useState("");
   const [createCron, setCreateCron] = useState("");
   const [createTz, setCreateTz] = useState("Europe/Helsinki");
   const [createPrompt, setCreatePrompt] = useState("");
-  const [createEnabled, setCreateEnabled] = useState(true);
   const [createError, setCreateError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
 
@@ -131,13 +128,11 @@ export function TriggerDrawer({
         setCron(trigger.cron);
         setTz(trigger.tz ?? "Europe/Helsinki");
         setPrompt(trigger.prompt);
-        setEnabled(trigger.enabled);
       } else {
         setCreateAgentId("");
         setCreateCron("");
         setCreateTz("Europe/Helsinki");
         setCreatePrompt("");
-        setCreateEnabled(true);
         setCreateError(null);
       }
     }
@@ -164,7 +159,6 @@ export function TriggerDrawer({
         cron: createCron,
         tz: createTz,
         prompt: createPrompt,
-        enabled: createEnabled,
       });
       onCreated();
       // Switch to edit mode
@@ -172,7 +166,6 @@ export function TriggerDrawer({
       setCron(created.cron);
       setTz(created.tz ?? "Europe/Helsinki");
       setPrompt(created.prompt);
-      setEnabled(created.enabled);
     } catch (err) {
       setCreateError(err instanceof Error ? err.message : "Failed to create trigger");
     } finally {
@@ -192,12 +185,6 @@ export function TriggerDrawer({
     } finally {
       setDeleting(false);
     }
-  }
-
-  function handleEnabledChange(checked: boolean) {
-    setEnabled(checked);
-    immediateSave({ enabled: checked });
-    onUpdated();
   }
 
   function handleTzChange(value: string) {
@@ -327,16 +314,6 @@ export function TriggerDrawer({
                 minRows={6}
                 placeholder="What should the agent do when triggered?"
               />
-            )}
-          </div>
-
-          {/* Enabled toggle */}
-          <div className="flex items-center justify-between">
-            <Label>Enabled</Label>
-            {isCreateMode ? (
-              <Switch checked={createEnabled} onCheckedChange={setCreateEnabled} />
-            ) : (
-              <Switch checked={enabled} onCheckedChange={handleEnabledChange} />
             )}
           </div>
 

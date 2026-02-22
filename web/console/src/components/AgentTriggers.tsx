@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { ChevronDown, ChevronRight } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
 import type { Trigger } from "@/types";
 
 interface AgentTriggersProps {
@@ -26,9 +25,6 @@ function TriggerRow({ trigger }: { trigger: Trigger }) {
           {trigger.cron}
         </span>
         <span className="text-sm truncate flex-1">{trigger.prompt}</span>
-        <Badge variant={trigger.enabled ? "secondary" : "outline"}>
-          {trigger.enabled ? "enabled" : "disabled"}
-        </Badge>
       </button>
       {expanded && (
         <div className="border-t border-border px-3 py-2 pl-9">

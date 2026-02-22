@@ -58,7 +58,7 @@ export function useImmediateTriggerSave(triggerId: string) {
     async (fields: Record<string, unknown>) => {
       setStatus("saving");
       try {
-        await patchTrigger(triggerId, fields as Partial<{ cron: string; tz: string; prompt: string; enabled: boolean }>);
+        await patchTrigger(triggerId, fields as Partial<{ cron: string; tz: string; prompt: string }>);
         setStatus("saved");
       } catch {
         setStatus("error");

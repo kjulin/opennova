@@ -52,8 +52,6 @@ export function startTriggerScheduler() {
 
       let changed = false;
       for (const trigger of triggers) {
-        if (!trigger.enabled) continue;
-
         try {
           const tz = trigger.tz ?? systemTz;
           const expr = CronExpressionParser.parse(trigger.cron, {

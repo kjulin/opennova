@@ -70,7 +70,6 @@ export function createTriggerMcpServer(
           cron: z.string().describe("Cron expression (5-field, in the timezone specified by tz)"),
           tz: z.string().describe("IANA timezone for the cron expression, e.g. Europe/Helsinki, America/New_York"),
           prompt: z.string().describe("Prompt to send when trigger fires"),
-          enabled: z.boolean().optional().default(true).describe("Whether the trigger is enabled"),
         },
         async (args) => {
           try {
@@ -89,7 +88,6 @@ export function createTriggerMcpServer(
             cron: args.cron,
             tz: args.tz,
             prompt: args.prompt,
-            enabled: args.enabled,
             lastRun: new Date().toISOString(),
           };
           triggers.push(trigger);
@@ -109,7 +107,6 @@ export function createTriggerMcpServer(
           cron: z.string().optional().describe("New cron expression (5-field, in the timezone specified by tz)"),
           tz: z.string().optional().describe("IANA timezone for the cron expression, e.g. Europe/Helsinki"),
           prompt: z.string().optional().describe("New prompt"),
-          enabled: z.boolean().optional().describe("Enable or disable"),
         },
         async (args) => {
           const triggers = loadTriggers(agentDir);
@@ -134,7 +131,6 @@ export function createTriggerMcpServer(
           }
           if (args.tz !== undefined) trigger.tz = args.tz;
           if (args.prompt !== undefined) trigger.prompt = args.prompt;
-          if (args.enabled !== undefined) trigger.enabled = args.enabled;
 
           saveTriggers(agentDir, triggers);
           return {
