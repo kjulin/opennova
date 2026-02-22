@@ -84,11 +84,7 @@ function SecretRow({
     <>
       <Card>
         <CardContent className="flex items-center gap-3 py-1.5 px-4">
-          <code className="font-mono font-semibold text-sm shrink-0">{name}</code>
-
-          <span className="flex-1 text-sm text-muted-foreground">
-            ••••••••••••••••
-          </span>
+          <code className="font-mono font-semibold text-sm flex-1 min-w-0 truncate">{name}</code>
 
           <div className="flex items-center gap-1 shrink-0">
             {saveStatus === "saved" && (
