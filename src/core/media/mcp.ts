@@ -322,6 +322,9 @@ export function createMediaMcpServer(
             .optional()
             .default("mp3")
             .describe("Audio format. mp3 is universally compatible. opus for smaller files."),
+          name: z.string()
+            .optional()
+            .describe("Output file name without extension. Defaults to tts-{timestamp}."),
         },
         async (args) => {
           // 1. Resolve input: exactly one of text or file must be provided
@@ -453,7 +456,8 @@ export function createMediaMcpServer(
             }
 
             const timestamp = Date.now();
-            const outputFileName = `tts-${timestamp}.${args.format}`;
+            const baseName = args.name ?? `tts-${timestamp}`;
+            const outputFileName = `${baseName}.${args.format}`;
             const outputPath = path.join(ttsDir, outputFileName);
 
             if (audioBuffers.length === 1) {
