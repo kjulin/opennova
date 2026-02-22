@@ -9,7 +9,6 @@ import {
   type McpSdkServerConfigWithInstance,
 } from "@anthropic-ai/claude-agent-sdk";
 import { Config } from "./config.js";
-import { syncSharedSkills } from "./skills.js";
 
 export const PROTECTED_AGENTS = new Set(["nova", "agent-builder"]);
 
@@ -122,7 +121,6 @@ export function createAgentManagementMcpServer(): McpSdkServerConfigWithInstance
           if (args.instructions) data.instructions = args.instructions;
           if (args.directories && args.directories.length > 0) data.directories = args.directories;
           writeAgentJson(args.id, data);
-          syncSharedSkills(Config.workspaceDir, args.id);
           return ok(`Created agent "${args.id}"`);
         },
       ),

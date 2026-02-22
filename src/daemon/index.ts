@@ -4,14 +4,12 @@ import { startTriggerScheduler } from "./triggers.js";
 import { startHttpsServer } from "./https.js";
 import { ensureAuth } from "./auth.js";
 import { Config } from "#core/index.js";
-import { syncSharedSkills } from "#core/skills.js";
 import { startTaskScheduler } from "#tasks/index.js";
 import { startEpisodicBackfillScheduler } from "./episodic-backfill.js";
 import { log } from "./logger.js";
 
 export function start() {
   init();
-  syncSharedSkills(Config.workspaceDir);
 
   log.info("daemon", `workspace: ${Config.workspaceDir}`);
   log.info("daemon", `node: ${process.version}, platform: ${process.platform}`);

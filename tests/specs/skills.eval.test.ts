@@ -24,7 +24,6 @@ describe("Spec Evals: Skills", () => {
     // "OpenNova never reads skill content at runtime, never injects skills into the system prompt, and never interprets what a skill does." — skills.md
     test("Core skills module does not read SKILL.md content", () => {
       const content = readFileSync(join(ROOT, "src/core/skills.ts"), "utf-8")
-      // syncSharedSkills should only deal with symlinks, never readFileSync on SKILL.md
       expect(content).not.toMatch(/readFileSync/)
       expect(content).not.toMatch(/readFile\(/)
     })
@@ -86,68 +85,69 @@ describe("Spec Evals: Skills", () => {
     })
 
     // "The agent's .claude/skills/ directory contains only symlinks to the workspace library — never source files." — skills.md
-    test("Console API activation creates symlinks not copies", () => {
+    test("Console API activation uses activateSkill not copies", () => {
       const content = readFileSync(join(ROOT, "src/api/console-skills.ts"), "utf-8")
-      // Assign endpoint should use symlinkSync, not copyFileSync
-      expect(content).toMatch(/symlinkSync/)
+      // Assign endpoint should use activateSkill, not copyFileSync
+      expect(content).toMatch(/activateSkill/)
       expect(content).not.toMatch(/copyFileSync/)
+    })
+
+    // "Three operations: activate, deactivate, delete" — skills.md
+    test("Core skills module exports activateSkill, deactivateSkill, deleteSkillFromLibrary", () => {
+      const content = readFileSync(join(ROOT, "src/core/skills.ts"), "utf-8")
+      expect(content).toMatch(/export function activateSkill/)
+      expect(content).toMatch(/export function deactivateSkill/)
+      expect(content).toMatch(/export function deleteSkillFromLibrary/)
     })
   })
 
   describe("Invariant", () => {
     // "The agent's .claude/skills/ directory contains only symlinks to the workspace library — never source files." — skills.md
-    test("syncSharedSkills skips non-symlink entries (never overwrites source files)", () => {
+    test("activateSkill skips non-symlink entries (never overwrites source files)", () => {
       const content = readFileSync(join(ROOT, "src/core/skills.ts"), "utf-8")
       // When an entry exists and is NOT a symlink, it should be skipped
       expect(content).toMatch(/isSymbolicLink/)
-      // The code says: "Not a symlink (agent's own skill), don't touch" then continues
+      // The code says: "Not a symlink (agent's own skill), don't touch" then returns
       expect(content).toMatch(/Not a symlink/)
     })
 
     // "Activation is idempotent — activating an already-active skill is a no-op." — skills.md
-    test("syncSharedSkills is idempotent (skips correct existing symlinks)", () => {
+    test("activateSkill is idempotent (skips correct existing symlinks)", () => {
       const content = readFileSync(join(ROOT, "src/core/skills.ts"), "utf-8")
       // Should check if symlink already points to correct target and skip
       expect(content).toMatch(/readlinkSync/)
       expect(content).toMatch(/Already correct/)
     })
 
-    // "Activation is idempotent — activating an already-active skill is a no-op." — skills.md
-    test("Console API assign is idempotent (skips existing symlinks)", () => {
-      const content = readFileSync(join(ROOT, "src/api/console-skills.ts"), "utf-8")
-      // The assign endpoint checks if linkPath exists before creating
-      expect(content).toMatch(/existsSync\(linkPath\)/)
-    })
-
     // "Deactivating a skill that isn't active is a no-op." — skills.md
-    test("Console API unassign handles missing symlinks gracefully", () => {
-      const content = readFileSync(join(ROOT, "src/api/console-skills.ts"), "utf-8")
-      // The unassign endpoint checks existence and isSymbolicLink before unlinking
-      expect(content).toMatch(/existsSync\(linkPath\)/)
-      expect(content).toMatch(/isSymbolicLink\(\)/)
-      expect(content).toMatch(/unlinkSync/)
-    })
-
-    // "Deleting a skill from the library removes the skill directory and all symlinks pointing to it across all agents." — skills.md
-    test("syncSharedSkills cleans stale symlinks pointing to deleted skills", () => {
+    test("deactivateSkill is idempotent (handles missing symlinks gracefully)", () => {
       const content = readFileSync(join(ROOT, "src/core/skills.ts"), "utf-8")
-      // Must detect symlinks pointing to non-existent targets and remove them
-      expect(content).toMatch(/stale/i)
+      // deactivateSkill checks existence before unlinking
+      expect(content).toMatch(/export function deactivateSkill/)
+      expect(content).toMatch(/isSymbolicLink/)
       expect(content).toMatch(/unlinkSync/)
     })
 
     // "Deleting a skill from the library removes the skill directory and all symlinks pointing to it across all agents." — skills.md
-    test("Delete skill operation triggers syncSharedSkills to clean all agents", () => {
-      const content = readFileSync(join(ROOT, "src/api/console-skills.ts"), "utf-8")
-      // After rmSync of skill dir, must call syncSharedSkills
+    test("deleteSkillFromLibrary removes skill dir and cleans all agent symlinks", () => {
+      const content = readFileSync(join(ROOT, "src/core/skills.ts"), "utf-8")
+      // Must remove skill dir and scan all agents for stale symlinks
+      expect(content).toMatch(/export function deleteSkillFromLibrary/)
       expect(content).toMatch(/rmSync/)
-      expect(content).toMatch(/syncSharedSkills/)
+      expect(content).toMatch(/unlinkSync/)
+    })
+
+    // "Deleting a skill from the library removes the skill directory and all symlinks pointing to it across all agents." — skills.md
+    test("Console API delete endpoint calls deleteSkillFromLibrary", () => {
+      const content = readFileSync(join(ROOT, "src/api/console-skills.ts"), "utf-8")
+      expect(content).toMatch(/deleteSkillFromLibrary/)
     })
 
     // "Three operations maintain the symlink state. There is no background sync or startup reconciliation" — skills.md
-    test("No startup reconciliation — syncSharedSkills not called on daemon start", () => {
+    test("No startup reconciliation — no skills sync on daemon start", () => {
       const content = readFileSync(join(ROOT, "src/daemon/index.ts"), "utf-8")
       expect(content).not.toMatch(/syncSharedSkills/)
+      expect(content).not.toMatch(/skills/)
     })
 
     // "Agents do not create, edit, or delete skills. Skills are a user-managed resource." — skills.md
@@ -173,6 +173,50 @@ describe("Spec Evals: Skills", () => {
       expect(content).not.toMatch(/fetch\(/)
       expect(content).not.toMatch(/database|sqlite|sql/i)
       expect(content).not.toMatch(/import.*http/i)
+    })
+
+    // "link requires skill to exist in library" — skills.md
+    test("CLI link command requires skill to exist in library", () => {
+      const content = readFileSync(join(ROOT, "src/daemon/commands/skills.ts"), "utf-8")
+      expect(content).toMatch(/Skill not found in library/)
+    })
+
+    // "unlink only deactivates, never deletes from library" — skills.md
+    test("CLI unlink command does not call deleteSkillFromLibrary", () => {
+      const content = readFileSync(join(ROOT, "src/daemon/commands/skills.ts"), "utf-8")
+      // unlink function should use deactivateSkill, not deleteSkillFromLibrary
+      const unlinkFn = content.slice(content.indexOf("async function unlink"), content.indexOf("async function deleteSkill"))
+      expect(unlinkFn).toMatch(/deactivateSkill/)
+      expect(unlinkFn).not.toMatch(/deleteSkillFromLibrary/)
+    })
+
+    // "Agent creation does not call skills functions" — skills.md
+    test("Agent creation does not sync or activate skills", () => {
+      const agentMgmt = readFileSync(join(ROOT, "src/core/agent-management.ts"), "utf-8")
+      expect(agentMgmt).not.toMatch(/syncSharedSkills/)
+      expect(agentMgmt).not.toMatch(/activateSkill/)
+      expect(agentMgmt).not.toMatch(/from\s+["'].*skills/)
+
+      const consoleAgents = readFileSync(join(ROOT, "src/api/console-agents.ts"), "utf-8")
+      expect(consoleAgents).not.toMatch(/syncSharedSkills/)
+      expect(consoleAgents).not.toMatch(/activateSkill/)
+      expect(consoleAgents).not.toMatch(/from\s+["'].*skills/)
+    })
+
+    // "No syncSharedSkills function should exist" — aligned with spec
+    test("No references to syncSharedSkills remain in codebase", () => {
+      const files = [
+        "src/core/skills.ts",
+        "src/daemon/index.ts",
+        "src/core/agent-management.ts",
+        "src/api/console-agents.ts",
+        "src/api/console-skills.ts",
+        "src/daemon/commands/skills.ts",
+      ]
+      for (const file of files) {
+        const content = readFileSync(join(ROOT, file), "utf-8")
+        expect(content).not.toMatch(/syncSharedSkills/)
+      }
     })
   })
 })

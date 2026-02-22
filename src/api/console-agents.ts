@@ -2,7 +2,6 @@ import { Hono } from "hono"
 import { loadAgents } from "#core/agents.js"
 import { PROTECTED_AGENTS } from "#core/agent-management.js"
 import { KNOWN_CAPABILITIES } from "#core/capabilities.js"
-import { syncSharedSkills } from "#core/skills.js"
 import fs from "fs"
 import path from "path"
 
@@ -128,8 +127,6 @@ export function createConsoleAgentsRouter(workspaceDir: string): Hono {
       path.join(agentDir, "agent.json"),
       JSON.stringify(agentJson, null, 2) + "\n",
     )
-
-    syncSharedSkills(workspaceDir, id)
 
     const created = loadAgents().get(id)
     if (!created) {

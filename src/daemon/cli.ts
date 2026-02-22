@@ -112,10 +112,10 @@ switch (command) {
     console.log("  agent <id> trust <level>      Set agent trust level");
     console.log("  agent <id> telegram           Set up a dedicated Telegram bot");
     console.log("  agent <id> telegram remove    Remove agent's dedicated bot");
-    console.log("  skills list [--agent <id>]                    List skills (all or per-agent)");
-    console.log("  skills link <name> --agent <id|all>           Link a Claude skill to agent(s)");
-    console.log("  skills link <name> --agent <id> --source <p>  Link a skill from a custom path");
-    console.log("  skills unlink <name> --agent <id|all>         Unlink a skill from agent(s)");
+    console.log("  skills list [--agent <id>]              List skills (all or per-agent)");
+    console.log("  skills link <name> --agent <id|all>     Activate a library skill for agent(s)");
+    console.log("  skills unlink <name> --agent <id|all>   Deactivate a skill for agent(s)");
+    console.log("  skills delete <name>                    Delete a skill from the library");
     console.log("  secrets set <name>                Set a secret (prompts for value)");
     console.log("  secrets get <name>                Get a secret value");
     console.log("  secrets list                      List secret names");

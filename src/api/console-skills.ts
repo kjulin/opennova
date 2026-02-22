@@ -1,5 +1,5 @@
 import { Hono } from "hono"
-import { syncSharedSkills } from "#core/skills.js"
+import { activateSkill, deactivateSkill, deleteSkillFromLibrary } from "#core/skills.js"
 import fs from "fs"
 import path from "path"
 
@@ -178,8 +178,7 @@ export function createConsoleSkillsRouter(workspaceDir: string): Hono {
       return c.json({ error: "Skill not found" }, 404)
     }
 
-    fs.rmSync(skillDir, { recursive: true })
-    syncSharedSkills(workspaceDir)
+    deleteSkillFromLibrary(workspaceDir, name)
     return c.json({ ok: true })
   })
 
@@ -199,12 +198,7 @@ export function createConsoleSkillsRouter(workspaceDir: string): Hono {
 
     for (const agentId of agents) {
       if (typeof agentId !== "string") continue
-      const agentSkillsDir = path.join(workspaceDir, "agents", agentId, ".claude", "skills")
-      fs.mkdirSync(agentSkillsDir, { recursive: true })
-      const linkPath = path.join(agentSkillsDir, name)
-      if (!fs.existsSync(linkPath)) {
-        fs.symlinkSync(skillDir, linkPath)
-      }
+      activateSkill(workspaceDir, name, agentId)
     }
 
     return c.json({ assignedTo: getAssignedAgents(workspaceDir, name) })
@@ -226,15 +220,7 @@ export function createConsoleSkillsRouter(workspaceDir: string): Hono {
 
     for (const agentId of agents) {
       if (typeof agentId !== "string") continue
-      const linkPath = path.join(workspaceDir, "agents", agentId, ".claude", "skills", name)
-      if (fs.existsSync(linkPath)) {
-        try {
-          const stat = fs.lstatSync(linkPath)
-          if (stat.isSymbolicLink()) {
-            fs.unlinkSync(linkPath)
-          }
-        } catch {}
-      }
+      deactivateSkill(workspaceDir, name, agentId)
     }
 
     return c.json({ assignedTo: getAssignedAgents(workspaceDir, name) })
