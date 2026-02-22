@@ -1,5 +1,7 @@
 export interface Trigger {
   id: string;
+  agentId?: string;
+  agentName?: string;
   cron: string;
   tz?: string;
   prompt: string;
@@ -37,4 +39,12 @@ export interface Skill {
 
 export interface SkillsResponse {
   skills: Skill[];
+}
+
+export interface TriggersResponse {
+  triggers: Trigger[];
+}
+
+export interface SecretsResponse {
+  secrets: string[];
 }
