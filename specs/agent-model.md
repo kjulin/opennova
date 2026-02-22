@@ -17,7 +17,7 @@ AgentConfig {
   instructions?: string   // how: files, rhythm, focus, constraints
   directories?: string[]  // filesystem access boundaries
   capabilities?: string[] // explicit list of MCP servers this agent gets
-  trust: TrustLevel       // sandbox | default | unrestricted (required)
+  trust: TrustLevel       // sandbox | controlled | unrestricted (required)
   model?: Model           // default model override
   subagents?: Record<string, SubagentConfig> // Claude SDK inline subagents
 }
@@ -71,7 +71,7 @@ Controls SDK-native tools (files, web, bash). Required — every agent must decl
 | Trust Level | SDK-native tools |
 |-------------|-----------------|
 | sandbox | None |
-| default | Files + Web |
+| controlled | Files + Web |
 | unrestricted | Files + Web + Bash |
 
 Trust is orthogonal to capabilities. See the Engine spec for trust enforcement and the Capabilities spec for the separation.
@@ -146,7 +146,7 @@ Renaming changes the agent's ID (directory name) and optionally its display name
 
 `nova init` creates two agents from the workspace template:
 
-- `nova` — general-purpose executive assistant (trust: default)
+- `nova` — general-purpose executive assistant (trust: controlled)
 - `agent-builder` — agent creation specialist (trust: sandbox)
 
 These are defaults, not privileged. They receive no special treatment at runtime. The user can modify their identity, instructions, capabilities, trust level, or delete them entirely.

@@ -85,7 +85,7 @@ export const ThreadEventSchema = z.union([
   ThreadResultEventSchema,
 ]);
 
-export const TrustLevel = z.enum(["sandbox", "default", "unrestricted"]);
+export const TrustLevel = z.enum(["sandbox", "controlled", "unrestricted"]);
 export type TrustLevel = z.infer<typeof TrustLevel>;
 
 /**

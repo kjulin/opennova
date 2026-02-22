@@ -74,12 +74,12 @@ During `nova init`, you choose a default security level that applies to all agen
 | Level | Access |
 |-------|--------|
 | `sandbox` | Chat and web search only. No file or shell access. |
-| `standard` | Read/write files within the agent's working directory. No shell commands. |
+| `controlled` | Read/write files within the agent's working directory. No shell commands. |
 | `unrestricted` | Full access to the filesystem and shell. |
 
 ```bash
 # Change the global default
-nova config set settings.defaultSecurity standard
+nova config set settings.defaultSecurity controlled
 
 # Override for a specific agent
 nova agent my-agent security unrestricted

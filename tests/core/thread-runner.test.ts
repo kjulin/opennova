@@ -24,7 +24,7 @@ vi.mock("#core/threads.js", () => ({
 
 vi.mock("#core/agents.js", () => ({
   loadAgents: vi.fn(() => new Map([
-    ["test-agent", { name: "Test Agent", role: "Test role", trust: "default", capabilities: ["memory"] }],
+    ["test-agent", { name: "Test Agent", role: "Test role", trust: "controlled", capabilities: ["memory"] }],
   ])),
   buildSystemPrompt: vi.fn(() => "System prompt"),
   getAgentCwd: vi.fn(() => "/test/cwd"),
@@ -86,7 +86,7 @@ describe("AgentRunner", () => {
 
     expect(mockEngine.calls).toHaveLength(1);
     expect(mockEngine.calls[0]?.message).toBe("Hello");
-    expect(mockEngine.calls[0]?.trust).toBe("default");
+    expect(mockEngine.calls[0]?.trust).toBe("controlled");
   });
 
   it("appends assistant message to thread", async () => {

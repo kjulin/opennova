@@ -22,7 +22,7 @@ Engine {
 ```
 
 ```
-TrustLevel = "sandbox" | "default" | "unrestricted"
+TrustLevel = "sandbox" | "controlled" | "unrestricted"
 ```
 
 ## EngineOptions
@@ -53,7 +53,7 @@ Trust controls what SDK-native tools the Engine makes available. It is the Engin
 | Trust Level | SDK-native tools | Rationale |
 |-------------|-----------------|-----------|
 | sandbox | None (no files, no web, no bash) | Untrusted input protection — prevents prompt injection via web, filesystem access |
-| default | Files (Read, Write, Edit, Glob, Grep) + Web (WebSearch, WebFetch) | Standard working agent — can read/write files and access the web |
+| controlled | Files (Read, Write, Edit, Glob, Grep) + Web (WebSearch, WebFetch) | Standard working agent — can read/write files and access the web |
 | unrestricted | Everything including Bash | Full system access — trusted automation |
 
 Each level strictly adds to the previous. MCP servers (capabilities) work at every trust level — trust only governs SDK-native tools.
@@ -61,7 +61,7 @@ Each level strictly adds to the previous. MCP servers (capabilities) work at eve
 How trust maps to SDK parameters is an implementation detail of each Engine. For the Claude Agent SDK engine:
 
 - `sandbox` → `permissionMode: "dontAsk"`, `allowedTools` restricted to MCP patterns only
-- `default` → `permissionMode: "dontAsk"`, `disallowedTools: ["Bash"]`
+- `controlled` → `permissionMode: "dontAsk"`, `disallowedTools: ["Bash"]`
 - `unrestricted` → `permissionMode: "bypassPermissions"`, `allowDangerouslySkipPermissions: true`
 
 ## EngineResult

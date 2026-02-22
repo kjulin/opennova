@@ -135,7 +135,7 @@ Agent {
   instructions: string    // how: files, rhythm, constraints
   directories: string[]   // filesystem access boundaries
   capabilities: string[]  // explicit list of MCP servers this agent gets
-  trust: TrustLevel       // sandbox | default | unrestricted
+  trust: TrustLevel       // sandbox | controlled | unrestricted
   model: Model            // default model override
   subagents: Record<string, SubagentConfig>  // Claude SDK subagents
 }
@@ -192,7 +192,7 @@ Agents have two independent axes of access control:
 | Trust Level | SDK-native tools | Use Case |
 |-------------|-----------------|----------|
 | sandbox | None (no files, no web, no bash) | Untrusted input protection — prevents prompt injection |
-| default | Files + Web | Standard working agent |
+| controlled | Files + Web | Standard working agent |
 | unrestricted | Files + Web + Bash | Trusted automation |
 
 Each level strictly adds to the previous.
