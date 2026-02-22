@@ -92,6 +92,7 @@ export function startAgentTelegram(
     { command: "notes", description: "Browse agent notes" },
     { command: "stop", description: "Stop the running agent" },
     { command: "new", description: "Start a fresh conversation thread" },
+    { command: "admin", description: "Open admin console" },
     { command: "help", description: "Show help message" },
   ]).catch((err) => {
     log.warn("telegram-agent", `agent ${agentId}: failed to register commands:`, err);
@@ -194,7 +195,7 @@ export function startAgentTelegram(
 
     if (text === "/help" || text === "/start") {
       const kb = buildReplyKeyboard();
-      await ctx.reply(`This is *${agent.name}*'s dedicated bot.\n\n/threads — list and switch threads\n/new — start a fresh thread\n/stop — stop the running agent\n/help — show this message`, {
+      await ctx.reply(`This is *${agent.name}*'s dedicated bot.\n\n/threads — list and switch threads\n/new — start a fresh thread\n/stop — stop the running agent\n/admin — open admin console\n/help — show this message`, {
         parse_mode: "Markdown",
         ...(kb ? { reply_markup: kb } : {}),
       });
@@ -230,6 +231,22 @@ export function startAgentTelegram(
         keyboard.text(`${active}${title} \u00b7 ${time}`, `thread:${t.id}`).row();
       }
       await ctx.reply("*Threads:*", { parse_mode: "Markdown", reply_markup: keyboard });
+      return;
+    }
+
+    if (text === "/admin") {
+      const host = getWebAppHost();
+      if (!host) {
+        await ctx.reply("Admin console requires HTTPS. Run `nova tailscale setup` first.");
+        return;
+      }
+      const url = `https://${host}:${HTTPS_PORT}/web/console/`;
+      const keyboard = new InlineKeyboard();
+      keyboard.url("Open Console", url).row();
+      await ctx.reply(`*Admin Console*\n\nManage your agents, skills, triggers, and secrets.`, {
+        parse_mode: "Markdown",
+        reply_markup: keyboard,
+      });
       return;
     }
 
