@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -13,6 +14,15 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Pencil, Trash2 } from "lucide-react";
 import { updateSecret, deleteSecret } from "@/api";
 
 interface SecretListProps {
@@ -30,23 +40,20 @@ function SecretRow({
   onDeleted: () => void;
   onUpdated: () => void;
 }) {
-  const [editing, setEditing] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
   const [newValue, setNewValue] = useState("");
   const [saving, setSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState<"idle" | "saved" | "error">("idle");
   const [deleting, setDeleting] = useState(false);
 
   async function handleSave() {
-    if (!newValue) {
-      setEditing(false);
-      return;
-    }
+    if (!newValue) return;
     setSaving(true);
     setSaveStatus("idle");
     try {
       await updateSecret(name, newValue);
       setSaveStatus("saved");
-      setEditing(false);
+      setEditOpen(false);
       setNewValue("");
       onUpdated();
       setTimeout(() => setSaveStatus("idle"), 2000);
@@ -60,10 +67,6 @@ function SecretRow({
   function handleKeyDown(e: React.KeyboardEvent) {
     if (e.key === "Enter") {
       handleSave();
-    } else if (e.key === "Escape") {
-      setEditing(false);
-      setNewValue("");
-      setSaveStatus("idle");
     }
   }
 
@@ -78,83 +81,97 @@ function SecretRow({
   }
 
   return (
-    <Card>
-      <CardContent className="flex items-center gap-4 py-2 px-4">
-        <code className="font-mono font-semibold text-sm shrink-0">{name}</code>
+    <>
+      <Card>
+        <CardContent className="flex items-center gap-3 py-1.5 px-4">
+          <code className="font-mono font-semibold text-sm shrink-0">{name}</code>
 
-        <div className="flex-1 min-w-0">
-          {editing ? (
+          <span className="flex-1 text-sm text-muted-foreground">
+            ••••••••••••••••
+          </span>
+
+          <div className="flex items-center gap-1 shrink-0">
+            {saveStatus === "saved" && (
+              <span className="text-xs text-muted-foreground mr-1">Saved</span>
+            )}
+            {saveStatus === "error" && (
+              <span className="text-xs text-destructive mr-1">Error</span>
+            )}
+
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7"
+              onClick={() => {
+                setEditOpen(true);
+                setSaveStatus("idle");
+              }}
+            >
+              <Pencil className="h-3.5 w-3.5" />
+            </Button>
+
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-7 w-7" disabled={deleting}>
+                  <Trash2 className="h-3.5 w-3.5" />
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Delete secret?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Are you sure you want to delete <strong>{name}</strong>? This action cannot be undone.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction variant="destructive" onClick={handleDelete}>
+                    Delete
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Update secret</DialogTitle>
+            <DialogDescription>
+              Enter a new value for <strong>{name}</strong>.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label>New value</Label>
             <Input
               type="password"
               value={newValue}
               onChange={(e) => setNewValue(e.target.value)}
               onKeyDown={handleKeyDown}
-              onBlur={handleSave}
               placeholder="New value"
               autoFocus
               disabled={saving}
             />
-          ) : (
-            <span className="text-sm text-muted-foreground">
-              ••••••••••••••••
-            </span>
-          )}
-        </div>
-
-        <div className="flex items-center gap-2 shrink-0">
-          {saving && (
-            <span className="text-xs text-muted-foreground">Saving...</span>
-          )}
-          {!saving && saveStatus === "saved" && (
-            <span className="text-xs text-muted-foreground">Saved</span>
-          )}
-          {!saving && saveStatus === "error" && (
-            <span className="text-xs text-destructive">Error</span>
-          )}
-
-          {!editing && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => {
-                setEditing(true);
-                setSaveStatus("idle");
-              }}
-            >
-              Edit
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setEditOpen(false)} disabled={saving}>
+              Cancel
             </Button>
-          )}
-
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button variant="ghost" size="sm" disabled={deleting}>
-                {deleting ? "..." : "✕"}
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Delete secret?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  Are you sure you want to delete <strong>{name}</strong>? This action cannot be undone.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction variant="destructive" onClick={handleDelete}>
-                  Delete
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-        </div>
-      </CardContent>
-    </Card>
+            <Button onClick={handleSave} disabled={saving || !newValue}>
+              {saving ? "Saving..." : "Save"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 
 export function SecretList({ secrets, onDeleted, onUpdated }: SecretListProps) {
   return (
-    <div className="space-y-2">
+    <div className="space-y-1">
       {secrets.map((name) => (
         <SecretRow
           key={name}
