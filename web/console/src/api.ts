@@ -1,4 +1,4 @@
-import type { Agent, AgentsResponse, Skill, SkillsResponse } from "@/types";
+import type { Agent, AgentsResponse, Skill, SkillsResponse, Trigger, TriggersResponse, SecretsResponse } from "@/types";
 
 const API_BASE = "/api/console";
 
@@ -90,4 +90,71 @@ export async function unassignSkill(name: string, agents: string[]): Promise<{ a
   });
   if (!res.ok) throw new Error("Failed to unassign skill");
   return res.json();
+}
+
+// Triggers
+
+export async function fetchTriggers(): Promise<TriggersResponse> {
+  const res = await fetch(`${API_BASE}/triggers`);
+  if (!res.ok) throw new Error("Failed to fetch triggers");
+  return res.json();
+}
+
+export async function createTrigger(agentId: string, data: { cron: string; tz?: string; prompt: string; enabled?: boolean }): Promise<Trigger> {
+  const res = await fetch(`${API_BASE}/triggers/agent/${agentId}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: "Failed to create trigger" }));
+    throw new Error(err.error || "Failed to create trigger");
+  }
+  return res.json();
+}
+
+export async function patchTrigger(triggerId: string, data: Partial<{ cron: string; tz: string; prompt: string; enabled: boolean }>): Promise<Trigger> {
+  const res = await fetch(`${API_BASE}/triggers/${triggerId}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error("Failed to save");
+  return res.json();
+}
+
+export async function deleteTrigger(triggerId: string): Promise<void> {
+  const res = await fetch(`${API_BASE}/triggers/${triggerId}`, { method: "DELETE" });
+  if (!res.ok) throw new Error("Failed to delete trigger");
+}
+
+// Secrets
+
+export async function fetchSecrets(): Promise<SecretsResponse> {
+  const res = await fetch(`${API_BASE}/secrets`);
+  if (!res.ok) throw new Error("Failed to fetch secrets");
+  return res.json();
+}
+
+export async function createSecret(name: string, value: string): Promise<void> {
+  const res = await fetch(`${API_BASE}/secrets`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name, value }),
+  });
+  if (!res.ok) throw new Error("Failed to create secret");
+}
+
+export async function updateSecret(name: string, value: string): Promise<void> {
+  const res = await fetch(`${API_BASE}/secrets/${name}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ value }),
+  });
+  if (!res.ok) throw new Error("Failed to update secret");
+}
+
+export async function deleteSecret(name: string): Promise<void> {
+  const res = await fetch(`${API_BASE}/secrets/${name}`, { method: "DELETE" });
+  if (!res.ok) throw new Error("Failed to delete secret");
 }
