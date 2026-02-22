@@ -8,7 +8,7 @@ import path from "path"
 
 const VALID_AGENT_ID = /^[a-z0-9][a-z0-9-]*$/
 
-function loadAgentDetail(workspaceDir: string, id: string, agent: { name: string; description?: string; identity?: string; instructions?: string; trust?: string; capabilities?: string[]; directories?: string[]; allowedAgents?: string[]; model?: string }) {
+function loadAgentDetail(workspaceDir: string, id: string, agent: { name: string; description?: string; identity?: string; instructions?: string; trust?: string; capabilities?: string[]; directories?: string[]; model?: string }) {
   const agentDir = path.join(workspaceDir, "agents", id)
 
   // Load triggers
@@ -40,7 +40,6 @@ function loadAgentDetail(workspaceDir: string, id: string, agent: { name: string
     trust: agent.trust,
     capabilities: agent.capabilities,
     directories: agent.directories,
-    allowedAgents: agent.allowedAgents,
     model: agent.model,
     skills,
     triggers,
@@ -79,7 +78,7 @@ export function createConsoleAgentsRouter(workspaceDir: string): Hono {
   // Create agent
   app.post("/", async (c) => {
     const body = await c.req.json()
-    const { id, name, description, identity, instructions, directories, allowedAgents, trust } = body
+    const { id, name, description, identity, instructions, directories, trust } = body
 
     if (!id || typeof id !== "string") {
       return c.json({ error: "id is required" }, 400)
@@ -121,7 +120,6 @@ export function createConsoleAgentsRouter(workspaceDir: string): Hono {
     if (description) agentJson.description = description
     if (instructions) agentJson.instructions = instructions
     if (directories && Array.isArray(directories) && directories.length > 0) agentJson.directories = directories
-    if (allowedAgents && Array.isArray(allowedAgents) && allowedAgents.length > 0) agentJson.allowedAgents = allowedAgents
     if (body.capabilities && Array.isArray(body.capabilities) && body.capabilities.length > 0) agentJson.capabilities = body.capabilities
 
     const agentDir = path.join(workspaceDir, "agents", id)
@@ -158,7 +156,7 @@ export function createConsoleAgentsRouter(workspaceDir: string): Hono {
     }
 
     const body = await c.req.json()
-    const allowedFields = ["name", "description", "identity", "instructions", "directories", "allowedAgents", "trust", "capabilities", "model"]
+    const allowedFields = ["name", "description", "identity", "instructions", "directories", "trust", "capabilities", "model"]
 
     // Validate trust
     if ("trust" in body) {

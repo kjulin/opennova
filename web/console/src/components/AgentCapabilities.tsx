@@ -3,6 +3,16 @@ import { Label } from "@/components/ui/label";
 import { useImmediateSave } from "@/hooks/use-auto-save";
 
 const AVAILABLE_CAPABILITIES = [
+  { id: "memory", label: "Memory", description: "Long-term memory across conversations" },
+  { id: "history", label: "History", description: "Episodic conversation history" },
+  { id: "tasks", label: "Tasks", description: "Task management" },
+  { id: "notes", label: "Notes", description: "Shared notes and pinned content" },
+  { id: "self", label: "Self", description: "Self-manage own instructions" },
+  { id: "media", label: "Media", description: "Send files and media" },
+  { id: "secrets", label: "Secrets", description: "Access workspace secrets" },
+  { id: "agents", label: "Agents", description: "Delegate tasks to other agents" },
+  { id: "agent-management", label: "Agent Management", description: "Create and manage agents" },
+  { id: "triggers", label: "Triggers", description: "Manage scheduled triggers" },
   { id: "browser", label: "Browser", description: "Playwright browser automation" },
 ];
 

@@ -32,8 +32,6 @@ export function createAgentsMcpServer(
   depth: number,
   runAgentFn: RunAgentFn,
 ): McpSdkServerConfigWithInstance {
-  const allowed = caller.allowedAgents ?? [];
-
   return createSdkMcpServer({
     name: "agents",
     tools: [
@@ -43,11 +41,9 @@ export function createAgentsMcpServer(
         {},
         async () => {
           const agents = loadAgents();
-          const wildcard = allowed.includes("*");
           const entries: { id: string; name: string; description: string }[] = [];
           for (const a of agents.values()) {
             if (a.id === caller.id) continue;
-            if (!wildcard && !allowed.includes(a.id)) continue;
             entries.push({ id: a.id, name: a.name, description: a.description ?? "" });
           }
           return ok(JSON.stringify(entries, null, 2));
@@ -68,11 +64,6 @@ export function createAgentsMcpServer(
 
           if (depth >= MAX_DEPTH) {
             return err(`Delegation depth limit reached (max ${MAX_DEPTH}). Cannot delegate further.`);
-          }
-
-          const wildcard = allowed.includes("*");
-          if (!wildcard && !allowed.includes(args.agent)) {
-            return err(`Not allowed to contact agent "${args.agent}". Allowed agents: ${allowed.join(", ")}`);
           }
 
           const agents = loadAgents();

@@ -41,8 +41,8 @@ const CAPABILITY_REGISTRY: Record<string, CapabilityResolver> = {
   media: (ctx) => createMediaMcpServer(ctx.agentDir, ctx.directories, ctx.callbacks.onFileSend ?? (() => {})),
   secrets: (ctx) => createSecretsMcpServer(ctx.workspaceDir),
   agents: (ctx) => {
-    if (!ctx.agent?.allowedAgents || !ctx.runAgentFn) return null;
-    return createAgentsMcpServer(ctx.agent, ctx.askAgentDepth ?? 0, ctx.runAgentFn);
+    if (!ctx.runAgentFn) return null;
+    return createAgentsMcpServer(ctx.agent!, ctx.askAgentDepth ?? 0, ctx.runAgentFn);
   },
   "agent-management": () => createAgentManagementMcpServer(),
   triggers: (ctx) => createTriggerMcpServer(ctx.agentDir, ctx.channel),

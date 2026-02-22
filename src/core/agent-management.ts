@@ -41,7 +41,6 @@ interface AgentJson {
   identity?: string; // Who: expertise, personality, methodology
   instructions?: string; // How: files, rhythm, focus, constraints
   directories?: string[];
-  allowedAgents?: string[];
   [key: string]: unknown;
 }
 
@@ -106,7 +105,6 @@ export function createAgentManagementMcpServer(): McpSdkServerConfigWithInstance
           identity: z.string().describe("Who the agent is — expertise, personality, methodology"),
           instructions: z.string().optional().describe("How the agent operates — files, rhythm, focus, constraints"),
           directories: z.array(z.string()).optional().describe("Directories the agent can access (optional)"),
-          allowedAgents: z.array(z.string()).optional().describe("Agent IDs this agent can call via ask_agent (use [\"*\"] for any)"),
         },
         async (args) => {
           if (!VALID_AGENT_ID.test(args.id)) {
@@ -123,7 +121,6 @@ export function createAgentManagementMcpServer(): McpSdkServerConfigWithInstance
           if (args.description) data.description = args.description;
           if (args.instructions) data.instructions = args.instructions;
           if (args.directories && args.directories.length > 0) data.directories = args.directories;
-          if (args.allowedAgents && args.allowedAgents.length > 0) data.allowedAgents = args.allowedAgents;
           writeAgentJson(args.id, data);
           syncSharedSkills(Config.workspaceDir, args.id);
           return ok(`Created agent "${args.id}"`);
@@ -140,7 +137,6 @@ export function createAgentManagementMcpServer(): McpSdkServerConfigWithInstance
           identity: z.string().optional().describe("New identity — who the agent is"),
           instructions: z.string().optional().describe("New instructions — how the agent operates"),
           directories: z.array(z.string()).optional().describe("New list of directories (replaces existing list)"),
-          allowedAgents: z.array(z.string()).optional().describe("Agent IDs this agent can call via ask_agent (use [\"*\"] for any)"),
         },
         async (args) => {
           if (PROTECTED_AGENTS.has(args.id)) {
@@ -154,7 +150,6 @@ export function createAgentManagementMcpServer(): McpSdkServerConfigWithInstance
           if (args.identity !== undefined) config.identity = args.identity;
           if (args.instructions !== undefined) config.instructions = args.instructions;
           if (args.directories !== undefined) config.directories = args.directories;
-          if (args.allowedAgents !== undefined) config.allowedAgents = args.allowedAgents;
 
           writeAgentJson(args.id, config);
           return ok(`Updated agent "${args.id}"`);
