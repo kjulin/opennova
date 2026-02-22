@@ -8,6 +8,8 @@ import {
 } from "@anthropic-ai/claude-agent-sdk";
 import { transcribe, checkDependencies } from "../transcription/index.js";
 import { getSecret } from "../secrets.js";
+import { spawn } from "child_process";
+import os from "os";
 
 const IMAGE_EXTENSIONS = [".jpg", ".jpeg", ".png", ".gif", ".webp"];
 const AUDIO_EXTENSIONS = [".mp3", ".ogg", ".wav", ".m4a", ".opus", ".flac", ".aac"];
@@ -29,6 +31,87 @@ function isPathAllowed(filePath: string, allowedDirs: string[]): boolean {
 function isTranscribable(filePath: string): boolean {
   const ext = path.extname(filePath).toLowerCase();
   return AUDIO_EXTENSIONS.includes(ext) || VIDEO_EXTENSIONS.includes(ext);
+}
+
+/**
+ * Split text into chunks at sentence boundaries, each under maxLen chars.
+ * Splits on ". ", "? ", "! ", "\n\n". Falls back to hard cut at maxLen.
+ */
+function chunkText(text: string, maxLen = 4096): string[] {
+  if (text.length <= maxLen) return [text];
+
+  const chunks: string[] = [];
+  let remaining = text;
+
+  while (remaining.length > 0) {
+    if (remaining.length <= maxLen) {
+      chunks.push(remaining);
+      break;
+    }
+
+    // Find the last sentence boundary within maxLen
+    let cutPoint = -1;
+    const delimiters = [". ", "? ", "! ", "\n\n"];
+    for (const delim of delimiters) {
+      const idx = remaining.lastIndexOf(delim, maxLen);
+      if (idx > 0 && idx + delim.length > cutPoint) {
+        cutPoint = idx + delim.length;
+      }
+    }
+
+    // If no sentence boundary found, hard cut at maxLen
+    if (cutPoint <= 0) {
+      cutPoint = maxLen;
+    }
+
+    chunks.push(remaining.slice(0, cutPoint));
+    remaining = remaining.slice(cutPoint);
+  }
+
+  return chunks;
+}
+
+/**
+ * Concatenate multiple audio files using ffmpeg's concat demuxer.
+ * Returns path to the concatenated output file.
+ */
+async function concatAudioFiles(inputPaths: string[], outputPath: string): Promise<void> {
+  const listContent = inputPaths.map((p) => `file '${p}'`).join("\n");
+  const listPath = path.join(os.tmpdir(), `nova-tts-concat-${Date.now()}.txt`);
+  fs.writeFileSync(listPath, listContent);
+
+  try {
+    await new Promise<void>((resolve, reject) => {
+      const proc = spawn("ffmpeg", [
+        "-f", "concat",
+        "-safe", "0",
+        "-i", listPath,
+        "-c", "copy",
+        "-y",
+        outputPath,
+      ], {
+        stdio: ["ignore", "pipe", "pipe"],
+      });
+
+      let stderr = "";
+      proc.stderr.on("data", (d: Buffer) => stderr += d.toString());
+
+      proc.on("close", (code) => {
+        if (code === 0) {
+          resolve();
+        } else {
+          reject(new Error(`ffmpeg concat failed (code ${code}): ${stderr.slice(-500)}`));
+        }
+      });
+
+      proc.on("error", (err) => {
+        reject(new Error(`ffmpeg not found: ${err.message}`));
+      });
+    });
+  } finally {
+    // Clean up list file
+    try { fs.unlinkSync(listPath); } catch {}
+  }
 }
 
 export type FileType = "document" | "photo" | "audio" | "video";
@@ -223,9 +306,14 @@ export function createMediaMcpServer(
 
       tool(
         "text_to_speech",
-        "Convert text to speech audio. Returns the path to the generated audio file. Use send_file to deliver it to the user.",
+        "Convert text or a file to speech audio. Provide either text directly or a file path (notes, reports, specs — any readable text file). Long content is automatically chunked and concatenated into a single audio file. Returns the path to the generated audio file. Use send_file to deliver it to the user.",
         {
-          text: z.string().describe("The text to convert to speech. Max ~4000 characters."),
+          text: z.string()
+            .optional()
+            .describe("Text to convert to speech. Use this for short inline content."),
+          file: z.string()
+            .optional()
+            .describe("Absolute path to a text file to read aloud. The tool reads the file and converts its full contents to audio. Supports any text file (notes, specs, reports, markdown, etc)."),
           voice: z.enum(["alloy", "ash", "coral", "echo", "fable", "nova", "onyx", "sage", "shimmer"])
             .optional()
             .default("nova")
@@ -236,7 +324,65 @@ export function createMediaMcpServer(
             .describe("Audio format. mp3 is universally compatible. opus for smaller files."),
         },
         async (args) => {
-          // 1. Read OpenAI API key from secrets
+          // 1. Resolve input: exactly one of text or file must be provided
+          let inputText: string;
+
+          if (args.text && args.file) {
+            return {
+              content: [
+                { type: "text" as const, text: "Error: Provide either 'text' or 'file', not both." },
+              ],
+              isError: true,
+            };
+          }
+
+          if (args.file) {
+            const filePath = path.resolve(args.file);
+
+            // Security: same check as send_file
+            if (!isPathAllowed(filePath, allAllowedDirs)) {
+              return {
+                content: [
+                  {
+                    type: "text" as const,
+                    text: `Error: File path not allowed. Files must be within: ${allAllowedDirs.join(", ")}`,
+                  },
+                ],
+                isError: true,
+              };
+            }
+
+            if (!fs.existsSync(filePath)) {
+              return {
+                content: [
+                  { type: "text" as const, text: `Error: File not found: ${filePath}` },
+                ],
+                isError: true,
+              };
+            }
+
+            try {
+              inputText = fs.readFileSync(filePath, "utf-8");
+            } catch (err) {
+              return {
+                content: [
+                  { type: "text" as const, text: `Error reading file: ${(err as Error).message}` },
+                ],
+                isError: true,
+              };
+            }
+          } else if (args.text) {
+            inputText = args.text;
+          } else {
+            return {
+              content: [
+                { type: "text" as const, text: "Error: Provide either 'text' or 'file'." },
+              ],
+              isError: true,
+            };
+          }
+
+          // 2. Read OpenAI API key from secrets
           let apiKey: string;
           try {
             apiKey = getSecret("openai-api-key");
@@ -252,65 +398,89 @@ export function createMediaMcpServer(
             };
           }
 
-          // 2. Validate text length
-          if (args.text.length > 4096) {
+          // 3. Validate total text length
+          if (inputText.length > 100_000) {
             return {
               content: [
                 {
                   type: "text" as const,
-                  text: `Error: Text too long (${args.text.length} chars). Maximum: 4096 characters.`,
+                  text: `Error: Text too long (${inputText.length} chars). Maximum: 100,000 characters.`,
                 },
               ],
               isError: true,
             };
           }
 
-          // 3. POST to OpenAI TTS API
-          try {
-            const response = await fetch("https://api.openai.com/v1/audio/speech", {
-              method: "POST",
-              headers: {
-                "Authorization": `Bearer ${apiKey}`,
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({
-                model: "tts-1",
-                input: args.text,
-                voice: args.voice,
-                response_format: args.format,
-              }),
-            });
+          // 4. Chunk text at sentence boundaries
+          const chunks = chunkText(inputText);
 
-            if (!response.ok) {
-              const errorText = await response.text();
-              return {
-                content: [
-                  {
-                    type: "text" as const,
-                    text: `Error: OpenAI TTS API returned ${response.status}: ${errorText}`,
-                  },
-                ],
-                isError: true,
-              };
+          // 5. Generate audio for each chunk
+          const ttsDir = path.join(agentDir, "tts");
+          fs.mkdirSync(ttsDir, { recursive: true });
+
+          try {
+            const audioBuffers: Buffer[] = [];
+
+            for (const chunk of chunks) {
+              const response = await fetch("https://api.openai.com/v1/audio/speech", {
+                method: "POST",
+                headers: {
+                  "Authorization": `Bearer ${apiKey}`,
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                  model: "tts-1",
+                  input: chunk,
+                  voice: args.voice,
+                  response_format: args.format,
+                }),
+              });
+
+              if (!response.ok) {
+                const errorText = await response.text();
+                return {
+                  content: [
+                    {
+                      type: "text" as const,
+                      text: `Error: OpenAI TTS API returned ${response.status}: ${errorText}`,
+                    },
+                  ],
+                  isError: true,
+                };
+              }
+
+              audioBuffers.push(Buffer.from(await response.arrayBuffer()));
             }
 
-            // 4. Create tts directory if needed
-            const ttsDir = path.join(agentDir, "tts");
-            fs.mkdirSync(ttsDir, { recursive: true });
+            const timestamp = Date.now();
+            const outputFileName = `tts-${timestamp}.${args.format}`;
+            const outputPath = path.join(ttsDir, outputFileName);
 
-            // 5. Write audio file
-            const buffer = Buffer.from(await response.arrayBuffer());
-            const fileName = `tts-${Date.now()}.${args.format}`;
-            const filePath = path.join(ttsDir, fileName);
-            fs.writeFileSync(filePath, buffer);
+            if (audioBuffers.length === 1) {
+              // Single chunk: write directly
+              fs.writeFileSync(outputPath, audioBuffers[0]!);
+            } else {
+              // Multiple chunks: write temp files, concatenate with ffmpeg
+              const tempPaths: string[] = [];
+              try {
+                for (let i = 0; i < audioBuffers.length; i++) {
+                  const tempPath = path.join(os.tmpdir(), `nova-tts-${timestamp}-${i}.${args.format}`);
+                  fs.writeFileSync(tempPath, audioBuffers[i]!);
+                  tempPaths.push(tempPath);
+                }
 
-            // 6. Return file path
+                await concatAudioFiles(tempPaths, outputPath);
+              } finally {
+                // Clean up temp files
+                for (const tempPath of tempPaths) {
+                  try { fs.unlinkSync(tempPath); } catch {}
+                }
+              }
+            }
+
             return {
               content: [
-                {
-                  type: "text" as const,
-                  text: filePath,
-                },
+                { type: "text" as const, text: outputPath },
               ],
             };
           } catch (err) {
