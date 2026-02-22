@@ -79,7 +79,7 @@ function SecretRow({
 
   return (
     <Card>
-      <CardContent className="flex items-center gap-4 py-4">
+      <CardContent className="flex items-center gap-4 py-2 px-4">
         <code className="font-mono font-semibold text-sm shrink-0">{name}</code>
 
         <div className="flex-1 min-w-0">
@@ -154,7 +154,7 @@ function SecretRow({
 
 export function SecretList({ secrets, onDeleted, onUpdated }: SecretListProps) {
   return (
-    <div className="space-y-3">
+    <div className="space-y-2">
       {secrets.map((name) => (
         <SecretRow
           key={name}
