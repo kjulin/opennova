@@ -100,7 +100,7 @@ export async function fetchTriggers(): Promise<TriggersResponse> {
   return res.json();
 }
 
-export async function createTrigger(agentId: string, data: { cron: string; tz?: string; prompt: string; enabled?: boolean }): Promise<Trigger> {
+export async function createTrigger(agentId: string, data: { cron: string; tz?: string; prompt: string }): Promise<Trigger> {
   const res = await fetch(`${API_BASE}/triggers/agent/${agentId}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -113,7 +113,7 @@ export async function createTrigger(agentId: string, data: { cron: string; tz?: 
   return res.json();
 }
 
-export async function patchTrigger(triggerId: string, data: Partial<{ cron: string; tz: string; prompt: string; enabled: boolean }>): Promise<Trigger> {
+export async function patchTrigger(triggerId: string, data: Partial<{ cron: string; tz: string; prompt: string }>): Promise<Trigger> {
   const res = await fetch(`${API_BASE}/triggers/${triggerId}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },

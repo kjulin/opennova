@@ -37,16 +37,6 @@ export function TriggerList({ triggers, onSelect }: TriggerListProps) {
                     )}
                   </div>
                 </div>
-                <div className="flex items-center gap-1.5 shrink-0 pt-1">
-                  <span
-                    className={`inline-block h-2 w-2 rounded-full ${
-                      trigger.enabled ? "bg-green-500" : "bg-muted-foreground/40"
-                    }`}
-                  />
-                  <span className="text-xs text-muted-foreground">
-                    {trigger.enabled ? "enabled" : "disabled"}
-                  </span>
-                </div>
               </CardContent>
             </Card>
           </button>

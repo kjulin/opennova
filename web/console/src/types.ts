@@ -5,7 +5,6 @@ export interface Trigger {
   cron: string;
   tz?: string;
   prompt: string;
-  enabled: boolean;
   lastRun?: string;
 }
 

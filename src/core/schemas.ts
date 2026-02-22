@@ -26,7 +26,6 @@ export const TriggerSchema = z.object({
   cron: z.string(),
   tz: z.string().optional(),
   prompt: z.string(),
-  enabled: z.boolean(),
   lastRun: z.string().nullable().optional(),
 });
 

@@ -70,7 +70,7 @@ export function createConsoleTriggersRouter(workspaceDir: string): Hono {
       return c.json({ error: "Agent not found" }, 404)
     }
     const body = await c.req.json()
-    const { cron, tz, prompt, enabled } = body
+    const { cron, tz, prompt } = body
 
     if (!cron || typeof cron !== "string") {
       return c.json({ error: "cron is required" }, 400)
@@ -88,7 +88,6 @@ export function createConsoleTriggersRouter(workspaceDir: string): Hono {
       id: crypto.randomBytes(6).toString("hex"),
       cron,
       prompt,
-      enabled: enabled !== undefined ? enabled : true,
       lastRun: new Date().toISOString(),
     }
     if (tz) trigger.tz = tz
@@ -125,7 +124,6 @@ export function createConsoleTriggersRouter(workspaceDir: string): Hono {
       }
       if (body.tz !== undefined) existing.tz = body.tz
       if (body.prompt !== undefined) existing.prompt = body.prompt
-      if (body.enabled !== undefined) existing.enabled = body.enabled
 
       triggers[idx] = existing
       saveTriggers(workspaceDir, agentId, triggers)
