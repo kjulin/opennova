@@ -23,7 +23,6 @@ export interface AgentConfig {
   identity?: string; // Who: expertise, personality, methodology
   instructions?: string; // How: files, rhythm, focus, constraints
   directories?: string[];
-  allowedAgents?: string[];
   trust: TrustLevel;
   subagents?: Record<string, SubagentConfig>;
   capabilities?: string[];

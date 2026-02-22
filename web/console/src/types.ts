@@ -19,7 +19,6 @@ export interface Agent {
   model?: string;
   capabilities?: string[];
   directories?: string[];
-  allowedAgents?: string[];
   skills: string[];
   triggers: Trigger[];
 }

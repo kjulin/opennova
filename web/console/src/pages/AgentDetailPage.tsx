@@ -3,12 +3,12 @@ import { Link, useParams } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import { fetchAgent } from "@/api";
 import type { Agent } from "@/types";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
+import { CollapsibleCard } from "@/components/ui/collapsible-card";
 import { AgentHeader } from "@/components/AgentHeader";
 import { AgentIdentity } from "@/components/AgentIdentity";
 import { AgentCapabilities } from "@/components/AgentCapabilities";
 import { AgentDirectories } from "@/components/AgentDirectories";
-import { AgentAllowedAgents } from "@/components/AgentAllowedAgents";
 import { AgentSkills } from "@/components/AgentSkills";
 import { AgentTriggers } from "@/components/AgentTriggers";
 import { AgentDangerZone } from "@/components/AgentDangerZone";
@@ -28,7 +28,6 @@ export function AgentDetailPage() {
   const [instructions, setInstructions] = useState("");
   const [capabilities, setCapabilities] = useState<string[]>([]);
   const [directories, setDirectories] = useState<string[]>([]);
-  const [allowedAgents, setAllowedAgents] = useState<string[]>([]);
 
   useEffect(() => {
     if (!id) return;
@@ -43,7 +42,6 @@ export function AgentDetailPage() {
         setInstructions(data.instructions ?? "");
         setCapabilities(data.capabilities ?? []);
         setDirectories(data.directories ?? []);
-        setAllowedAgents(data.allowedAgents ?? []);
       })
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
@@ -78,6 +76,22 @@ export function AgentDetailPage() {
 
   if (!agent || !id) return null;
 
+  const capsSummary = capabilities.length > 0
+    ? capabilities.join(", ")
+    : "No capabilities enabled";
+
+  const dirsSummary = directories.length > 0
+    ? directories.join(", ")
+    : "No extra directories configured";
+
+  const skillsSummary = agent.skills.length > 0
+    ? agent.skills.join(", ")
+    : "No skills installed";
+
+  const triggersSummary = agent.triggers.length > 0
+    ? `${agent.triggers.length} scheduled`
+    : "No scheduled triggers";
+
   return (
     <div className="space-y-6">
       {/* Breadcrumb */}
@@ -111,92 +125,68 @@ export function AgentDetailPage() {
       </Card>
 
       {/* Identity & Instructions */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Identity & Instructions</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <AgentIdentity
-            agentId={id}
-            identity={identity}
-            instructions={instructions}
-            onIdentityChange={setIdentity}
-            onInstructionsChange={setInstructions}
-          />
-        </CardContent>
-      </Card>
+      <CollapsibleCard
+        title="Identity & Instructions"
+        description="Define who this agent is and how it operates"
+      >
+        <AgentIdentity
+          agentId={id}
+          identity={identity}
+          instructions={instructions}
+          onIdentityChange={setIdentity}
+          onInstructionsChange={setInstructions}
+        />
+      </CollapsibleCard>
 
       {/* Capabilities */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Capabilities</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <AgentCapabilities
-            agentId={id}
-            capabilities={capabilities}
-            onCapabilitiesChange={setCapabilities}
-          />
-        </CardContent>
-      </Card>
+      <CollapsibleCard
+        title="Capabilities"
+        description={capsSummary}
+      >
+        <AgentCapabilities
+          agentId={id}
+          capabilities={capabilities}
+          onCapabilitiesChange={setCapabilities}
+        />
+      </CollapsibleCard>
 
       {/* Directories */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Directories</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <AgentDirectories
-            agentId={id}
-            directories={directories}
-            onDirectoriesChange={setDirectories}
-          />
-        </CardContent>
-      </Card>
+      <CollapsibleCard
+        title="Directories"
+        description={dirsSummary}
+      >
+        <AgentDirectories
+          agentId={id}
+          directories={directories}
+          onDirectoriesChange={setDirectories}
+        />
+      </CollapsibleCard>
 
-      {/* Allowed Agents */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Allowed Agents</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <AgentAllowedAgents
-            agentId={id}
-            allowedAgents={allowedAgents}
-            onAllowedAgentsChange={setAllowedAgents}
-          />
-        </CardContent>
-      </Card>
+      {/* Skills */}
+      <CollapsibleCard
+        title="Skills"
+        description={skillsSummary}
+      >
+        <AgentSkills skills={agent.skills} />
+      </CollapsibleCard>
 
-      {/* Skills (read-only) */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Skills</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <AgentSkills skills={agent.skills} />
-        </CardContent>
-      </Card>
-
-      {/* Triggers (read-only) */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Triggers</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <AgentTriggers triggers={agent.triggers} />
-        </CardContent>
-      </Card>
+      {/* Triggers */}
+      <CollapsibleCard
+        title="Triggers"
+        description={triggersSummary}
+      >
+        <AgentTriggers triggers={agent.triggers} />
+      </CollapsibleCard>
 
       {/* Danger Zone */}
-      <Card className="border-destructive/20">
-        <CardHeader>
-          <CardTitle className="text-destructive">Danger Zone</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <AgentDangerZone agentId={id} agentName={name} />
-        </CardContent>
-      </Card>
+      <CollapsibleCard
+        title="Danger Zone"
+        description="Delete this agent and all its data"
+        className="border-destructive/20"
+        titleClassName="text-destructive"
+      >
+        <AgentDangerZone agentId={id} agentName={name} />
+      </CollapsibleCard>
     </div>
   );
 }
