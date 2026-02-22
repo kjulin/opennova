@@ -14,6 +14,7 @@ import { runAgent } from "../runner.js";
 import { createTriggerMcpServer } from "../triggers.js";
 import { listNotes, getPinnedNotes } from "#notes/index.js";
 import { relativeTime, getWebAppHost, HTTPS_PORT } from "./telegram.js";
+import { splitMessage } from "./telegram-utils.js";
 import { log } from "../logger.js";
 
 function resolveThreadId(config: AgentBotConfig, agentDir: string, channel: string): string {
@@ -100,11 +101,14 @@ export function startAgentTelegram(
     if (payload.channel !== channel) return;
     const chatId = Number(botConfig.chatId);
 
-    bot.api.sendMessage(chatId, payload.text, { parse_mode: "Markdown" }).catch(() => {
-      bot.api.sendMessage(chatId, payload.text).catch((err) => {
-        log.error("telegram-agent", `agent ${agentId}: failed to deliver response:`, err);
+    const chunks = splitMessage(payload.text);
+    for (const chunk of chunks) {
+      await bot.api.sendMessage(chatId, chunk, { parse_mode: "Markdown" }).catch(() => {
+        return bot.api.sendMessage(chatId, chunk).catch((err) => {
+          log.error("telegram-agent", `agent ${agentId}: failed to deliver response:`, err);
+        });
       });
-    });
+    }
   });
 
   bus.on("thread:error", (payload) => {

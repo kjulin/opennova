@@ -22,6 +22,7 @@ import { createTriggerMcpServer } from "../triggers.js";
 import { getTask, loadTasks } from "#tasks/index.js";
 import { listNotes, getPinnedNotes } from "#notes/index.js";
 import { TELEGRAM_HELP_MESSAGE } from "./telegram-help.js";
+import { splitMessage } from "./telegram-utils.js";
 import { log } from "../logger.js";
 
 export const HTTPS_PORT = 3838;
@@ -205,15 +206,23 @@ export function startTelegram() {
 
     const replyMarkup = pendingReplyMarkup;
     pendingReplyMarkup = null;
-    const opts: Record<string, unknown> = { parse_mode: "Markdown" };
-    if (replyMarkup) opts.reply_markup = replyMarkup;
 
-    bot.api.sendMessage(chatId, text, opts).catch(() => {
-      // Markdown parse failed (unmatched entities) — retry as plain text
-      bot.api.sendMessage(chatId, text, replyMarkup ? { reply_markup: replyMarkup } : {}).catch((err) => {
-        log.error("telegram", "failed to deliver thread:response:", err);
+    const chunks = splitMessage(text);
+    for (let i = 0; i < chunks.length; i++) {
+      const chunk = chunks[i]!;
+      // Attach reply_markup only to the last chunk
+      const isLast = i === chunks.length - 1;
+      const opts: Record<string, unknown> = { parse_mode: "Markdown" };
+      if (isLast && replyMarkup) opts.reply_markup = replyMarkup;
+
+      await bot.api.sendMessage(chatId, chunk, opts).catch(() => {
+        // Markdown parse failed (unmatched entities) — retry as plain text
+        const fallbackOpts = isLast && replyMarkup ? { reply_markup: replyMarkup } : {};
+        return bot.api.sendMessage(chatId, chunk, fallbackOpts).catch((err) => {
+          log.error("telegram", "failed to deliver thread:response:", err);
+        });
       });
-    });
+    }
   });
 
   bus.on("thread:error", (payload) => {
