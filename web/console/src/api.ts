@@ -95,7 +95,7 @@ export async function unassignSkill(name: string, agents: string[]): Promise<{ a
 // Triggers
 
 export async function fetchTriggers(): Promise<TriggersResponse> {
-  const res = await fetch(`${API_BASE}/triggers/`);
+  const res = await fetch(`${API_BASE}/triggers`);
   if (!res.ok) throw new Error("Failed to fetch triggers");
   return res.json();
 }
@@ -131,13 +131,13 @@ export async function deleteTrigger(triggerId: string): Promise<void> {
 // Secrets
 
 export async function fetchSecrets(): Promise<SecretsResponse> {
-  const res = await fetch(`${API_BASE}/secrets/`);
+  const res = await fetch(`${API_BASE}/secrets`);
   if (!res.ok) throw new Error("Failed to fetch secrets");
   return res.json();
 }
 
 export async function createSecret(name: string, value: string): Promise<void> {
-  const res = await fetch(`${API_BASE}/secrets/`, {
+  const res = await fetch(`${API_BASE}/secrets`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ name, value }),
