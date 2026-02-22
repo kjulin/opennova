@@ -1,18 +1,18 @@
 import fs from "fs";
 import path from "path";
-import os from "os";
 import { resolveWorkspace } from "../workspace.js";
-import { syncSharedSkills } from "#core/skills.js";
+import {
+  activateSkill,
+  deactivateSkill,
+  deleteSkillFromLibrary,
+} from "#core/skills.js";
 
-function parseArgs(): { agent: string | undefined; source: string | undefined } {
+function parseArgs(): { agent: string | undefined } {
   const args = process.argv.slice(4);
-  const result: { agent: string | undefined; source: string | undefined } = { agent: undefined, source: undefined };
+  const result: { agent: string | undefined } = { agent: undefined };
   for (let i = 0; i < args.length; i++) {
     if (args[i] === "--agent" && args[i + 1]) {
       result.agent = args[i + 1];
-      i++;
-    } else if (args[i] === "--source" && args[i + 1]) {
-      result.source = args[i + 1];
       i++;
     }
   }
@@ -98,134 +98,44 @@ async function list(workspaceDir: string) {
   }
 }
 
-function resolveSource(name: string, sourcePath?: string): { type: "directory" | "file"; resolved: string } {
-  if (sourcePath) {
-    const resolved = path.resolve(sourcePath);
-    if (!fs.existsSync(resolved)) {
-      console.error(`Source not found: ${sourcePath}`);
-      process.exit(1);
-    }
-    const stat = fs.statSync(resolved);
-    if (stat.isDirectory()) {
-      if (!fs.existsSync(path.join(resolved, "SKILL.md"))) {
-        console.error(`Directory missing SKILL.md: ${resolved}`);
-        process.exit(1);
-      }
-      return { type: "directory", resolved };
-    }
-    if (resolved.endsWith(".md")) {
-      return { type: "file", resolved };
-    }
-    console.error(`Source must be a directory with SKILL.md or a .md file: ${sourcePath}`);
-    process.exit(1);
-  }
-
-  // Resolve from ~/.claude/skills/
-  const userSkillsDir = path.join(os.homedir(), ".claude", "skills");
-  const dirPath = path.join(userSkillsDir, name);
-  if (fs.existsSync(dirPath) && fs.statSync(dirPath).isDirectory()) {
-    if (!fs.existsSync(path.join(dirPath, "SKILL.md"))) {
-      console.error(`Directory missing SKILL.md: ${dirPath}`);
-      process.exit(1);
-    }
-    return { type: "directory", resolved: dirPath };
-  }
-  const filePath = path.join(userSkillsDir, `${name}.md`);
-  if (fs.existsSync(filePath)) {
-    return { type: "file", resolved: filePath };
-  }
-
-  console.error(`Skill not found: ${name}`);
-  console.error(`Looked in: ${dirPath} and ${filePath}`);
-  process.exit(1);
-}
-
 async function link(workspaceDir: string) {
   const name = process.argv[4];
   if (!name) {
-    console.error("Usage: nova skills link <name> --agent <id|all> [--source <path>]");
+    console.error("Usage: nova skills link <name> --agent <id|all>");
     process.exit(1);
   }
 
-  const { agent, source } = parseArgs();
+  const { agent } = parseArgs();
   if (!agent) {
     console.error("--agent is required");
-    console.error("Usage: nova skills link <name> --agent <id|all> [--source <path>]");
+    console.error("Usage: nova skills link <name> --agent <id|all>");
     process.exit(1);
   }
 
-  const { type, resolved } = resolveSource(name, source);
+  // Verify skill exists in library
+  const skillDir = path.join(workspaceDir, "skills", name);
+  if (!fs.existsSync(skillDir)) {
+    console.error(`Skill not found in library: ${name}`);
+    console.error(`Available skills are in ${path.join(workspaceDir, "skills")}/`);
+    process.exit(1);
+  }
 
   if (agent === "all") {
-    const targetDir = path.join(workspaceDir, "skills", name);
-    linkSkill(targetDir, resolved, type, name);
-    syncSharedSkills(workspaceDir);
-    console.log(`Linked ${name} as shared skill and synced to all agents`);
+    const agentsDir = path.join(workspaceDir, "agents");
+    if (fs.existsSync(agentsDir)) {
+      for (const entry of fs.readdirSync(agentsDir, { withFileTypes: true })) {
+        if (entry.isDirectory()) activateSkill(workspaceDir, name, entry.name);
+      }
+    }
+    console.log(`Activated ${name} for all agents`);
   } else {
     const agentDir = path.join(workspaceDir, "agents", agent);
     if (!fs.existsSync(agentDir)) {
       console.error(`Agent not found: ${agent}`);
       process.exit(1);
     }
-    const targetDir = path.join(agentDir, ".claude", "skills", name);
-    linkSkill(targetDir, resolved, type, name);
-    console.log(`Linked ${name} to agent ${agent}`);
-  }
-}
-
-function linkSkill(targetDir: string, sourcePath: string, type: "directory" | "file", name: string) {
-  if (type === "directory") {
-    // Symlink directory directly
-    if (fs.existsSync(targetDir)) {
-      const stat = fs.lstatSync(targetDir);
-      if (stat.isSymbolicLink()) {
-        const existing = fs.readlinkSync(targetDir);
-        if (existing === sourcePath) {
-          console.log(`${name} is already linked`);
-          process.exit(0);
-        }
-        console.error(`${name} is already linked to a different source: ${existing}`);
-        console.error(`Run 'nova skills unlink ${name} --agent ...' first`);
-        process.exit(1);
-      }
-      console.error(`${name} already exists as a directory (not a symlink)`);
-      process.exit(1);
-    }
-    fs.mkdirSync(path.dirname(targetDir), { recursive: true });
-    fs.symlinkSync(sourcePath, targetDir);
-  } else {
-    // Wrap flat .md file: create directory, symlink file as SKILL.md inside
-    if (fs.existsSync(targetDir)) {
-      const stat = fs.lstatSync(targetDir);
-      if (stat.isSymbolicLink()) {
-        // It's a symlink to a directory — already linked differently
-        const existing = fs.readlinkSync(targetDir);
-        console.error(`${name} is already linked to a different source: ${existing}`);
-        console.error(`Run 'nova skills unlink ${name} --agent ...' first`);
-        process.exit(1);
-      }
-      if (stat.isDirectory()) {
-        // Check if it's a wrapper directory with symlinked SKILL.md
-        const skillMdPath = path.join(targetDir, "SKILL.md");
-        if (fs.existsSync(skillMdPath)) {
-          const skillStat = fs.lstatSync(skillMdPath);
-          if (skillStat.isSymbolicLink()) {
-            const existing = fs.readlinkSync(skillMdPath);
-            if (existing === sourcePath) {
-              console.log(`${name} is already linked`);
-              process.exit(0);
-            }
-            console.error(`${name} is already linked to a different source: ${existing}`);
-            console.error(`Run 'nova skills unlink ${name} --agent ...' first`);
-            process.exit(1);
-          }
-        }
-        console.error(`${name} already exists as a directory (not a symlink)`);
-        process.exit(1);
-      }
-    }
-    fs.mkdirSync(targetDir, { recursive: true });
-    fs.symlinkSync(sourcePath, path.join(targetDir, "SKILL.md"));
+    activateSkill(workspaceDir, name, agent);
+    console.log(`Activated ${name} for agent ${agent}`);
   }
 }
 
@@ -244,70 +154,39 @@ async function unlink(workspaceDir: string) {
   }
 
   if (agent === "all") {
-    const targetDir = path.join(workspaceDir, "skills", name);
-    removeSkill(targetDir, name);
-    syncSharedSkills(workspaceDir);
-    console.log(`Unlinked shared skill ${name} and cleaned up agent symlinks`);
+    const agentsDir = path.join(workspaceDir, "agents");
+    if (fs.existsSync(agentsDir)) {
+      for (const entry of fs.readdirSync(agentsDir, { withFileTypes: true })) {
+        if (entry.isDirectory()) deactivateSkill(workspaceDir, name, entry.name);
+      }
+    }
+    console.log(`Deactivated ${name} for all agents`);
   } else {
     const agentDir = path.join(workspaceDir, "agents", agent);
     if (!fs.existsSync(agentDir)) {
       console.error(`Agent not found: ${agent}`);
       process.exit(1);
     }
-    const targetDir = path.join(agentDir, ".claude", "skills", name);
-    removeSkill(targetDir, name);
-    console.log(`Unlinked ${name} from agent ${agent}`);
+    deactivateSkill(workspaceDir, name, agent);
+    console.log(`Deactivated ${name} for agent ${agent}`);
   }
 }
 
-function removeSkill(targetDir: string, name: string) {
-  if (!fs.existsSync(targetDir) && !isSymlink(targetDir)) {
-    console.error(`Skill not found: ${name}`);
+async function deleteSkill(workspaceDir: string) {
+  const name = process.argv[4];
+  if (!name) {
+    console.error("Usage: nova skills delete <name>");
     process.exit(1);
   }
 
-  const stat = fs.lstatSync(targetDir);
-
-  // Direct symlink to a directory — just remove the symlink
-  if (stat.isSymbolicLink()) {
-    fs.unlinkSync(targetDir);
-    return;
+  const skillDir = path.join(workspaceDir, "skills", name);
+  if (!fs.existsSync(skillDir)) {
+    console.error(`Skill not found in library: ${name}`);
+    process.exit(1);
   }
 
-  // Wrapper directory (directory with symlinked SKILL.md)
-  if (stat.isDirectory()) {
-    const skillMdPath = path.join(targetDir, "SKILL.md");
-    if (!fs.existsSync(skillMdPath) && !isSymlink(skillMdPath)) {
-      console.error(`${name} is agent-authored, not linked`);
-      process.exit(1);
-    }
-    const skillStat = fs.lstatSync(skillMdPath);
-    if (!skillStat.isSymbolicLink()) {
-      console.error(`${name} is agent-authored, not linked`);
-      process.exit(1);
-    }
-    // It's a wrapper — check nothing else is in there
-    const entries = fs.readdirSync(targetDir);
-    if (entries.length === 1 && entries[0] === "SKILL.md") {
-      fs.unlinkSync(skillMdPath);
-      fs.rmdirSync(targetDir);
-      return;
-    }
-    // Has other files — only remove the symlinked SKILL.md
-    fs.unlinkSync(skillMdPath);
-    return;
-  }
-
-  console.error(`${name} is agent-authored, not linked`);
-  process.exit(1);
-}
-
-function isSymlink(p: string): boolean {
-  try {
-    return fs.lstatSync(p).isSymbolicLink();
-  } catch {
-    return false;
-  }
+  deleteSkillFromLibrary(workspaceDir, name);
+  console.log(`Deleted skill ${name} from library and removed all agent symlinks`);
 }
 
 export async function run() {
@@ -330,13 +209,16 @@ export async function run() {
     case "unlink":
       await unlink(workspaceDir);
       break;
+    case "delete":
+      await deleteSkill(workspaceDir);
+      break;
     default:
-      console.error("Usage: nova skills <list|link|unlink>");
+      console.error("Usage: nova skills <list|link|unlink|delete>");
       console.error("");
-      console.error("  list [--agent <id>]                    List skills (all or per-agent)");
-      console.error("  link <name> --agent <id|all>           Link a Claude skill to agent(s)");
-      console.error("  link <name> --agent <id> --source <p>  Link a skill from a custom path");
-      console.error("  unlink <name> --agent <id|all>         Unlink a skill from agent(s)");
+      console.error("  list [--agent <id>]              List skills (all or per-agent)");
+      console.error("  link <name> --agent <id|all>     Activate a library skill for agent(s)");
+      console.error("  unlink <name> --agent <id|all>   Deactivate a skill for agent(s)");
+      console.error("  delete <name>                    Delete a skill from the library");
       process.exit(1);
   }
 }
