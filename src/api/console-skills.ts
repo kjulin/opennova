@@ -8,6 +8,7 @@ const VALID_SKILL_NAME = /^[a-z0-9][a-z0-9-]*$/
 interface Frontmatter {
   name?: string
   description?: string
+  arguments?: string
   [key: string]: unknown
 }
 
@@ -62,6 +63,7 @@ function loadSkillDetail(workspaceDir: string, name: string) {
   return {
     name,
     description: meta.description ?? "",
+    arguments: meta.arguments ?? "",
     content: body,
     assignedTo: getAssignedAgents(workspaceDir, name),
     hasContent: body.trim().length > 0,
@@ -129,6 +131,7 @@ export function createConsoleSkillsRouter(workspaceDir: string): Hono {
 
     const meta: Frontmatter = { name }
     if (description) meta.description = description
+    if (body.arguments) meta.arguments = body.arguments
     const fileContent = buildFrontmatter(meta, content)
     fs.writeFileSync(path.join(skillDir, "SKILL.md"), fileContent)
 
@@ -157,6 +160,7 @@ export function createConsoleSkillsRouter(workspaceDir: string): Hono {
     }
 
     if (body.description !== undefined) existingMeta.description = body.description
+    if (body.arguments !== undefined) existingMeta.arguments = body.arguments
     if (!existingMeta.name) existingMeta.name = name
     const newBody = body.content !== undefined ? body.content : existingBody
     const fileContent = buildFrontmatter(existingMeta, newBody)
