@@ -7,6 +7,7 @@ import {
   type McpSdkServerConfigWithInstance,
 } from "@anthropic-ai/claude-agent-sdk";
 import { transcribe, checkDependencies } from "../transcription/index.js";
+import { getSecret } from "../secrets.js";
 
 const IMAGE_EXTENSIONS = [".jpg", ".jpeg", ".png", ".gif", ".webp"];
 const AUDIO_EXTENSIONS = [".mp3", ".ogg", ".wav", ".m4a", ".opus", ".flac", ".aac"];
@@ -213,6 +214,112 @@ export function createMediaMcpServer(
             return {
               content: [
                 { type: "text" as const, text: `Error transcribing file: ${(err as Error).message}` },
+              ],
+              isError: true,
+            };
+          }
+        },
+      ),
+
+      tool(
+        "text_to_speech",
+        "Convert text to speech audio. Returns the path to the generated audio file. Use send_file to deliver it to the user.",
+        {
+          text: z.string().describe("The text to convert to speech. Max ~4000 characters."),
+          voice: z.enum(["alloy", "ash", "coral", "echo", "fable", "nova", "onyx", "sage", "shimmer"])
+            .optional()
+            .default("nova")
+            .describe("Voice to use. 'nova' is warm and clear, good default for reports."),
+          format: z.enum(["mp3", "opus", "aac", "flac", "wav"])
+            .optional()
+            .default("mp3")
+            .describe("Audio format. mp3 is universally compatible. opus for smaller files."),
+        },
+        async (args) => {
+          // 1. Read OpenAI API key from secrets
+          let apiKey: string;
+          try {
+            apiKey = getSecret("openai-api-key");
+          } catch {
+            return {
+              content: [
+                {
+                  type: "text" as const,
+                  text: "Error: OpenAI API key not configured. Run: nova secrets set openai-api-key",
+                },
+              ],
+              isError: true,
+            };
+          }
+
+          // 2. Validate text length
+          if (args.text.length > 4096) {
+            return {
+              content: [
+                {
+                  type: "text" as const,
+                  text: `Error: Text too long (${args.text.length} chars). Maximum: 4096 characters.`,
+                },
+              ],
+              isError: true,
+            };
+          }
+
+          // 3. POST to OpenAI TTS API
+          try {
+            const response = await fetch("https://api.openai.com/v1/audio/speech", {
+              method: "POST",
+              headers: {
+                "Authorization": `Bearer ${apiKey}`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                model: "tts-1",
+                input: args.text,
+                voice: args.voice,
+                response_format: args.format,
+              }),
+            });
+
+            if (!response.ok) {
+              const errorText = await response.text();
+              return {
+                content: [
+                  {
+                    type: "text" as const,
+                    text: `Error: OpenAI TTS API returned ${response.status}: ${errorText}`,
+                  },
+                ],
+                isError: true,
+              };
+            }
+
+            // 4. Create tts directory if needed
+            const ttsDir = path.join(agentDir, "tts");
+            fs.mkdirSync(ttsDir, { recursive: true });
+
+            // 5. Write audio file
+            const buffer = Buffer.from(await response.arrayBuffer());
+            const fileName = `tts-${Date.now()}.${args.format}`;
+            const filePath = path.join(ttsDir, fileName);
+            fs.writeFileSync(filePath, buffer);
+
+            // 6. Return file path
+            return {
+              content: [
+                {
+                  type: "text" as const,
+                  text: filePath,
+                },
+              ],
+            };
+          } catch (err) {
+            return {
+              content: [
+                {
+                  type: "text" as const,
+                  text: `Error generating speech: ${(err as Error).message}`,
+                },
               ],
               isError: true,
             };
