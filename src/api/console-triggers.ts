@@ -1,6 +1,5 @@
 import { Hono } from "hono"
 import { loadAgents } from "#core/agents.js"
-import { PROTECTED_AGENTS } from "#core/agent-management.js"
 import { CronExpressionParser } from "cron-parser"
 import crypto from "crypto"
 import fs from "fs"
@@ -70,10 +69,6 @@ export function createConsoleTriggersRouter(workspaceDir: string): Hono {
     if (!agent) {
       return c.json({ error: "Agent not found" }, 404)
     }
-    if (PROTECTED_AGENTS.has(agentId)) {
-      return c.json({ error: "Cannot modify system agent" }, 403)
-    }
-
     const body = await c.req.json()
     const { cron, tz, prompt, enabled } = body
 
@@ -118,10 +113,6 @@ export function createConsoleTriggersRouter(workspaceDir: string): Hono {
       )
       if (idx === -1) continue
 
-      if (PROTECTED_AGENTS.has(agentId)) {
-        return c.json({ error: "Cannot modify system agent" }, 403)
-      }
-
       const existing = triggers[idx] as Record<string, unknown>
 
       if (body.cron !== undefined) {
@@ -156,10 +147,6 @@ export function createConsoleTriggersRouter(workspaceDir: string): Hono {
         (t) => t && typeof t === "object" && (t as Record<string, unknown>).id === triggerId,
       )
       if (idx === -1) continue
-
-      if (PROTECTED_AGENTS.has(agentId)) {
-        return c.json({ error: "Cannot modify system agent" }, 403)
-      }
 
       triggers.splice(idx, 1)
       saveTriggers(workspaceDir, agentId, triggers)
