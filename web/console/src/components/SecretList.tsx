@@ -83,7 +83,7 @@ function SecretRow({
   return (
     <>
       <Card>
-        <CardContent className="flex items-center gap-3 py-0.5 px-3">
+        <CardContent className="flex items-center gap-3 py-0.5 px-4">
           <code className="font-mono font-semibold text-sm flex-1 min-w-0 truncate">{name}</code>
 
           <div className="flex items-center gap-1 shrink-0">
