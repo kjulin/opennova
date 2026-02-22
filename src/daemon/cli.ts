@@ -109,7 +109,7 @@ switch (command) {
     console.log("  config set <key> <value>      Set a config value");
     console.log("  agent                         List agents");
     console.log("  agent <id>                    Show agent details");
-    console.log("  agent <id> security <level>   Set agent security level");
+    console.log("  agent <id> trust <level>      Set agent trust level");
     console.log("  agent <id> telegram           Set up a dedicated Telegram bot");
     console.log("  agent <id> telegram remove    Remove agent's dedicated bot");
     console.log("  skills list [--agent <id>]                    List skills (all or per-agent)");
