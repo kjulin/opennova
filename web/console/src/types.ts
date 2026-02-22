@@ -13,7 +13,8 @@ export interface Agent {
   description?: string;
   identity?: string;
   instructions?: string;
-  security: string;
+  trust: string;
+  security?: string; // deprecated, use trust
   model?: string;
   capabilities?: string[];
   directories?: string[];

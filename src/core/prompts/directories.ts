@@ -16,7 +16,7 @@ export function buildDirectoriesBlock(cwd: string, directories: string[], trust:
     }
   }
 
-  if (trust === "default") {
+  if (trust === "controlled") {
     lines.push("");
     if (directories.length > 0) {
       lines.push("Only read and write files within your working directory and the additional directories listed above.");

@@ -86,7 +86,7 @@ describe("resolveCapabilities", () => {
 
   it("skips agents capability when allowedAgents is not set", () => {
     const servers = resolveCapabilities(["agents"], makeCtx({
-      agent: { id: "test", name: "Test", trust: "default" } as any,
+      agent: { id: "test", name: "Test", trust: "controlled" } as any,
       runAgentFn: vi.fn(),
     }));
     expect(servers.agents).toBeUndefined();
@@ -94,7 +94,7 @@ describe("resolveCapabilities", () => {
 
   it("includes agents capability when allowedAgents is set", () => {
     const servers = resolveCapabilities(["agents"], makeCtx({
-      agent: { id: "test", name: "Test", trust: "default", allowedAgents: ["*"] } as any,
+      agent: { id: "test", name: "Test", trust: "controlled", allowedAgents: ["*"] } as any,
       runAgentFn: vi.fn(),
     }));
     expect(servers.agents).toBeDefined();

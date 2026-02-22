@@ -10,7 +10,7 @@ Agent capabilities → resolve each → MCP servers for engine
 
 AgentRunner contains zero MCP wiring knowledge. It asks the registry to resolve the agent's capabilities and passes the result to the engine.
 
-Trust (sandbox/default/unrestricted) is orthogonal — it governs SDK-native tools, not capabilities. A capability listed in agent config always works regardless of trust level.
+Trust (sandbox/controlled/unrestricted) is orthogonal — it governs SDK-native tools, not capabilities. A capability listed in agent config always works regardless of trust level.
 
 ## Resolution
 

@@ -93,7 +93,7 @@ export function createConsoleAgentsRouter(workspaceDir: string): Hono {
     if (!identity || typeof identity !== "string") {
       return c.json({ error: "identity is required" }, 400)
     }
-    const validTrustLevels = ["sandbox", "default", "unrestricted"]
+    const validTrustLevels = ["sandbox", "controlled", "unrestricted"]
     if (!trust || !validTrustLevels.includes(trust)) {
       return c.json({ error: `trust is required. Must be one of: ${validTrustLevels.join(", ")}` }, 400)
     }
@@ -162,7 +162,7 @@ export function createConsoleAgentsRouter(workspaceDir: string): Hono {
 
     // Validate trust
     if ("trust" in body) {
-      const validTrust = ["sandbox", "default", "unrestricted"]
+      const validTrust = ["sandbox", "controlled", "unrestricted"]
       if (!validTrust.includes(body.trust)) {
         return c.json({ error: `Invalid trust level. Must be one of: ${validTrust.join(", ")}` }, 400)
       }

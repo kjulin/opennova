@@ -76,7 +76,7 @@ export function AgentHeader({
               value={security}
               onValueChange={(value) => {
                 onSecurityChange(value);
-                saveSecurity({ security: value });
+                saveSecurity({ trust: value });
                 setSecurityKey((k) => k + 1);
               }}
             >
@@ -90,10 +90,10 @@ export function AgentHeader({
                     sandbox
                   </span>
                 </SelectItem>
-                <SelectItem value="standard">
+                <SelectItem value="controlled">
                   <span className="flex items-center gap-2">
                     <span className="size-2 rounded-full bg-blue-500" />
-                    standard
+                    controlled
                   </span>
                 </SelectItem>
                 <SelectItem value="unrestricted">

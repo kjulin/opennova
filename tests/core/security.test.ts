@@ -59,14 +59,14 @@ describe("trustOptions", () => {
     });
   });
 
-  describe("default", () => {
+  describe("controlled", () => {
     it("uses dontAsk permission mode", () => {
-      const opts = trustOptions("default");
+      const opts = trustOptions("controlled");
       expect(opts.permissionMode).toBe("dontAsk");
     });
 
     it("allows file operations", () => {
-      const opts = trustOptions("default");
+      const opts = trustOptions("controlled");
       const allowed = opts.allowedTools as string[];
       expect(allowed).toContain("Read");
       expect(allowed).toContain("Write");
@@ -76,21 +76,21 @@ describe("trustOptions", () => {
     });
 
     it("allows web tools", () => {
-      const opts = trustOptions("default");
+      const opts = trustOptions("controlled");
       const allowed = opts.allowedTools as string[];
       expect(allowed).toContain("WebSearch");
       expect(allowed).toContain("WebFetch");
     });
 
     it("allows Task and NotebookEdit", () => {
-      const opts = trustOptions("default");
+      const opts = trustOptions("controlled");
       const allowed = opts.allowedTools as string[];
       expect(allowed).toContain("Task");
       expect(allowed).toContain("NotebookEdit");
     });
 
     it("allows MCP tools via wildcards", () => {
-      const opts = trustOptions("default");
+      const opts = trustOptions("controlled");
       const allowed = opts.allowedTools as string[];
       expect(allowed).toContain("mcp__memory__*");
       expect(allowed).toContain("mcp__triggers__*");
@@ -99,13 +99,13 @@ describe("trustOptions", () => {
     });
 
     it("explicitly disallows Bash", () => {
-      const opts = trustOptions("default");
+      const opts = trustOptions("controlled");
       const disallowed = opts.disallowedTools as string[];
       expect(disallowed).toContain("Bash");
     });
 
     it("does not bypass permissions", () => {
-      const opts = trustOptions("default");
+      const opts = trustOptions("controlled");
       expect(opts.allowDangerouslySkipPermissions).toBeUndefined();
     });
   });
@@ -129,7 +129,7 @@ describe("trustOptions", () => {
   });
 
   describe("no argument", () => {
-    it("defaults to default when not specified", () => {
+    it("defaults to controlled when not specified", () => {
       const opts = trustOptions();
       expect(opts.permissionMode).toBe("dontAsk");
       const disallowed = opts.disallowedTools as string[];
