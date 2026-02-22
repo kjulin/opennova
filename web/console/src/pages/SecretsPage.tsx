@@ -49,18 +49,14 @@ export function SecretsPage() {
         </div>
       )}
 
+      <SecretAddForm
+        open={showAdd}
+        onOpenChange={setShowAdd}
+        onCreated={loadSecrets}
+      />
+
       {!loading && !error && (
         <>
-          {showAdd && (
-            <SecretAddForm
-              onCreated={() => {
-                setShowAdd(false);
-                loadSecrets();
-              }}
-              onCancel={() => setShowAdd(false)}
-            />
-          )}
-
           {secrets.length === 0 ? (
             <div className="py-16 text-center text-muted-foreground">
               No secrets configured.
