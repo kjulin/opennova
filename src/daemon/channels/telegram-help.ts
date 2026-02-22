@@ -12,4 +12,5 @@ Nova comes with multiple agents you can switch between with /agent <name>.
 /agent — select an agent
 /tasks — list and switch to task threads
 /stop — stop the running agent
+/admin — open admin console
 /help — show this message`;

@@ -152,6 +152,7 @@ export function startTelegram() {
     { command: "notes", description: "Browse agent notes" },
     { command: "stop", description: "Stop the running agent" },
     { command: "new", description: "Start a fresh conversation" },
+    { command: "admin", description: "Open admin console" },
     { command: "help", description: "Show help message" },
   ]).catch((err) => {
     log.warn("telegram", "failed to register commands:", err);
@@ -364,6 +365,23 @@ export function startTelegram() {
         keyboard.text(`#${t.id} ${t.title}`, `task:${t.id}`).row();
       }
       await ctx.reply("*Tasks:*", { parse_mode: "Markdown", reply_markup: keyboard });
+      return;
+    }
+
+    // Handle /admin command
+    if (text === "/admin") {
+      const host = getWebAppHost();
+      if (!host) {
+        await ctx.reply("Admin console requires HTTPS. Run `nova tailscale setup` first.");
+        return;
+      }
+      const url = `https://${host}:${HTTPS_PORT}/web/console/`;
+      const keyboard = new InlineKeyboard();
+      keyboard.url("Open Console", url).row();
+      await ctx.reply(`*Admin Console*\n\nManage your agents, skills, triggers, and secrets.`, {
+        parse_mode: "Markdown",
+        reply_markup: keyboard,
+      });
       return;
     }
 
