@@ -5,8 +5,7 @@ import { claudeEngine, generateThreadTitle, type Engine, type EngineCallbacks, t
 import { loadAgents, getAgentCwd, getAgentDirectories } from "./agents.js";
 import { Config } from "./config.js";
 import { buildSystemPrompt } from "./prompts/index.js";
-import { createNotifyUserMcpServer } from "./notify-user.js";
-import { resolveCapabilities, type ResolverContext } from "./capabilities.js";
+import { resolveCapabilities, resolveInjections, type ResolverContext } from "./capabilities.js";
 import { appendUsage } from "./usage.js";
 import { generateEmbedding, appendEmbedding, isModelAvailable } from "./episodic/index.js";
 import { getTask } from "#tasks/index.js";
@@ -125,6 +124,24 @@ export function createAgentRunner(engine: Engine = claudeEngine): AgentRunner {
           },
         };
 
+        const resolverContext: ResolverContext = {
+          agentId,
+          agentDir,
+          workspaceDir: Config.workspaceDir,
+          threadId,
+          channel: manifest.channel,
+          directories,
+          callbacks: {
+            onFileSend: (fp, caption, fileType) => callbacks?.onFileSend?.(agentId, threadId, manifest.channel, fp, caption, fileType),
+            onShareNote: (title, slug, message) => callbacks?.onShareNote?.(agentId, threadId, manifest.channel, title, slug, message),
+            onPinChange: () => callbacks?.onPinChange?.(agentId, manifest.channel),
+            onNotifyUser: (message) => callbacks?.onNotifyUser?.(agentId, threadId, manifest.channel, message),
+          },
+          agent,
+          askAgentDepth: askAgentDepth ?? 0,
+          runAgentFn: runAgentForAskAgent,
+        };
+
         result = await engine.run(
           message,
           {
@@ -135,29 +152,9 @@ export function createAgentRunner(engine: Engine = claudeEngine): AgentRunner {
             ...(overrides?.maxTurns ? { maxTurns: overrides.maxTurns } : {}),
             ...(agent.subagents ? { agents: agent.subagents } : {}),
             mcpServers: {
-              ...resolveCapabilities(agent.capabilities, {
-                agentId,
-                agentDir,
-                workspaceDir: Config.workspaceDir,
-                threadId,
-                channel: manifest.channel,
-                directories,
-                callbacks: {
-                  onFileSend: (fp, caption, fileType) => callbacks?.onFileSend?.(agentId, threadId, manifest.channel, fp, caption, fileType),
-                  onShareNote: (title, slug, message) => callbacks?.onShareNote?.(agentId, threadId, manifest.channel, title, slug, message),
-                  onPinChange: () => callbacks?.onPinChange?.(agentId, manifest.channel),
-                  onNotifyUser: (message) => callbacks?.onNotifyUser?.(agentId, threadId, manifest.channel, message),
-                },
-                agent,
-                askAgentDepth: askAgentDepth ?? 0,
-                runAgentFn: runAgentForAskAgent,
-              }),
+              ...resolveCapabilities(agent.capabilities, resolverContext),
               ...extraMcpServers,
-              ...(overrides?.background ? {
-                "notify-user": createNotifyUserMcpServer((message) => {
-                  callbacks?.onNotifyUser?.(agentId, threadId, manifest.channel, message);
-                }),
-              } : {}),
+              ...resolveInjections(resolverContext, { background: overrides?.background }),
             },
           },
           trust,
