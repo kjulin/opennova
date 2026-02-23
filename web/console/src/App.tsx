@@ -5,6 +5,7 @@ import { AgentDetailPage } from "@/pages/AgentDetailPage";
 import { SkillsPage } from "@/pages/SkillsPage";
 import { TriggersPage } from "@/pages/TriggersPage";
 import { SecretsPage } from "@/pages/SecretsPage";
+import { ConfigPage } from "@/pages/ConfigPage";
 
 const router = createBrowserRouter(
   [
@@ -17,6 +18,7 @@ const router = createBrowserRouter(
         { path: "skills", element: <SkillsPage /> },
         { path: "triggers", element: <TriggersPage /> },
         { path: "secrets", element: <SecretsPage /> },
+        { path: "config", element: <ConfigPage /> },
       ],
     },
   ],

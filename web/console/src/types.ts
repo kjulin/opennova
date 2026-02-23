@@ -46,3 +46,37 @@ export interface TriggersResponse {
 export interface SecretsResponse {
   secrets: string[];
 }
+
+export interface ConfigResponse {
+  workspace: { path: string };
+  auth: { method: string; detail?: string };
+  telegram: {
+    configured: boolean;
+    token?: string;
+    chatId?: string;
+    activeAgentId?: string;
+  };
+  tailscale: {
+    installed: boolean;
+    connected: boolean;
+    hostname: string | null;
+    certsReady: boolean;
+    url?: string;
+  };
+  voice: {
+    mode: string;
+    openaiKeyConfigured: boolean;
+  };
+  embeddings: {
+    mode: string;
+    modelAvailable: boolean;
+  };
+  security: {
+    defaultTrust: string;
+  };
+  daemon: {
+    version: string;
+    uptime: number;
+    autoStart: boolean;
+  };
+}
