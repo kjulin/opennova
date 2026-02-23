@@ -94,8 +94,6 @@ function checkTailscale(): TailscaleInfo {
   return { installed: true, connected: true, hostname, certsReady };
 }
 
-const VALID_TRUST_LEVELS = ["sandbox", "controlled", "unrestricted"] as const;
-
 export function createConfigRouter(workspaceDir: string): Hono {
   const app = new Hono();
 
@@ -128,13 +126,6 @@ export function createConfigRouter(workspaceDir: string): Hono {
       tailscaleSection.url = `https://${ts.hostname}:3838`;
     }
 
-    // Embeddings — check for .onnx model file
-    const modelsDir = path.join(workspaceDir, "models");
-    let modelAvailable = false;
-    if (fs.existsSync(modelsDir)) {
-      modelAvailable = fs.readdirSync(modelsDir).some((f) => f.endsWith(".onnx"));
-    }
-
     // Daemon version from package.json
     const pkgPath = path.resolve(import.meta.dirname, "..", "..", "package.json");
     let version = "unknown";
@@ -148,16 +139,16 @@ export function createConfigRouter(workspaceDir: string): Hono {
       auth: { method: auth.method, ...(auth.detail ? { detail: auth.detail } : {}) },
       telegram: telegramSection,
       tailscale: tailscaleSection,
-      voice: {
-        mode: (settings.voiceMode as string) ?? "off",
-        openaiKeyConfigured: openaiConfigured,
-      },
-      embeddings: {
-        mode: (settings.embeddingsMode as string) ?? "local",
-        modelAvailable,
-      },
-      security: {
-        defaultTrust: (settings.defaultTrust as string) ?? "controlled",
+      audio: {
+        transcription: {
+          modelAvailable: (() => {
+            const dir = path.join(workspaceDir, "transcription", "models");
+            return fs.existsSync(dir) && fs.readdirSync(dir).some((f) => f.endsWith(".bin"));
+          })(),
+        },
+        tts: {
+          openaiKeyConfigured: openaiConfigured,
+        },
       },
       daemon: {
         version,
@@ -209,49 +200,18 @@ export function createConfigRouter(workspaceDir: string): Hono {
     return c.json({ ok: true });
   });
 
-  // POST /voice — update voice settings
-  app.post("/voice", async (c) => {
+  // POST /audio/tts — update TTS settings (OpenAI key)
+  app.post("/audio/tts", async (c) => {
     const body = await c.req.json();
-    const { mode, openaiKey } = body;
+    const { openaiKey } = body;
 
-    if (!mode || !["api", "local", "off"].includes(mode)) {
-      return c.json({ error: "mode must be 'api', 'local', or 'off'" }, 400);
+    if (!openaiKey || typeof openaiKey !== "string") {
+      return c.json({ error: "openaiKey must be a non-empty string" }, 400);
     }
 
-    writeSettings(workspaceDir, { voiceMode: mode });
-
-    if (openaiKey && typeof openaiKey === "string") {
-      setSecret("openai-api-key", openaiKey);
-      addSecretName(workspaceDir, "openai-api-key");
-    }
-
-    return c.json({ ok: true, mode });
-  });
-
-  // POST /embeddings — update embedding settings
-  app.post("/embeddings", async (c) => {
-    const body = await c.req.json();
-    const { mode } = body;
-
-    if (!mode || !["local", "api"].includes(mode)) {
-      return c.json({ error: "mode must be 'local' or 'api'" }, 400);
-    }
-
-    writeSettings(workspaceDir, { embeddingsMode: mode });
-    return c.json({ ok: true, mode });
-  });
-
-  // POST /security — update default trust level
-  app.post("/security", async (c) => {
-    const body = await c.req.json();
-    const { defaultTrust } = body;
-
-    if (!defaultTrust || !(VALID_TRUST_LEVELS as readonly string[]).includes(defaultTrust)) {
-      return c.json({ error: "defaultTrust must be 'sandbox', 'controlled', or 'unrestricted'" }, 400);
-    }
-
-    writeSettings(workspaceDir, { defaultTrust });
-    return c.json({ ok: true, defaultTrust });
+    setSecret("openai-api-key", openaiKey);
+    addSecretName(workspaceDir, "openai-api-key");
+    return c.json({ ok: true });
   });
 
   return app;

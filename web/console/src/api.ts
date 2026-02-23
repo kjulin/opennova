@@ -184,33 +184,13 @@ export async function pairTelegram(): Promise<{ ok: true }> {
   return res.json();
 }
 
-export async function updateVoice(mode: string, openaiKey?: string): Promise<{ ok: true; mode: string }> {
-  const res = await fetch(`${CONFIG_API}/voice`, {
+export async function updateTtsKey(openaiKey: string): Promise<{ ok: true }> {
+  const res = await fetch(`${CONFIG_API}/audio/tts`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ mode, ...(openaiKey ? { openaiKey } : {}) }),
+    body: JSON.stringify({ openaiKey }),
   });
-  if (!res.ok) throw new Error("Failed to update voice settings");
-  return res.json();
-}
-
-export async function updateEmbeddings(mode: string): Promise<{ ok: true; mode: string }> {
-  const res = await fetch(`${CONFIG_API}/embeddings`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ mode }),
-  });
-  if (!res.ok) throw new Error("Failed to update embeddings settings");
-  return res.json();
-}
-
-export async function updateSecurity(defaultTrust: string): Promise<{ ok: true; defaultTrust: string }> {
-  const res = await fetch(`${CONFIG_API}/security`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ defaultTrust }),
-  });
-  if (!res.ok) throw new Error("Failed to update security settings");
+  if (!res.ok) throw new Error("Failed to update TTS settings");
   return res.json();
 }
 
