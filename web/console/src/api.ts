@@ -1,6 +1,7 @@
-import type { Agent, AgentsResponse, Skill, SkillsResponse, Trigger, TriggersResponse, SecretsResponse } from "@/types";
+import type { Agent, AgentsResponse, Skill, SkillsResponse, Trigger, TriggersResponse, SecretsResponse, ConfigResponse } from "@/types";
 
 const API_BASE = "/api/console";
+const CONFIG_API = "/api/config";
 
 export async function fetchAgents(): Promise<AgentsResponse> {
   const res = await fetch(`${API_BASE}/agents`);
@@ -157,4 +158,74 @@ export async function updateSecret(name: string, value: string): Promise<void> {
 export async function deleteSecret(name: string): Promise<void> {
   const res = await fetch(`${API_BASE}/secrets/${name}`, { method: "DELETE" });
   if (!res.ok) throw new Error("Failed to delete secret");
+}
+
+// Config
+
+export async function fetchConfig(): Promise<ConfigResponse> {
+  const res = await fetch(`${CONFIG_API}`);
+  if (!res.ok) throw new Error("Failed to fetch config");
+  return res.json();
+}
+
+export async function updateDaemon(autoStart: boolean): Promise<{ ok: true; autoStart: boolean }> {
+  const res = await fetch(`${CONFIG_API}/daemon`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ autoStart }),
+  });
+  if (!res.ok) throw new Error("Failed to update daemon settings");
+  return res.json();
+}
+
+export async function pairTelegram(): Promise<{ ok: true }> {
+  const res = await fetch(`${CONFIG_API}/telegram/pair`, { method: "POST" });
+  if (!res.ok) throw new Error("Failed to re-pair Telegram");
+  return res.json();
+}
+
+export async function updateVoice(mode: string, openaiKey?: string): Promise<{ ok: true; mode: string }> {
+  const res = await fetch(`${CONFIG_API}/voice`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ mode, ...(openaiKey ? { openaiKey } : {}) }),
+  });
+  if (!res.ok) throw new Error("Failed to update voice settings");
+  return res.json();
+}
+
+export async function updateEmbeddings(mode: string): Promise<{ ok: true; mode: string }> {
+  const res = await fetch(`${CONFIG_API}/embeddings`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ mode }),
+  });
+  if (!res.ok) throw new Error("Failed to update embeddings settings");
+  return res.json();
+}
+
+export async function updateSecurity(defaultTrust: string): Promise<{ ok: true; defaultTrust: string }> {
+  const res = await fetch(`${CONFIG_API}/security`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ defaultTrust }),
+  });
+  if (!res.ok) throw new Error("Failed to update security settings");
+  return res.json();
+}
+
+export async function setupTailscale(): Promise<{ ok: true; hostname: string }> {
+  const res = await fetch("/api/setup/tailscale", { method: "POST" });
+  if (!res.ok) throw new Error("Failed to set up Tailscale");
+  return res.json();
+}
+
+export async function deleteWorkspace(confirm: string): Promise<{ ok: true }> {
+  const res = await fetch(`${CONFIG_API}/workspace`, {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ confirm }),
+  });
+  if (!res.ok) throw new Error("Failed to remove workspace");
+  return res.json();
 }
