@@ -19,7 +19,6 @@ export interface AgentConfig {
   id: string;
   name: string;
   description?: string;
-  role?: string; // Legacy - kept for backwards compatibility
   identity?: string; // Who: expertise, personality, methodology
   instructions?: string; // How: files, rhythm, focus, constraints
   directories?: string[];
@@ -76,12 +75,4 @@ export function getAgentDirectories(agent: AgentConfig): string[] {
     }
   }
   return dirs;
-}
-
-/**
- * Get the effective role text for an agent.
- * Returns identity (preferred) or legacy role field.
- */
-export function getAgentRole(agent: AgentConfig): string {
-  return agent.identity ?? agent.role ?? "";
 }

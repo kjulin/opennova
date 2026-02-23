@@ -62,7 +62,6 @@ export {
   loadAgents,
   getAgentCwd,
   getAgentDirectories,
-  getAgentRole,
   type SubagentConfig,
   type AgentConfig,
 } from "./agents.js";

@@ -7,18 +7,15 @@ import { getFormattingInstructions } from "./formatting.js";
 import { buildContextBlock } from "./context.js";
 import { buildDirectoriesBlock } from "./directories.js";
 
-function buildRoleBlock(agent: AgentConfig): string {
-  // New format: identity + instructions
+function buildIdentityBlock(agent: AgentConfig): string {
+  const parts: string[] = [];
   if (agent.identity) {
-    const parts: string[] = [`<Identity>\n${agent.identity}\n</Identity>`];
-    if (agent.instructions) {
-      parts.push(`<Instructions>\n${agent.instructions}\n</Instructions>`);
-    }
-    return parts.join("\n\n");
+    parts.push(`<Identity>\n${agent.identity}\n</Identity>`);
   }
-
-  // Legacy format: role
-  return `<Role>\n${agent.role}\n</Role>`;
+  if (agent.instructions) {
+    parts.push(`<Instructions>\n${agent.instructions}\n</Instructions>`);
+  }
+  return parts.join("\n\n");
 }
 
 export interface BuildSystemPromptOptions {
@@ -37,7 +34,7 @@ export function buildSystemPrompt(
   const dirBlock = buildDirectoriesBlock(cwd, directories);
   const formatting = getFormattingInstructions(channel);
 
-  let prompt = `${buildRoleBlock(agent)}${dirBlock}${STORAGE_INSTRUCTIONS}\n${formatting}${buildContextBlock()}${memories}`;
+  let prompt = `${buildIdentityBlock(agent)}${dirBlock}${STORAGE_INSTRUCTIONS}\n${formatting}${buildContextBlock()}${memories}`;
 
   if (options?.task) {
     prompt += `\n\n${buildTaskContext(options.task)}`;

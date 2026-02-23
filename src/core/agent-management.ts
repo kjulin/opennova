@@ -36,7 +36,6 @@ function err(text: string) {
 interface AgentJson {
   name: string;
   description?: string;
-  role?: string; // Legacy - kept for backwards compatibility
   identity?: string; // Who: expertise, personality, methodology
   instructions?: string; // How: files, rhythm, focus, constraints
   directories?: string[];
