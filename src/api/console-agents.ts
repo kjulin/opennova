@@ -1,6 +1,5 @@
 import { Hono } from "hono"
 import { loadAgents } from "#core/agents.js"
-import { PROTECTED_AGENTS } from "#core/agent-management.js"
 import { KNOWN_CAPABILITIES } from "#core/capabilities.js"
 import fs from "fs"
 import path from "path"
@@ -95,10 +94,6 @@ export function createConsoleAgentsRouter(workspaceDir: string): Hono {
     if (!trust || !validTrustLevels.includes(trust)) {
       return c.json({ error: `trust is required. Must be one of: ${validTrustLevels.join(", ")}` }, 400)
     }
-    if (PROTECTED_AGENTS.has(id)) {
-      return c.json({ error: "Cannot modify system agent" }, 403)
-    }
-
     // Validate capabilities
     if (body.capabilities) {
       if (!Array.isArray(body.capabilities) || !body.capabilities.every((c: unknown) => typeof c === "string")) {
@@ -141,10 +136,6 @@ export function createConsoleAgentsRouter(workspaceDir: string): Hono {
   // Update agent
   app.patch("/:id", async (c) => {
     const id = c.req.param("id")
-
-    if (PROTECTED_AGENTS.has(id)) {
-      return c.json({ error: "Cannot modify system agent" }, 403)
-    }
 
     const agentDir = path.join(workspaceDir, "agents", id)
     const configPath = path.join(agentDir, "agent.json")
@@ -215,10 +206,6 @@ export function createConsoleAgentsRouter(workspaceDir: string): Hono {
   // Delete agent
   app.delete("/:id", (c) => {
     const id = c.req.param("id")
-
-    if (PROTECTED_AGENTS.has(id)) {
-      return c.json({ error: "Cannot modify system agent" }, 403)
-    }
 
     const agentDir = path.join(workspaceDir, "agents", id)
     if (!fs.existsSync(agentDir)) {
