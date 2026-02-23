@@ -10,7 +10,6 @@ import {
 } from "@anthropic-ai/claude-agent-sdk";
 import { Config } from "./config.js";
 
-export const PROTECTED_AGENTS = new Set(["nova", "agent-builder"]);
 
 function generateTriggerId(): string {
   return crypto.randomBytes(6).toString("hex");
@@ -108,9 +107,6 @@ export function createAgentManagementMcpServer(): McpSdkServerConfigWithInstance
           if (!VALID_AGENT_ID.test(args.id)) {
             return err(`Invalid agent ID: "${args.id}". Use lowercase letters, numbers, and hyphens.`);
           }
-          if (PROTECTED_AGENTS.has(args.id)) {
-            return err(`Cannot create agent with reserved ID: ${args.id}`);
-          }
           if (readAgentJson(args.id)) {
             return err(`Agent "${args.id}" already exists. Use update_agent to modify it.`);
           }
@@ -126,7 +122,7 @@ export function createAgentManagementMcpServer(): McpSdkServerConfigWithInstance
 
       tool(
         "update_agent",
-        "Update an existing agent's configuration. Cannot modify system agents (nova, agent-builder). Cannot set the security field.",
+        "Update an existing agent's configuration. Cannot set the trust field — trust levels are managed by the user via CLI only.",
         {
           id: z.string().describe("Agent identifier"),
           name: z.string().optional().describe("New display name"),
@@ -136,9 +132,6 @@ export function createAgentManagementMcpServer(): McpSdkServerConfigWithInstance
           directories: z.array(z.string()).optional().describe("New list of directories (replaces existing list)"),
         },
         async (args) => {
-          if (PROTECTED_AGENTS.has(args.id)) {
-            return err(`Cannot modify system agent: ${args.id}`);
-          }
           const config = readAgentJson(args.id);
           if (!config) return err(`Agent not found: ${args.id}`);
 
@@ -155,14 +148,11 @@ export function createAgentManagementMcpServer(): McpSdkServerConfigWithInstance
 
       tool(
         "delete_agent",
-        "Delete an agent and all its data (threads, memories, triggers). Cannot delete system agents.",
+        "Delete an agent and all its data (threads, memories, triggers).",
         {
           id: z.string().describe("Agent identifier to delete"),
         },
         async (args) => {
-          if (PROTECTED_AGENTS.has(args.id)) {
-            return err(`Cannot delete system agent: ${args.id}`);
-          }
           const dir = agentDir(args.id);
           if (!fs.existsSync(dir)) return err(`Agent not found: ${args.id}`);
 
@@ -173,21 +163,15 @@ export function createAgentManagementMcpServer(): McpSdkServerConfigWithInstance
 
       tool(
         "rename_agent",
-        "Rename an agent's ID (directory name) and optionally its display name. Preserves all data (threads, memories, triggers). Cannot rename system agents.",
+        "Rename an agent's ID (directory name) and optionally its display name. Preserves all data (threads, memories, triggers).",
         {
           id: z.string().describe("Current agent identifier"),
           newId: z.string().describe("New agent identifier (lowercase alphanumeric with hyphens)"),
           newName: z.string().optional().describe("New display name (optional — if omitted, keeps current name)"),
         },
         async (args) => {
-          if (PROTECTED_AGENTS.has(args.id)) {
-            return err(`Cannot rename system agent: ${args.id}`);
-          }
           if (!VALID_AGENT_ID.test(args.newId)) {
             return err(`Invalid agent ID: "${args.newId}". Use lowercase letters, numbers, and hyphens.`);
-          }
-          if (PROTECTED_AGENTS.has(args.newId)) {
-            return err(`Cannot rename to reserved ID: ${args.newId}`);
           }
           const oldDir = agentDir(args.id);
           if (!fs.existsSync(oldDir)) return err(`Agent not found: ${args.id}`);
@@ -242,9 +226,6 @@ export function createAgentManagementMcpServer(): McpSdkServerConfigWithInstance
           triggers: z.string().describe("Full triggers.json content as a JSON string"),
         },
         async (args) => {
-          if (PROTECTED_AGENTS.has(args.id)) {
-            return err(`Cannot modify triggers for system agent: ${args.id}`);
-          }
           const dir = agentDir(args.id);
           if (!fs.existsSync(dir)) return err(`Agent not found: ${args.id}`);
 
