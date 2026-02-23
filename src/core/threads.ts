@@ -9,7 +9,7 @@ export type ChannelType = string;
 export interface ThreadManifest {
   title?: string;
   channel: ChannelType;
-  agentId?: string;
+  agentId: string;
   sessionId?: string;
   createdAt: string;
   updatedAt: string;
