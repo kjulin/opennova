@@ -6,4 +6,4 @@ export { getFormattingInstructions } from "./formatting.js";
 // Builders
 export { buildContextBlock } from "./context.js";
 export { buildDirectoriesBlock } from "./directories.js";
-export { buildSystemPrompt } from "./agent.js";
+export { buildSystemPrompt, type BuildSystemPromptOptions } from "./agent.js";
