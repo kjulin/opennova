@@ -24,7 +24,6 @@ import type { FileType } from "./media/mcp.js";
 export interface RunAgentOverrides {
   model?: Model | undefined;
   maxTurns?: number | undefined;
-  systemPromptSuffix?: string | undefined;
   background?: boolean | undefined;  // Running without a live user session
 }
 
@@ -112,9 +111,7 @@ export function createAgentRunner(engine: Engine = claudeEngine): AgentRunner {
           background: overrides?.background,
         });
 
-        const systemPrompt = overrides?.systemPromptSuffix
-          ? `${baseSystemPrompt}\n\n${overrides.systemPromptSuffix}`
-          : baseSystemPrompt;
+        const systemPrompt = baseSystemPrompt;
 
         const engineCallbacks: EngineCallbacks = {
           ...callbacks,
