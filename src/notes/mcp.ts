@@ -116,6 +116,7 @@ export function createNotesMcpServer(agentDir: string, onShareNote?: OnShareNote
               isError: true,
             };
           }
+          onPinChange?.();
           return {
             content: [{ type: "text" as const, text: `Deleted note: ${args.title}` }],
           };

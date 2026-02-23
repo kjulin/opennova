@@ -48,6 +48,7 @@ export function writeNote(agentDir: string, slug: string, content: string): void
 export function deleteNote(agentDir: string, slug: string): boolean {
   const filePath = path.join(notesDir(agentDir), `${slug}.md`);
   if (!fs.existsSync(filePath)) return false;
+  unpinNote(agentDir, slug);
   fs.unlinkSync(filePath);
   return true;
 }
