@@ -27,12 +27,12 @@ export async function runAgent(
     message,
     {
       ...callbacks,
-      onThreadResponse(agentId, threadId, channel, text) {
+      onResponse(agentId, threadId, channel, text) {
         if (!background) {
           bus.emit("thread:response", { agentId, threadId, channel, text });
         }
       },
-      onThreadError(agentId, threadId, channel, error) {
+      onError(agentId, threadId, channel, error) {
         if (!background) {
           bus.emit("thread:error", { agentId, threadId, channel, error });
         }

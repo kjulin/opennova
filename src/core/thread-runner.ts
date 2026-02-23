@@ -30,8 +30,8 @@ export interface RunAgentOverrides {
 }
 
 export interface AgentRunnerCallbacks extends EngineCallbacks {
-  onThreadResponse?: (agentId: string, threadId: string, channel: string, text: string) => void;
-  onThreadError?: (agentId: string, threadId: string, channel: string, error: string) => void;
+  onResponse?: (agentId: string, threadId: string, channel: string, text: string) => void;
+  onError?: (agentId: string, threadId: string, channel: string, error: string) => void;
   onFileSend?: (agentId: string, threadId: string, channel: string, filePath: string, caption: string | undefined, fileType: FileType) => void;
   onShareNote?: (agentId: string, threadId: string, channel: string, title: string, slug: string, message: string | undefined) => void;
   onPinChange?: (agentId: string, channel: string) => void;
@@ -194,7 +194,7 @@ If you need to notify the user about something important (questions, updates, co
           text: `(error: ${errorMsg})`,
           timestamp: new Date().toISOString(),
         });
-        callbacks?.onThreadError?.(agentId, threadId, manifest.channel, errorMsg);
+        callbacks?.onError?.(agentId, threadId, manifest.channel, errorMsg);
         throw err;
       }
 
@@ -222,7 +222,7 @@ If you need to notify the user about something important (questions, updates, co
       manifest.updatedAt = new Date().toISOString();
       saveManifest(filePath, manifest);
 
-      callbacks?.onThreadResponse?.(agentId, threadId, manifest.channel, responseText);
+      callbacks?.onResponse?.(agentId, threadId, manifest.channel, responseText);
 
       log.info("thread-runner", `thread ${threadId} for agent ${agentId} completed (${responseText.length} chars)`);
 
