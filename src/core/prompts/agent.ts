@@ -1,18 +1,11 @@
 import type { AgentConfig } from "../agents.js";
-import type { TrustLevel } from "../schemas.js";
 import type { ChannelType } from "../threads.js";
 import type { Task } from "#tasks/types.js";
 
-import { TRUST_INSTRUCTIONS } from "./security.js";
 import { STORAGE_INSTRUCTIONS, buildMemoryPrompt } from "./memory.js";
 import { getFormattingInstructions } from "./formatting.js";
 import { buildContextBlock } from "./context.js";
 import { buildDirectoriesBlock } from "./directories.js";
-
-const COMMUNICATION_INSTRUCTIONS = `
-<Communication>
-When asking questions, ask one thing at a time. Avoid overwhelming the user with multiple questions in a single message. Wait for their response before asking follow-up questions.
-</Communication>`;
 
 function buildRoleBlock(agent: AgentConfig): string {
   // New format: identity + instructions
@@ -36,17 +29,15 @@ export interface BuildSystemPromptOptions {
 export function buildSystemPrompt(
   agent: AgentConfig,
   channel: ChannelType,
-  trust: TrustLevel,
   cwd: string,
   directories: string[],
   options?: BuildSystemPromptOptions,
 ): string {
   const memories = buildMemoryPrompt();
-  const dirBlock = buildDirectoriesBlock(cwd, directories, trust);
+  const dirBlock = buildDirectoriesBlock(cwd, directories);
   const formatting = getFormattingInstructions(channel);
-  const storageInstructions = trust !== "sandbox" ? STORAGE_INSTRUCTIONS : "";
 
-  let prompt = `${buildRoleBlock(agent)}\n${TRUST_INSTRUCTIONS[trust]}${dirBlock}${storageInstructions}\n${formatting}${COMMUNICATION_INSTRUCTIONS}${buildContextBlock()}${memories}`;
+  let prompt = `${buildRoleBlock(agent)}${dirBlock}${STORAGE_INSTRUCTIONS}\n${formatting}${buildContextBlock()}${memories}`;
 
   if (options?.task) {
     prompt += `\n\n${buildTaskContext(options.task)}`;

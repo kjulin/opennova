@@ -108,7 +108,7 @@ export function createAgentRunner(engine: Engine = claudeEngine): AgentRunner {
         const taskId = manifest.taskId as string | undefined;
         const task = taskId ? getTask(Config.workspaceDir, taskId) ?? undefined : undefined;
 
-        const baseSystemPrompt = buildSystemPrompt(agent, manifest.channel, trust, cwd, directories, {
+        const baseSystemPrompt = buildSystemPrompt(agent, manifest.channel, cwd, directories, {
           task,
           background: overrides?.background,
         });
