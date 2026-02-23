@@ -2,6 +2,7 @@ import type { McpServerConfig } from "@anthropic-ai/claude-agent-sdk";
 import type { AgentConfig } from "./agents.js";
 import type { FileType } from "./media/mcp.js";
 import type { RunAgentFn } from "./ask-agent.js";
+import { createNotifyUserMcpServer } from "./notify-user.js";
 import { createMemoryMcpServer } from "./memory.js";
 import { createHistoryMcpServer } from "./episodic/index.js";
 import { createTasksMcpServer } from "#tasks/index.js";
@@ -83,5 +84,20 @@ export function resolveCapabilities(
       servers[cap] = config;
     }
   }
+  return servers;
+}
+
+export function resolveInjections(
+  ctx: ResolverContext,
+  options?: { background?: boolean | undefined },
+): Record<string, McpServerConfig> {
+  const servers: Record<string, McpServerConfig> = {};
+
+  if (options?.background) {
+    servers["notify-user"] = createNotifyUserMcpServer((message) => {
+      ctx.callbacks.onNotifyUser?.(message);
+    });
+  }
+
   return servers;
 }

@@ -102,6 +102,7 @@ export {
 // Capabilities
 export {
   resolveCapabilities,
+  resolveInjections,
   capabilityToolPatterns,
   KNOWN_CAPABILITIES,
   type ResolverContext,
