@@ -1,3 +1,5 @@
+import fs from "fs";
+import path from "path";
 import { init } from "./init.js";
 import { loadChannels } from "./channels.js";
 import { startTriggerScheduler } from "./triggers.js";
@@ -36,6 +38,10 @@ export function start() {
   const server = startServer(Config.workspaceDir);
   log.info("daemon", `server: ${server.hostname === "localhost" ? "http" : "https"}://${server.hostname}:${server.port}`);
 
+  // Write PID file
+  const pidFile = path.join(Config.workspaceDir, "daemon.pid");
+  fs.writeFileSync(pidFile, JSON.stringify({ pid: process.pid, port: server.port }) + "\n");
+
   const triggerInterval = startTriggerScheduler();
   const taskScheduler = startTaskScheduler();
   const episodicBackfillScheduler = startEpisodicBackfillScheduler();
@@ -48,6 +54,7 @@ export function start() {
     episodicBackfillScheduler.stop();
     server.shutdown();
     shutdown();
+    try { fs.unlinkSync(pidFile); } catch { /* ignore */ }
     log.info("daemon", "nova daemon stopped");
     log.close();
     process.exit(0);

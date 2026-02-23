@@ -102,8 +102,10 @@ switch (command) {
   default:
     console.log("Usage: nova <command>\n");
     console.log("Commands:");
-    console.log("  init                          Set up nova workspace (interactive)");
-    console.log("  daemon                        Start the daemon");
+    console.log("  init [--port <port>]           Set up nova workspace and start daemon");
+    console.log("  daemon                        Start the daemon in foreground");
+    console.log("  daemon status                 Show daemon status");
+    console.log("  daemon stop                   Stop the daemon");
     console.log("  config list                   Show all configuration");
     console.log("  config get <key>              Get a config value");
     console.log("  config set <key> <value>      Set a config value");
