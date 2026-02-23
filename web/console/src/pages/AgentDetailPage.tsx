@@ -59,7 +59,7 @@ export function AgentDetailPage() {
     return (
       <div className="space-y-4">
         <Link
-          to="/agents"
+          to="/web/console/agents"
           className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
         >
           <ArrowLeft className="size-4" />
@@ -97,7 +97,7 @@ export function AgentDetailPage() {
       {/* Breadcrumb */}
       <div className="flex items-center gap-2 text-sm">
         <Link
-          to="/agents"
+          to="/web/console/agents"
           className="inline-flex items-center gap-1.5 text-muted-foreground hover:text-foreground"
         >
           <ArrowLeft className="size-4" />
