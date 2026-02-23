@@ -4,94 +4,104 @@ Status of each spec alignment as of 2026-02-23.
 
 ## Engine (`specs/engine.md`)
 
-**No significant discrepancies.** Implementation matches spec cleanly.
+| # | Discrepancy | Spec | Implementation |
+|---|---|---|---|
+| E1 | SubagentConfig undefined | `agents?: Record<string, SubagentConfig>` | type is inlined; spec never defines SubagentConfig |
+| E2 | Sandbox trust table wrong | "None (no files, no web, no bash)" | sandbox allows `WebSearch`, `WebFetch`, `Skill`, `Task`, `TaskOutput` + MCP tools |
+| E3 | Controlled allowedTools | only `disallowedTools: ["Bash"]` | also sets `allowedTools: STANDARD_ALLOWED_TOOLS` (whitelist + blacklist) |
+| E4 | SDK boundary claim | "no other layer imports the AI SDK" | 17+ files import `@anthropic-ai/claude-agent-sdk` (capabilities, MCP factories, agent-management, daemon/runner) |
+
+Note on E4: most violations are type-only imports (`McpServerConfig`, `tool()`) for MCP server construction. The spec's claim is aspirational — isolating all SDK usage to Engine would require a major refactor of the MCP factory pattern.
 
 ## Agent Runner (`specs/agent-runner.md`)
 
 | # | Discrepancy | Spec | Implementation |
 |---|---|---|---|
 | R1 | First parameter | `agentId: string` | `agentDir: string` (extracts id internally) |
-| R2 | Override field name | `background?: boolean` | `silent?: boolean` |
-| R3 | Extra override field | not in spec | `systemPromptSuffix?: string` |
-| R4 | Callback names | `onResponse`, `onError` | `onThreadResponse`, `onThreadError` |
-| R5 | Extra parameter | not in spec | `extraMcpServers?: Record<string, McpServerConfig>` |
-| R6 | No `resolveInjections()` | separate function | inline conditional in runner |
+| R5 | Extra parameter | not in spec | `extraMcpServers?: Record<string, McpServerConfig>` — actively used for trigger MCP injection |
+| R7 | Parameter order | `(agentId, threadId, message, callbacks?, overrides?, abortController?)` | `(agentDir, threadId, message, callbacks?, extraMcpServers?, askAgentDepth?, abortController?, overrides?)` |
+| R8 | resolveInjections signature | `resolveInjections(overrides, context)` | `resolveInjections(context, options?)` — parameter order inverted |
+| R9 | Ask-agent recursion shape | passes `{ background: overrides?.background }` | passes full `overrides` object |
 
 ## Agent Model (`specs/agent-model.md`)
 
 | # | Discrepancy | Spec | Implementation |
 |---|---|---|---|
-| A1 | Legacy `role` field | not in spec (only `identity`) | `role?: string` still in AgentConfig |
-| A2 | Protected agents | "all agents are equal" | `PROTECTED_AGENTS = new Set(["nova", "agent-builder"])` |
+| A3 | create_agent tool description | should say "trust field" | says "security field" |
 
 ## Threads (`specs/threads.md`)
 
 | # | Discrepancy | Spec | Implementation |
 |---|---|---|---|
-| T1 | Manifest `agentId` | required field | optional (`agentId?: string`) |
+| T2 | `taskId` not in schema | `taskId?: string` in spec | not in `ThreadManifestSchema`, passes through via `.passthrough()` |
 
 ## System Prompt Assembly (`specs/system-prompt-assembly.md`)
 
 | # | Discrepancy | Spec | Implementation |
 |---|---|---|---|
-| P1 | Builder params | no `trust` param | takes `trust: TrustLevel` as 3rd param |
-| P2 | Extra section | not in spec | `<Security>` block based on trust level |
-| P3 | Extra section | not in spec | `<Communication>` block (one question at a time) |
-| P4 | Single assembler violated | builder is sole assembler | runner appends Task, Background, and systemPromptSuffix after builder returns |
-| P5 | Builder options | `options?: { task?, silent? }` | no options param — runner injects these post-assembly |
+| P6 | Options field name | `silent?: boolean` | `background?: boolean` |
 
 ## Capabilities (`specs/capabilities.md`)
 
 | # | Discrepancy | Spec | Implementation |
 |---|---|---|---|
-| C1 | ResolverContext `manifest` | included in context | not in context |
-| C2 | ResolverContext `agent` | required field | optional (`agent?`) |
-| C3 | No `resolveInjections()` | separate function | inline in runner (same as R6) |
+| C4 | Extra context field | not in spec | `channel: string` in ResolverContext |
+| C5 | Run-time injection naming | `silent: true` | `background: true` |
 
 ## Skills (`specs/skills.md`)
 
 **No significant discrepancies.** Implementation matches spec cleanly.
 
-## Refactoring Plan
+Extra: `nova skills delete` CLI command exists — operation is in spec but not explicitly as a CLI command.
 
-Small incremental steps, each a single PR:
+## System Overview (`specs/system.md`)
 
-### Step 1: Rename `silent` → `background` in RunAgentOverrides
-- **Resolves:** R2
-- **Risk:** Low — pure rename
+| # | Discrepancy | Spec | Implementation |
+|---|---|---|---|
+| S1 | Data layout: `instructions.md` | spec says instructions in separate `.md` file | stored as field in `agent.json` |
+| S2 | Data layout: thread manifest | spec shows `{thread-id}.json` separate from `.jsonl` | manifest is first line of `.jsonl` (no separate file) |
+| S3 | Data layout: tasks storage | spec shows `active.json` + `history/` directory | code uses `tasks.json` + `history.jsonl` |
+| S4 | Agent optionality | spec shows `identity` and `instructions` as required | both are optional in `AgentConfig` |
+| S5 | Agent extra fields | not in spec | `description` and `allowedAgents` fields exist on disk |
+| S6 | Thread extra fields | not in spec | `agentId`, `createdAt`, `updatedAt` in manifest (agentId now documented in threads spec) |
+| S7 | Layer boundary | "layers only talk to neighbors" | channels import directly from `#core/index.js`, skipping daemon |
+| S8 | Spec index status | shows "System Prompt Assembly: TODO" | spec exists and is done |
 
-### Step 2: Rename `onThreadResponse` → `onResponse`, `onThreadError` → `onError`
-- **Resolves:** R4
-- **Risk:** Low — pure rename
+---
 
-### Step 3: Make `buildSystemPrompt()` the single assembler
-- **Resolves:** P4, P5
-- **Risk:** Medium — changes prompt assembly flow
+## Remaining Open Items
 
-### Step 4: Decide on `<Security>` and `<Communication>` sections
-- **Resolves:** P1, P2, P3
-- **Risk:** Needs design decision — update spec or remove sections
+### Spec-needs-update (implementation is correct, spec is stale)
 
-### Step 5: Extract `resolveInjections()` as a separate function
-- **Resolves:** R6, C3
-- **Risk:** Low — pure extraction
+| ID | Spec | What to update |
+|---|---|---|
+| P6 | system-prompt-assembly | `silent` → `background` in options |
+| C4 | capabilities | Add `channel: string` to ResolverContext |
+| C5 | capabilities | `silent` → `background` in run-time injection description |
+| R5 | agent-runner | Document `extraMcpServers` parameter (used for trigger injection) |
+| R8 | agent-runner | Fix `resolveInjections` signature to match implementation |
+| S1 | system | `instructions.md` → field in `agent.json` |
+| S2 | system | Thread manifest is first line of `.jsonl`, not separate file |
+| S3 | system | Tasks use `tasks.json` + `history.jsonl` |
+| S8 | system | Mark System Prompt Assembly spec as DONE |
 
-### Step 6: Clean up ResolverContext shape
-- **Resolves:** C1, C2
-- **Risk:** Low — additive type change
+### Code-needs-update (spec is correct, code should change)
 
-### Step 7: Remove legacy `role` field from AgentConfig
-- **Resolves:** A1
-- **Risk:** Medium — needs migration path for existing agents
+| ID | Spec | What to fix |
+|---|---|---|
+| R1 | agent-runner | Consider `agentId` parameter instead of `agentDir` |
+| R7 | agent-runner | Consider cleaning up parameter order to match spec |
+| R9 | agent-runner | Pass `{ background }` only, not full overrides, in ask-agent recursion |
+| T2 | threads | Add `taskId` to `ThreadManifestSchema` explicitly |
+| A3 | agent-model | Fix create_agent tool description: "security" → "trust" |
 
-### Step 8: Remove `PROTECTED_AGENTS` guard
-- **Resolves:** A2
-- **Risk:** Medium — users could accidentally delete default agents
+### Design decisions needed
 
-### Step 9: Make `agentId` required in ThreadManifest
-- **Resolves:** T1
-- **Risk:** Low — already populated in practice
-
-### Step 10: Evaluate `extraMcpServers` and `systemPromptSuffix`
-- **Resolves:** R3, R5
-- **Risk:** Needs design decision — update spec or remove from implementation
+| ID | Spec | Question |
+|---|---|---|
+| E1 | engine | Define `SubagentConfig` type in spec, or leave as implementation detail? |
+| E2-E3 | engine | Update trust level table to match actual SDK permission mapping |
+| E4 | engine | Acknowledge MCP factories import SDK, or refactor to isolate? |
+| S4 | system | Should `identity`/`instructions` be required or optional? |
+| S5 | system | Document `description` field in system spec Agent shape |
+| S7 | system | Channels importing Core directly — refactor or accept? |
