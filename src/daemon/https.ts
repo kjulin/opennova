@@ -1,4 +1,5 @@
 import https from "https";
+import http from "http";
 import fs from "fs";
 import path from "path";
 import os from "os";
@@ -27,7 +28,7 @@ import { createConsoleSecretsRouter } from "#api/console-secrets.js";
 
 const PORT = 3838;
 
-export interface HttpsServer {
+export interface DaemonServer {
   port: number;
   hostname: string;
   shutdown: () => void;
@@ -78,33 +79,7 @@ function createStaticHandler(baseDir: string, basePath: string) {
   };
 }
 
-export function startHttpsServer(workspaceDir: string): HttpsServer | null {
-  const certDir = path.join(os.homedir(), ".nova", "certs");
-
-  if (!fs.existsSync(certDir)) {
-    log.debug("https", "no certs directory found");
-    return null;
-  }
-
-  const certFiles = fs.readdirSync(certDir).filter((f) => f.endsWith(".crt"));
-
-  if (certFiles.length === 0) {
-    log.debug("https", "no Tailscale certs found in ~/.nova/certs/");
-    return null;
-  }
-
-  const certName = certFiles[0]!.replace(".crt", "");
-  const certPath = path.join(certDir, `${certName}.crt`);
-  const keyPath = path.join(certDir, `${certName}.key`);
-
-  if (!fs.existsSync(keyPath)) {
-    log.warn("https", `key file not found for cert: ${certName}`);
-    return null;
-  }
-
-  const cert = fs.readFileSync(certPath);
-  const key = fs.readFileSync(keyPath);
-
+function createApp(workspaceDir: string): Hono {
   // Serve webapp from package dist
   const webappDir = path.resolve(import.meta.dirname, "..", "webapp");
   log.info("https", `webapp dir: ${webappDir}`);
@@ -272,18 +247,103 @@ export function startHttpsServer(workspaceDir: string): HttpsServer | null {
     return result;
   });
 
+  return app;
+}
+
+function readCerts(): { certName: string; cert: Buffer; key: Buffer } | null {
+  const certDir = path.join(os.homedir(), ".nova", "certs");
+
+  if (!fs.existsSync(certDir)) {
+    return null;
+  }
+
+  const certFiles = fs.readdirSync(certDir).filter((f) => f.endsWith(".crt"));
+
+  if (certFiles.length === 0) {
+    return null;
+  }
+
+  const certName = certFiles[0]!.replace(".crt", "");
+  const certPath = path.join(certDir, `${certName}.crt`);
+  const keyPath = path.join(certDir, `${certName}.key`);
+
+  if (!fs.existsSync(keyPath)) {
+    log.warn("https", `key file not found for cert: ${certName}`);
+    return null;
+  }
+
+  return {
+    certName,
+    cert: fs.readFileSync(certPath),
+    key: fs.readFileSync(keyPath),
+  };
+}
+
+export function startServer(workspaceDir: string): DaemonServer {
+  const app = createApp(workspaceDir);
+  const certs = readCerts();
+
+  if (certs) {
+    const server = serve({
+      fetch: app.fetch,
+      port: PORT,
+      hostname: "0.0.0.0",
+      createServer: https.createServer,
+      serverOptions: { cert: certs.cert, key: certs.key },
+    });
+
+    log.info("https", `server listening on https://${certs.certName}:${PORT}`);
+
+    return {
+      port: PORT,
+      hostname: certs.certName,
+      shutdown: () => {
+        server.close();
+      },
+    };
+  }
+
   const server = serve({
     fetch: app.fetch,
     port: PORT,
-    createServer: https.createServer,
-    serverOptions: { cert, key },
+    hostname: "127.0.0.1",
+    createServer: http.createServer,
   });
 
-  log.info("https", `server listening on https://${certName}:${PORT}`);
+  log.info("https", `server listening on http://localhost:${PORT}`);
 
   return {
     port: PORT,
-    hostname: certName,
+    hostname: "localhost",
+    shutdown: () => {
+      server.close();
+    },
+  };
+}
+
+export function restartAsHttps(current: DaemonServer, workspaceDir: string): DaemonServer {
+  current.shutdown();
+
+  const app = createApp(workspaceDir);
+  const certs = readCerts();
+
+  if (!certs) {
+    throw new Error("Cannot restart as HTTPS: no certs found in ~/.nova/certs/");
+  }
+
+  const server = serve({
+    fetch: app.fetch,
+    port: PORT,
+    hostname: "0.0.0.0",
+    createServer: https.createServer,
+    serverOptions: { cert: certs.cert, key: certs.key },
+  });
+
+  log.info("https", `server restarted as https://${certs.certName}:${PORT}`);
+
+  return {
+    port: PORT,
+    hostname: certs.certName,
     shutdown: () => {
       server.close();
     },

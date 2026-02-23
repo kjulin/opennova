@@ -1,8 +1,8 @@
 import { init } from "./init.js";
 import { loadChannels } from "./channels.js";
 import { startTriggerScheduler } from "./triggers.js";
-import { startHttpsServer } from "./https.js";
-import { ensureAuth } from "./auth.js";
+import { startServer } from "./https.js";
+import { detectAuth } from "./auth.js";
 import { Config } from "#core/index.js";
 import { startTaskScheduler } from "#tasks/index.js";
 import { startEpisodicBackfillScheduler } from "./episodic-backfill.js";
@@ -14,9 +14,13 @@ export function start() {
   log.info("daemon", `workspace: ${Config.workspaceDir}`);
   log.info("daemon", `node: ${process.version}, platform: ${process.platform}`);
 
-  // Verify authentication before starting
-  const auth = ensureAuth(Config.workspaceDir);
-  log.info("daemon", `auth: ${auth.detail}`);
+  // Detect authentication (daemon starts regardless of auth state)
+  const auth = detectAuth(Config.workspaceDir);
+  if (auth.method === "none") {
+    log.warn("daemon", "no authentication found — agents will not work until auth is configured");
+  } else {
+    log.info("daemon", `auth: ${auth.detail}`);
+  }
 
   const { channels, shutdown } = loadChannels();
 
@@ -28,11 +32,9 @@ export function start() {
     }
   }
 
-  // Start HTTPS server (optional - only if Tailscale certs exist)
-  const httpsServer = startHttpsServer(Config.workspaceDir);
-  if (httpsServer) {
-    log.info("daemon", `https: https://${httpsServer.hostname}:${httpsServer.port}`);
-  }
+  // Start server (HTTP or HTTPS depending on cert availability)
+  const server = startServer(Config.workspaceDir);
+  log.info("daemon", `server: ${server.hostname === "localhost" ? "http" : "https"}://${server.hostname}:${server.port}`);
 
   const triggerInterval = startTriggerScheduler();
   const taskScheduler = startTaskScheduler();
@@ -44,7 +46,7 @@ export function start() {
     clearInterval(triggerInterval);
     taskScheduler.stop();
     episodicBackfillScheduler.stop();
-    httpsServer?.shutdown();
+    server.shutdown();
     shutdown();
     log.info("daemon", "nova daemon stopped");
     log.close();
