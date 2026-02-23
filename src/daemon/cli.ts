@@ -103,6 +103,8 @@ switch (command) {
     console.log("Usage: nova <command>\n");
     console.log("Commands:");
     console.log("  init                          Set up nova workspace (interactive)");
+    console.log("  init --workspace <path>       Use custom workspace path");
+    console.log("  init --non-interactive        Non-interactive mode (workspace + model only)");
     console.log("  daemon                        Start the daemon");
     console.log("  config list                   Show all configuration");
     console.log("  config get <key>              Get a config value");

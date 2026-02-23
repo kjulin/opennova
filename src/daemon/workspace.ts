@@ -7,7 +7,10 @@ const KNOWN_FILES = ["telegram", "settings"] as const;
 
 export const SENSITIVE_KEYS = new Set(["telegram.token"]);
 
-export function resolveWorkspace(): string {
+export function resolveWorkspace(cliWorkspace?: string): string {
+  if (cliWorkspace) {
+    return cliWorkspace.startsWith("~") ? path.join(os.homedir(), cliWorkspace.slice(1)) : cliWorkspace;
+  }
   const ws = process.env.NOVA_WORKSPACE;
   if (ws) {
     return ws.startsWith("~") ? path.join(os.homedir(), ws.slice(1)) : ws;

@@ -8,12 +8,89 @@ import { TELEGRAM_HELP_MESSAGE } from "../channels/telegram-help.js";
 import { Config } from "#core/config.js";
 import { downloadEmbeddingModel, isModelAvailable } from "#core/episodic/index.js";
 
+function parseInitArgs(): { workspace: string | undefined; nonInteractive: boolean } {
+  const args = process.argv.slice(3); // skip node, cli.js, "init"
+  let workspace: string | undefined;
+  let nonInteractive = false;
+
+  for (let i = 0; i < args.length; i++) {
+    if (args[i] === "--workspace" && i + 1 < args.length) {
+      workspace = args[++i];
+    } else if (args[i] === "--non-interactive") {
+      nonInteractive = true;
+    }
+  }
+
+  return { workspace, nonInteractive };
+}
+
 export async function run() {
+  const flags = parseInitArgs();
+  const workspace = resolveWorkspace(flags.workspace);
+
+  if (flags.nonInteractive) {
+    await runNonInteractive(workspace);
+  } else {
+    await runInteractive(workspace);
+  }
+}
+
+async function runNonInteractive(workspace: string) {
+  console.log("\nNova init (non-interactive)\n");
+
+  // Create workspace from template if it doesn't exist
+  const workspaceExists = fs.existsSync(workspace);
+  if (!workspaceExists) {
+    const templateDir = path.resolve(import.meta.dirname, "..", "..", "workspace-template");
+    fs.cpSync(templateDir, workspace, { recursive: true });
+    console.log(`  Created workspace at ${workspace}`);
+  } else {
+    console.log(`  Workspace already exists at ${workspace}`);
+  }
+
+  // Detect auth (report only, don't ask)
+  const auth = detectAuth(workspace);
+  let authMethod = auth.method;
+  if (auth.method === "none" && hasClaudeCode()) {
+    authMethod = "claude-code";
+  }
+
+  // Download embedding model
+  Config.workspaceDir = workspace;
+  if (!isModelAvailable()) {
+    console.log("  Downloading embedding model (all-MiniLM-L6-v2, ~80MB)...");
+    try {
+      let lastPercent = 0;
+      await downloadEmbeddingModel((file, percent) => {
+        if (percent >= lastPercent + 10) {
+          process.stdout.write(`  ${file}: ${percent}%\r`);
+          lastPercent = percent;
+        }
+      });
+      console.log("  Embedding model downloaded successfully.");
+    } catch (err) {
+      console.log(`  Warning: Failed to download embedding model: ${(err as Error).message}`);
+    }
+  }
+
+  // Summary
+  console.log("\n-- Setup Complete --\n");
+  console.log(`  Workspace:  ${workspace}`);
+  if (authMethod === "claude-code") {
+    console.log("  Auth:       Claude Code (subscription)");
+  } else if (authMethod === "api-key") {
+    console.log("  Auth:       Anthropic API key");
+  } else {
+    console.log("  Auth:       Not configured");
+  }
+  console.log("  Telegram:   Skipped (non-interactive)");
+  console.log();
+}
+
+async function runInteractive(workspace: string) {
   const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
 
   console.log("\nWelcome to Nova! Let's set up your workspace.\n");
-
-  const workspace = resolveWorkspace();
 
   // Create workspace from template if it doesn't exist
   const workspaceExists = fs.existsSync(workspace);
@@ -192,4 +269,3 @@ async function askChoice(rl: readline.Interface, question: string, options: stri
     console.log(`Please enter a number between 1 and ${options.length}.`);
   }
 }
-
