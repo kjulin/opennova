@@ -16,7 +16,7 @@ async function invokeTask(workspaceDir: string, taskId: string, owner: string, t
 
   try {
     const agentDir = path.join(workspaceDir, "agents", owner);
-    await runAgent(agentDir, threadId, TASK_WORK_PROMPT, undefined, undefined, undefined, undefined, { silent: true });
+    await runAgent(agentDir, threadId, TASK_WORK_PROMPT, undefined, undefined, undefined, undefined, { background: true });
     log.info("tasks", `task ${taskId} invocation completed`);
   } catch (err) {
     log.error("tasks", `task ${taskId} invocation failed:`, err);

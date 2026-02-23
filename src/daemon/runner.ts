@@ -19,7 +19,7 @@ export async function runAgent(
   abortController?: AbortController,
   overrides?: RunAgentOverrides,
 ): Promise<{ text: string }> {
-  const silent = overrides?.silent ?? false;
+  const background = overrides?.background ?? false;
 
   return coreRunAgent(
     agentDir,
@@ -28,17 +28,17 @@ export async function runAgent(
     {
       ...callbacks,
       onThreadResponse(agentId, threadId, channel, text) {
-        if (!silent) {
+        if (!background) {
           bus.emit("thread:response", { agentId, threadId, channel, text });
         }
       },
       onThreadError(agentId, threadId, channel, error) {
-        if (!silent) {
+        if (!background) {
           bus.emit("thread:error", { agentId, threadId, channel, error });
         }
       },
       onFileSend(agentId, threadId, channel, filePath, caption, fileType) {
-        if (!silent) {
+        if (!background) {
           bus.emit("thread:file", {
             agentId,
             threadId,
@@ -56,7 +56,7 @@ export async function runAgent(
         bus.emit("thread:pin", { agentId, channel });
       },
       onNotifyUser(agentId, threadId, channel, text) {
-        // Always emit notify_user messages, even in silent mode
+        // Always emit notify_user messages, even in background mode
         bus.emit("thread:response", { agentId, threadId, channel, text });
       },
     },
