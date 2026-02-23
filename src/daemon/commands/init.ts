@@ -1,144 +1,151 @@
 import fs from "fs";
 import path from "path";
+import os from "os";
+import https from "https";
 import readline from "readline/promises";
-import { resolveWorkspace } from "../workspace.js";
-import { detectAuth, hasClaudeCode, storeApiKey } from "../auth.js";
-import { askRequired, pairTelegramChat } from "../telegram-pairing.js";
-import { TELEGRAM_HELP_MESSAGE } from "../channels/telegram-help.js";
+import { execFileSync, spawn } from "child_process";
+import { detectAuth } from "../auth.js";
 import { Config } from "#core/config.js";
 import { downloadEmbeddingModel, isModelAvailable } from "#core/episodic/index.js";
 
+const PLIST_LABEL = "dev.opennova.daemon";
+const PLIST_PATH = path.join(os.homedir(), "Library", "LaunchAgents", `${PLIST_LABEL}.plist`);
+const DEFAULT_PORT = 3838;
+
+function parsePort(): number {
+  const idx = process.argv.indexOf("--port");
+  if (idx === -1 || idx + 1 >= process.argv.length) return DEFAULT_PORT;
+  const val = parseInt(process.argv[idx + 1]!, 10);
+  if (isNaN(val) || val < 1 || val > 65535) {
+    console.error(`Invalid port: ${process.argv[idx + 1]}`);
+    process.exit(1);
+  }
+  return val;
+}
+
+function box(lines: string[]): string {
+  const width = Math.max(...lines.map((l) => l.length)) + 4;
+  const top = `\u250c${"\u2500".repeat(width)}\u2510`;
+  const bot = `\u2514${"\u2500".repeat(width)}\u2518`;
+  const rows = lines.map((l) => `\u2502  ${l.padEnd(width - 2)}\u2502`);
+  return [top, ...rows, bot].join("\n");
+}
+
+function resolveNovaBin(): string {
+  const cmd = process.platform === "win32" ? "where" : "which";
+  return execFileSync(cmd, ["nova"], { encoding: "utf-8" }).trim();
+}
+
+function buildPlist(novaBin: string, workspace: string, port: number): string {
+  const logPath = path.join(workspace, "logs", "daemon.log");
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>${PLIST_LABEL}</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>${novaBin}</string>
+    <string>daemon</string>
+  </array>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>NOVA_WORKSPACE</key>
+    <string>${workspace}</string>
+    <key>NOVA_PORT</key>
+    <string>${port}</string>
+    <key>PATH</key>
+    <string>${process.env.PATH}</string>
+  </dict>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>KeepAlive</key>
+  <true/>
+  <key>StandardOutPath</key>
+  <string>${logPath}</string>
+  <key>StandardErrorPath</key>
+  <string>${logPath}</string>
+</dict>
+</plist>
+`;
+}
+
+function probeHealth(port: number): Promise<boolean> {
+  return new Promise((resolve) => {
+    // Try HTTPS first (Tailscale), skip cert validation since we're hitting 127.0.0.1
+    const req = https.get(
+      { hostname: "127.0.0.1", port, path: "/api/health", rejectUnauthorized: false, timeout: 2000 },
+      (res) => resolve(res.statusCode === 200),
+    );
+    req.on("error", () => {
+      // HTTPS failed, try plain HTTP
+      fetch(`http://127.0.0.1:${port}/api/health`, { signal: AbortSignal.timeout(2000) })
+        .then((res) => resolve(res.ok))
+        .catch(() => resolve(false));
+    });
+    req.on("timeout", () => { req.destroy(); resolve(false); });
+  });
+}
+
+async function waitForHealth(port: number, maxMs = 30000): Promise<boolean> {
+  const start = Date.now();
+  while (Date.now() - start < maxMs) {
+    if (await probeHealth(port)) return true;
+    await new Promise((r) => setTimeout(r, 500));
+  }
+  return false;
+}
+
 export async function run() {
+  const port = parsePort();
+
+  console.log("\nWelcome to Nova!\n");
+
+  // 1. Check Claude Code auth
+  const auth = detectAuth();
+  if (auth.method === "none") {
+    console.log(box([
+      "Claude Code not detected.",
+      "",
+      "Nova requires Claude Code to be installed and",
+      "logged in.",
+      "",
+      "Install:  npm install -g @anthropic-ai/claude-code",
+      "Login:    claude login",
+      "",
+      "Then run 'nova init' again.",
+    ]));
+    console.log();
+    process.exit(1);
+  }
+
+  console.log(`Claude Code detected (${auth.method === "claude-code" ? "subscription" : "API key"}).\n`);
+
+  // 2. Select workspace path
+  const defaultWorkspace = path.join(os.homedir(), ".nova");
   const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
-
-  console.log("\nWelcome to Nova! Let's set up your workspace.\n");
-
-  const workspace = resolveWorkspace();
-
-  // Create workspace from template if it doesn't exist
-  const workspaceExists = fs.existsSync(workspace);
-  if (!workspaceExists) {
-    const templateDir = path.resolve(import.meta.dirname, "..", "..", "workspace-template");
-    fs.cpSync(templateDir, workspace, { recursive: true });
-  }
-
-  // --- Auth detection ---
-  console.log("\n-- Authentication --");
-  const auth = detectAuth(workspace);
-  let authMethod = auth.method;
-
-  if (auth.method === "claude-code") {
-    console.log("Found Claude Code installation — nova will use your existing authentication.");
-  } else if (auth.method === "api-key") {
-    console.log(`Using ${auth.detail}.`);
-  } else {
-    // No auth found — check if they want to install Claude Code or provide an API key
-    if (hasClaudeCode()) {
-      console.log("Found Claude Code installation — nova will use your existing authentication.");
-      authMethod = "claude-code";
-    } else {
-      console.log("Claude Code not found on this system.");
-      console.log("Nova works best with Claude Code installed (included with your Anthropic subscription).");
-      console.log("Install it from: https://docs.anthropic.com/en/docs/claude-code\n");
-
-      const authChoice = await askChoice(rl, "How would you like to authenticate?", [
-        "I'll install Claude Code first (recommended)",
-        "Enter an Anthropic API key",
-        "Skip for now",
-      ]);
-
-      if (authChoice === 0) {
-        console.log("\nInstall Claude Code, then run 'nova daemon' to start.");
-        authMethod = "none";
-      } else if (authChoice === 1) {
-        console.log("\nNote: API key usage is billed per token, which is significantly more");
-        console.log("expensive than using Claude Code with an Anthropic subscription.\n");
-        const apiKey = (await rl.question("Anthropic API key: ")).trim();
-        if (apiKey) {
-          storeApiKey(workspace, apiKey);
-          authMethod = "api-key";
-          console.log("API key saved.");
-        } else {
-          console.log("No key entered, skipping.");
-          authMethod = "none";
-        }
-      } else {
-        authMethod = "none";
-      }
-    }
-  }
-
-  // --- Telegram configuration ---
-  const reconfigure = workspaceExists && fs.existsSync(path.join(workspace, "telegram.json"));
-
-  let configureTelegram = true;
-  if (reconfigure) {
-    console.log("\nExisting Telegram configuration found.");
-    const reconfChoice = await askChoice(rl, "What would you like to do?", [
-      "Reconfigure Telegram",
-      "Keep existing configuration",
-    ]);
-    configureTelegram = reconfChoice === 0;
-  }
-
-  let enableTelegram = false;
-  let telegramToken = "";
-  let telegramChatId = "";
-
-  if (configureTelegram) {
-    const channelChoice = await askChoice(rl, "\nEnable Telegram?", [
-      "Yes",
-      "No, skip for now",
-    ]);
-
-    enableTelegram = channelChoice === 0;
-
-    if (enableTelegram) {
-      console.log("\n-- Telegram Setup --");
-      console.log("You'll need a bot token from @BotFather in Telegram.");
-      console.log("Create a bot or use an existing one, then paste the token here.\n");
-      telegramToken = await askRequired(rl, "Bot token: ");
-
-      console.log("\nConnecting to Telegram...");
-      const paired = await pairTelegramChat(telegramToken, `*Nova is connected!* \ud83c\udf89\n\n${TELEGRAM_HELP_MESSAGE}`);
-      if (paired) {
-        telegramChatId = paired.chatId;
-        console.log(`Paired with chat: ${paired.name} (${paired.chatId})`);
-      } else {
-        console.log("Pairing timed out. You can set the chat ID later with:");
-        console.log("  nova config set telegram.chatId <your-chat-id>");
-      }
-    }
-  }
-
+  const answer = (await rl.question(`Workspace path [${defaultWorkspace}]: `)).trim();
   rl.close();
 
-  // Write workspace
-  if (workspaceExists && !configureTelegram) {
-    console.log(`\nWorkspace at ${workspace} — keeping existing configuration.`);
-  } else {
-    if (workspaceExists) {
-      console.log(`\nUpdating workspace at ${workspace}...`);
-    } else {
-      console.log(`\nCreating workspace at ${workspace}...`);
-      console.log("  Copied default agents (nova, agent-builder).");
-    }
+  const workspace = answer || defaultWorkspace;
 
-    if (enableTelegram) {
-      const config: Record<string, unknown> = {
-        token: telegramToken,
-        chatId: telegramChatId,
-        activeAgentId: "nova",
-      };
-      fs.writeFileSync(path.join(workspace, "telegram.json"), JSON.stringify(config, null, 2) + "\n", { mode: 0o600 });
-      console.log("  Created telegram.json");
-    }
+  // 3. Set up workspace
+  const workspaceExists = fs.existsSync(workspace);
+  if (!workspaceExists) {
+    const templateDir = path.resolve(import.meta.dirname, "..", "..", "..", "workspace-template");
+    fs.cpSync(templateDir, workspace, { recursive: true });
+    console.log(`\nCreated workspace at ${workspace}`);
+  } else {
+    console.log(`\nUsing existing workspace at ${workspace}`);
   }
 
-  // --- Embedding model ---
+  // Ensure logs directory exists
+  fs.mkdirSync(path.join(workspace, "logs"), { recursive: true });
+
+  // Download embeddings model if needed
   Config.workspaceDir = workspace;
   if (!isModelAvailable()) {
-    console.log("\n-- Episodic Memory --");
     console.log("Downloading embedding model (all-MiniLM-L6-v2, ~80MB)...");
     try {
       let lastPercent = 0;
@@ -148,48 +155,61 @@ export async function run() {
           lastPercent = percent;
         }
       });
-      console.log("  Embedding model downloaded successfully.");
+      console.log("  Embedding model downloaded.         ");
     } catch (err) {
-      console.log(`  Warning: Failed to download embedding model: ${(err as Error).message}`);
-      console.log("  Episodic memory will be unavailable until the model is downloaded.");
+      console.log(`  Warning: could not download embedding model: ${(err as Error).message}`);
     }
   }
 
-  // --- Summary ---
-  console.log("\n-- Setup Complete --\n");
-  console.log(`  Workspace:  ${workspace}`);
+  // 4. Install & start daemon via launchd
+  console.log("\nSetting up daemon...");
 
-  if (authMethod === "claude-code") {
-    console.log("  Auth:       Claude Code (subscription)");
-  } else if (authMethod === "api-key") {
-    console.log("  Auth:       Anthropic API key");
+  let novaBin: string;
+  try {
+    novaBin = resolveNovaBin();
+  } catch {
+    console.log("  Could not find 'nova' on PATH. Start the daemon manually with 'nova daemon'.");
+    process.exit(1);
+  }
+
+  // Unload existing service if present
+  if (fs.existsSync(PLIST_PATH)) {
+    try {
+      execFileSync("launchctl", ["unload", PLIST_PATH], { stdio: "ignore" });
+    } catch { /* may not be loaded */ }
+  }
+
+  // Write plist and load
+  fs.mkdirSync(path.dirname(PLIST_PATH), { recursive: true });
+  fs.writeFileSync(PLIST_PATH, buildPlist(novaBin, workspace, port));
+  execFileSync("launchctl", ["load", PLIST_PATH]);
+  console.log("  Daemon installed as LaunchAgent.");
+
+  // Wait for health
+  process.stdout.write("  Starting...");
+  const healthy = await waitForHealth(port);
+  if (healthy) {
+    console.log(" ready.");
   } else {
-    console.log("  Auth:       Not configured");
+    console.log(" timed out. Check logs at " + path.join(workspace, "logs", "daemon.log"));
   }
 
-  const hasTelegram = enableTelegram || (!configureTelegram && fs.existsSync(path.join(workspace, "telegram.json")));
-  console.log(`  Telegram:   ${hasTelegram ? "Configured" : "Not configured"}`);
-
-  if (authMethod === "none") {
-    console.log("\nNext: Install Claude Code or run 'nova init' again to configure authentication.");
-  } else {
-    console.log("\nNext: Start the daemon with 'nova daemon'");
-  }
-  console.log();
-}
-
-async function askChoice(rl: readline.Interface, question: string, options: string[]): Promise<number> {
-  console.log(question);
-  for (let i = 0; i < options.length; i++) {
-    console.log(`  ${i + 1}. ${options[i]}`);
-  }
-  while (true) {
-    const answer = (await rl.question("> ")).trim();
-    const idx = parseInt(answer, 10) - 1;
-    if (!isNaN(idx) && idx >= 0 && idx < options.length) {
-      return idx;
+  // 5. Open Admin UI
+  if (healthy) {
+    // Detect Tailscale HTTPS certs
+    const certDir = path.join(os.homedir(), ".nova", "certs");
+    let url = `http://localhost:${port}/web/console/`;
+    if (fs.existsSync(certDir)) {
+      const certFile = fs.readdirSync(certDir).find((f) => f.endsWith(".crt"));
+      if (certFile) {
+        const hostname = certFile.replace(".crt", "");
+        url = `https://${hostname}:${port}/web/console/`;
+      }
     }
-    console.log(`Please enter a number between 1 and ${options.length}.`);
-  }
-}
 
+    console.log(`\nOpening Admin UI at ${url}...`);
+    spawn("open", [url], { stdio: "ignore", detached: true }).unref();
+  }
+
+  console.log("\nNova init completed!\n");
+}

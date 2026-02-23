@@ -28,7 +28,7 @@ import { createConsoleSecretsRouter } from "#api/console-secrets.js";
 import { createSetupRouter } from "#api/setup.js";
 import { createConfigRouter } from "#api/config.js";
 
-const PORT = 3838;
+const PORT = parseInt(process.env.NOVA_PORT || "3838", 10);
 
 export interface DaemonServer {
   port: number;
