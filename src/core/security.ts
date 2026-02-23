@@ -17,7 +17,7 @@ const STANDARD_ALLOWED_TOOLS = [
  * - controlled:   dontAsk — file tools, web, MCP tools; Bash blocked.
  * - unrestricted: bypassPermissions — all tools, no restrictions.
  */
-export function trustOptions(level: TrustLevel = "controlled", extraAllowedTools?: string[]): Record<string, unknown> {
+export function trustOptions(level: TrustLevel, extraAllowedTools?: string[]): Record<string, unknown> {
   const opts = buildOptions(level);
   if (extraAllowedTools?.length && opts.allowedTools) {
     (opts.allowedTools as string[]).push(...extraAllowedTools);

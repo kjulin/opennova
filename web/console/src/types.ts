@@ -63,16 +63,13 @@ export interface ConfigResponse {
     certsReady: boolean;
     url?: string;
   };
-  voice: {
-    mode: string;
-    openaiKeyConfigured: boolean;
-  };
-  embeddings: {
-    mode: string;
-    modelAvailable: boolean;
-  };
-  security: {
-    defaultTrust: string;
+  audio: {
+    transcription: {
+      modelAvailable: boolean;
+    };
+    tts: {
+      openaiKeyConfigured: boolean;
+    };
   };
   daemon: {
     version: string;

@@ -3,9 +3,7 @@ import {
   fetchConfig,
   updateDaemon,
   pairTelegram,
-  updateVoice,
-  updateEmbeddings,
-  updateSecurity,
+  updateTtsKey,
   setupTailscale,
   deleteWorkspace,
 } from "@/api";
@@ -17,13 +15,6 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
-import {
-  Select,
-  SelectTrigger,
-  SelectValue,
-  SelectContent,
-  SelectItem,
-} from "@/components/ui/select";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -143,80 +134,20 @@ export function ConfigPage() {
         </CardContent>
       </Card>
 
-      {/* Console / API */}
+      {/* Claude Code */}
       <Card>
         <CardHeader>
-          <CardTitle>Console / API</CardTitle>
-          <CardDescription>Access URL for the console and API endpoints.</CardDescription>
+          <CardTitle>Claude Code</CardTitle>
+          <CardDescription>Detected Claude Code login mode.</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-3">
-          <div>
-            <Label className="text-xs text-muted-foreground">URL</Label>
-            <code className="block font-mono text-sm mt-1">
-              {config.tailscale.certsReady && config.tailscale.url
-                ? config.tailscale.url
-                : "http://localhost:3838"}
-            </code>
-          </div>
-          <Separator />
-          <div className="flex items-center gap-3">
-            <Badge variant={config.tailscale.installed ? "default" : "secondary"}>
-              Tailscale {config.tailscale.installed ? (config.tailscale.connected ? "Connected" : "Disconnected") : "Not installed"}
-            </Badge>
-            {config.tailscale.certsReady && (
-              <Badge variant="outline">Certs ready</Badge>
-            )}
-          </div>
-          <div className="flex gap-2">
-            {!config.tailscale.installed && (
-              <Button variant="outline" size="sm" asChild>
-                <a href="https://tailscale.com/download" target="_blank" rel="noopener noreferrer">
-                  Set up Tailscale
-                </a>
-              </Button>
-            )}
-            {config.tailscale.installed && config.tailscale.connected && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => handleAction(() => setupTailscale())}
-              >
-                Regenerate Certs
-              </Button>
-            )}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Authentication */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Authentication</CardTitle>
-          <CardDescription>How API requests are authenticated.</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="flex items-center gap-2">
-            <Badge>
-              {config.auth.method === "claude-code"
-                ? "Claude Code"
-                : config.auth.method === "api-key"
-                  ? "API Key"
-                  : "None"}
-            </Badge>
-            {config.auth.detail && (
-              <span className="text-sm text-muted-foreground">{config.auth.detail}</span>
-            )}
-          </div>
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" asChild>
-              <a href="https://docs.anthropic.com" target="_blank" rel="noopener noreferrer">
-                Anthropic Docs
-              </a>
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => loadConfig()}>
-              Re-check
-            </Button>
-          </div>
+        <CardContent>
+          <code className="font-mono text-sm bg-muted px-3 py-1.5 rounded-md">
+            {config.auth.method === "claude-code"
+              ? "Subscription"
+              : config.auth.method === "api-key"
+                ? "API Key"
+                : "Not detected"}
+          </code>
         </CardContent>
       </Card>
 
@@ -234,8 +165,6 @@ export function ConfigPage() {
                 <code className="font-mono">{config.telegram.token}</code>
                 <span className="text-muted-foreground">Chat ID</span>
                 <span className="font-mono">{config.telegram.chatId ?? "—"}</span>
-                <span className="text-muted-foreground">Active Agent</span>
-                <span className="font-mono">{config.telegram.activeAgentId ?? "—"}</span>
               </div>
               <Button
                 variant="outline"
@@ -251,45 +180,94 @@ export function ConfigPage() {
         </CardContent>
       </Card>
 
-      {/* Voice */}
+      {/* Admin UI */}
       <Card>
         <CardHeader>
-          <CardTitle>Voice</CardTitle>
-          <CardDescription>Voice input/output settings.</CardDescription>
+          <CardTitle>Admin UI</CardTitle>
+          <CardDescription>Access URL for the admin interface.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <code className="font-mono text-sm bg-muted px-3 py-1.5 rounded-md">
+            {config.tailscale.certsReady && config.tailscale.url
+              ? config.tailscale.url
+              : "http://localhost:3838"}
+          </code>
+        </CardContent>
+      </Card>
+
+      {/* Tailscale */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Tailscale</CardTitle>
+          <CardDescription>Remote access via Tailscale HTTPS.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
-          <div className="flex items-center gap-2">
-            <Badge variant="outline">{config.voice.mode}</Badge>
-            <span className="text-sm text-muted-foreground">
-              OpenAI key: {config.voice.openaiKeyConfigured ? "configured" : "not configured"}
-            </span>
-          </div>
           <div className="flex items-center gap-3">
-            <Label htmlFor="voice-mode" className="text-sm">Mode</Label>
-            <Select
-              value={config.voice.mode}
-              onValueChange={(value) => {
-                if (value === "api" && !config.voice.openaiKeyConfigured) {
-                  setShowOpenaiKeyInput(true);
-                  // Don't submit yet, wait for key
-                  return;
-                }
-                setShowOpenaiKeyInput(false);
-                handleAction(() => updateVoice(value));
-              }}
-            >
-              <SelectTrigger id="voice-mode" className="w-36">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="api">API</SelectItem>
-                <SelectItem value="local">Local</SelectItem>
-                <SelectItem value="off">Off</SelectItem>
-              </SelectContent>
-            </Select>
+            <Badge variant={config.tailscale.installed ? "default" : "secondary"}>
+              {config.tailscale.installed ? (config.tailscale.connected ? "Connected" : "Disconnected") : "Not installed"}
+            </Badge>
+            {config.tailscale.certsReady && (
+              <Badge variant="outline">Certs ready</Badge>
+            )}
+          </div>
+          {config.tailscale.hostname && (
+            <div className="text-sm text-muted-foreground">
+              Hostname: <code className="font-mono">{config.tailscale.hostname}</code>
+            </div>
+          )}
+          <div className="flex gap-2">
+            {!config.tailscale.installed && (
+              <Button variant="outline" size="sm" asChild>
+                <a href="https://tailscale.com/download" target="_blank" rel="noopener noreferrer">
+                  Install Tailscale
+                </a>
+              </Button>
+            )}
+            {config.tailscale.installed && config.tailscale.connected && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handleAction(() => setupTailscale())}
+              >
+                Regenerate Certs
+              </Button>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Audio */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Audio</CardTitle>
+          <CardDescription>Transcription and text-to-speech settings.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center gap-3">
+            <Label className="text-sm w-32">Transcription</Label>
+            <Badge variant={config.audio.transcription.modelAvailable ? "default" : "secondary"}>
+              {config.audio.transcription.modelAvailable ? "Model ready" : "Model not installed"}
+            </Badge>
+            {!config.audio.transcription.modelAvailable && (
+              <span className="text-xs text-muted-foreground">
+                Run <code className="font-mono bg-muted px-1 rounded">nova transcription setup</code> to download
+              </span>
+            )}
+          </div>
+          <Separator />
+          <div className="flex items-center gap-3">
+            <Label className="text-sm w-32">Text-to-Speech</Label>
+            <Badge variant={config.audio.tts.openaiKeyConfigured ? "default" : "secondary"}>
+              {config.audio.tts.openaiKeyConfigured ? "OpenAI API key set" : "OpenAI key not set"}
+            </Badge>
+            {!config.audio.tts.openaiKeyConfigured && !showOpenaiKeyInput && (
+              <Button variant="outline" size="sm" onClick={() => setShowOpenaiKeyInput(true)}>
+                Set API Key
+              </Button>
+            )}
           </div>
           {showOpenaiKeyInput && (
-            <div className="flex items-end gap-2">
+            <div className="flex items-end gap-2 pt-2">
               <div className="space-y-1">
                 <Label htmlFor="openai-key" className="text-xs">OpenAI API Key</Label>
                 <Input
@@ -305,7 +283,7 @@ export function ConfigPage() {
                 size="sm"
                 disabled={!openaiKeyInput}
                 onClick={() => {
-                  handleAction(() => updateVoice("api", openaiKeyInput));
+                  handleAction(() => updateTtsKey(openaiKeyInput));
                   setOpenaiKeyInput("");
                   setShowOpenaiKeyInput(false);
                 }}
@@ -324,68 +302,6 @@ export function ConfigPage() {
               </Button>
             </div>
           )}
-        </CardContent>
-      </Card>
-
-      {/* Episodic Memory */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Episodic Memory</CardTitle>
-          <CardDescription>Embedding model for agent memory and knowledge retrieval.</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="flex items-center gap-2">
-            <Badge variant="outline">{config.embeddings.mode}</Badge>
-            <span className="text-sm text-muted-foreground">
-              Model: {config.embeddings.modelAvailable ? "available" : "not available"}
-            </span>
-          </div>
-          <div className="flex items-center gap-3">
-            <Label htmlFor="embeddings-mode" className="text-sm">Mode</Label>
-            <Select
-              value={config.embeddings.mode}
-              onValueChange={(value) => handleAction(() => updateEmbeddings(value))}
-            >
-              <SelectTrigger id="embeddings-mode" className="w-36">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="local">Local</SelectItem>
-                <SelectItem value="api">API</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          {config.embeddings.mode === "api" && !config.voice.openaiKeyConfigured && (
-            <p className="text-xs text-muted-foreground">
-              API mode requires an OpenAI API key. Configure it in the Voice section above.
-            </p>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Security */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Security</CardTitle>
-          <CardDescription>Default trust level for new agents.</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="flex items-center gap-3">
-            <Label htmlFor="trust-level" className="text-sm">Default Trust</Label>
-            <Select
-              value={config.security.defaultTrust}
-              onValueChange={(value) => handleAction(() => updateSecurity(value))}
-            >
-              <SelectTrigger id="trust-level" className="w-48">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="sandbox">Sandbox — isolated, no file access</SelectItem>
-                <SelectItem value="controlled">Controlled — scoped file access</SelectItem>
-                <SelectItem value="unrestricted">Unrestricted — full system access</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
         </CardContent>
       </Card>
 
