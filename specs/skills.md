@@ -14,7 +14,7 @@ All skills live in the workspace skill library:
 {workspace}/skills/{skill-name}/SKILL.md
 ```
 
-This is the single source of truth for skill content. Skills are created, edited, and deleted here. The library is managed by the user through the console UI or CLI — agents do not create or modify skills.
+This is the single source of truth for skill content. Skills are created, edited, and deleted here.
 
 ### Skill Format
 
@@ -91,6 +91,58 @@ Removes the symlink from `{agentDir}/.claude/skills/{name}`. Idempotent — if n
 
 Removes the skill directory from the library. Scans all agents and removes any symlinks pointing to the deleted skill. This is the only operation that touches multiple agents' `.claude/skills/` directories.
 
+## Agent Skill Self-Management
+
+Agents with the `self` capability can manage their own skills. This is a natural extension of the self-mutation surface: just as `self` lets agents update their instructions (how they operate), it lets them manage their skills (how they extend their behavior).
+
+### Scope
+
+An agent with `self` can:
+- **List skills** — see all skills in the workspace library with their own activation state
+- **Create a skill** — write a new skill to the workspace library and activate it for themselves
+- **Update a skill** — modify the content of a skill in the workspace library
+- **Delete a skill** — remove a skill from the workspace library (and all symlinks across agents)
+- **Activate a skill** — activate an existing skill for themselves
+- **Deactivate a skill** — deactivate a skill for themselves
+
+### Workspace Library Is Shared
+
+Skills live in the workspace library, which is shared across all agents. When an agent creates or updates a skill, it modifies a shared resource. This is intentional — skills are reusable by design. An agent that creates a useful skill makes it available for any agent to activate.
+
+The shared nature means an agent can update or delete a skill that other agents also use. This is acceptable because:
+1. Skills are disposable — they can be regenerated from their description and intent
+2. The workspace is single-user — there's no adversarial multi-tenant concern
+3. The user can always intervene through Console UI or CLI
+
+### Self-Management Tools
+
+The `self` capability MCP server exposes skill management tools alongside the existing `update_my_instructions` and `read_my_instructions`:
+
+| Tool | Description |
+|------|-------------|
+| `list_skills` | List all skills in the workspace library with activation state for this agent |
+| `create_skill` | Create a new skill (name, description, content) and activate it for this agent |
+| `update_skill` | Update an existing skill's description and/or content |
+| `delete_skill` | Delete a skill from the library (removes all symlinks) |
+| `activate_skill` | Activate an existing skill for this agent |
+| `deactivate_skill` | Deactivate a skill for this agent |
+
+### Constraints on Self-Management
+
+- Agents can only activate/deactivate skills for *themselves* — never for other agents.
+- Create, update, and delete operate on the workspace library (shared resource).
+- Activation on create is automatic — creating a skill without activating it for yourself would be pointless in the self-management context.
+- Skill naming rules are enforced: lowercase alphanumeric with hyphens.
+- The tools live in the `self` capability — no new capability is introduced.
+
+### Why `self` and Not a New Capability
+
+Skills are part of how an agent operates. The `self` capability already governs what agents can change about their own behavior. Adding skills to `self` follows the same pattern:
+- `instructions` = how the agent operates (text in config)
+- `skills` = how the agent extends its behavior (documents in the library)
+
+Both are behavioral configuration. Both are safe to let agents manage because the user controls whether `self` is granted. A separate `skill-management` capability would fracture the self-mutation surface without adding meaningful security boundary — any agent that should manage skills should also be able to update its instructions, and vice versa.
+
 ## Management Surfaces
 
 ### Console UI
@@ -112,21 +164,27 @@ nova skills unlink <name> --agent <id|all>
 
 `link` activates a skill for an agent (or all agents). `unlink` deactivates.
 
+### Agent Self-Management
+
+Agents with the `self` capability can manage skills through the MCP tools described above. This is the third management surface — alongside Console UI and CLI.
+
 ## Constraints
 
 - The workspace skill library (`{workspace}/skills/`) is the single source of truth for skill content.
 - Agent `.claude/skills/` directories contain only symlinks — never source files.
-- Agents do not create, edit, or delete skills. Skills are a user-managed resource.
 - OpenNova does not parse or inject skill content. The SDK handles discovery and injection.
 - Skill names are unique within the workspace.
 - No background sync or startup reconciliation. Symlink state is maintained by explicit operations only.
+- Agent skill self-management is gated by the `self` capability. Agents without `self` cannot create, modify, or activate skills.
+- Agents can only activate/deactivate skills for themselves — cross-agent activation requires Console UI, CLI, or agent-management tools.
 
 ## What Lives Here
 
 - Skill storage model (workspace library, directory format, SKILL.md)
 - Activation model (symlinks, operations)
 - SDK integration point (`settingSources`)
-- Management surfaces (console, CLI)
+- Agent self-management scope and tools
+- Management surfaces (console, CLI, agent self-management)
 
 ## What Does NOT Live Here
 

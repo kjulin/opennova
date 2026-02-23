@@ -37,13 +37,13 @@ Identity is set by the user (directly or via agent-builder).
 
 How the agent operates. Files to reference, session rhythm, constraints, learned preferences. This is the faster-changing field — it evolves as the agent learns what works. Maps to the `<Instructions>` block in the system prompt.
 
-If the agent has the `self` capability, it can read AND update its own instructions via `update_my_instructions`. This is the self-mutation surface — instructions are the only field an agent can change about itself.
+If the agent has the `self` capability, it can read AND update its own instructions via `update_my_instructions`, and manage its own skills (create, update, delete, activate, deactivate). This is the self-mutation surface — instructions and skills are the behavioral fields an agent can change about itself. See the Skills spec for the full self-management scope.
 
 ### identity vs instructions — the pace layer distinction
 
 Identity is the slow layer. It answers "who are you?" and should survive across many conversations unchanged. Instructions is the faster layer. It answers "how should you work right now?" and is expected to evolve.
 
-This separation matters because it makes `self` capability safe. An agent with `self` can refine how it works (instructions) but cannot redefine who it is (identity). The user controls identity; the agent controls instructions.
+This separation matters because it makes `self` capability safe. An agent with `self` can refine how it works (instructions) and manage its skills, but cannot redefine who it is (identity). The user controls identity; the agent controls instructions and skills.
 
 ### description
 
@@ -173,7 +173,7 @@ The agent directory is the agent's world. Everything the system needs to know ab
 - Agent config is the single source of truth for an agent's identity and access boundaries.
 - All agents are equal — no agent receives special runtime treatment based on its ID.
 - Trust is a user-controlled field — agents cannot set or change trust levels.
-- An agent with `self` capability can only modify its own `instructions` field. Identity and all other fields are user-controlled.
+- An agent with `self` capability can modify its own `instructions` field and manage its own skills (create, update, delete, activate, deactivate). Identity and all other config fields are user-controlled.
 - Agent ID is derived from filesystem — not stored in config, not settable independently of the directory.
 - Capabilities are explicit — no implicit MCP server wiring. What's in `capabilities` is what the agent gets (plus run-time injections per the Capabilities spec).
 - Agent loading is stateless — configs are read from disk on each invocation with no caching.
