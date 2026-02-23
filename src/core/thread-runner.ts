@@ -9,7 +9,7 @@ import { createNotifyUserMcpServer } from "./notify-user.js";
 import { resolveCapabilities, type ResolverContext } from "./capabilities.js";
 import { appendUsage } from "./usage.js";
 import { generateEmbedding, appendEmbedding, isModelAvailable } from "./episodic/index.js";
-import { getTask, buildTaskContext } from "#tasks/index.js";
+import { getTask } from "#tasks/index.js";
 import {
   threadPath,
   loadManifest,
@@ -104,28 +104,18 @@ export function createAgentRunner(engine: Engine = claudeEngine): AgentRunner {
       try {
         const cwd = getAgentCwd(agent);
         const directories = getAgentDirectories(agent);
-        let baseSystemPrompt = buildSystemPrompt(agent, manifest.channel, trust, cwd, directories);
 
-        // Inject task context if this thread is bound to a task
         const taskId = manifest.taskId as string | undefined;
-        if (taskId) {
-          const task = getTask(Config.workspaceDir, taskId);
-          if (task) {
-            baseSystemPrompt = `${baseSystemPrompt}\n\n${buildTaskContext(task)}`;
-          }
-        }
+        const task = taskId ? getTask(Config.workspaceDir, taskId) ?? undefined : undefined;
 
-        // Add background mode prompt if running without a live user session
-        const backgroundPrompt = overrides?.background
-          ? `\n\n<Background>
-You are running in the background (scheduled task). Your responses will NOT be sent to the user automatically.
-If you need to notify the user about something important (questions, updates, completed work), use the notify_user tool.
-</Background>`
-          : "";
+        const baseSystemPrompt = buildSystemPrompt(agent, manifest.channel, trust, cwd, directories, {
+          task,
+          background: overrides?.background,
+        });
 
         const systemPrompt = overrides?.systemPromptSuffix
-          ? `${baseSystemPrompt}${backgroundPrompt}\n\n${overrides.systemPromptSuffix}`
-          : `${baseSystemPrompt}${backgroundPrompt}`;
+          ? `${baseSystemPrompt}\n\n${overrides.systemPromptSuffix}`
+          : baseSystemPrompt;
 
         const engineCallbacks: EngineCallbacks = {
           ...callbacks,
