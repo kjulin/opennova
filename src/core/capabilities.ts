@@ -1,5 +1,6 @@
 import type { McpServerConfig } from "@anthropic-ai/claude-agent-sdk";
 import type { AgentConfig } from "./agents.js";
+import type { ThreadManifest } from "./threads.js";
 import type { FileType } from "./media/mcp.js";
 import type { RunAgentFn } from "./ask-agent.js";
 import { createNotifyUserMcpServer } from "./notify-user.js";
@@ -20,13 +21,14 @@ export interface ResolverContext {
   threadId: string;
   channel: string;
   directories: string[];
+  manifest: ThreadManifest;
   callbacks: {
     onFileSend?: (filePath: string, caption: string | undefined, fileType: FileType) => void;
     onShareNote?: (title: string, slug: string, message: string | undefined) => void;
     onPinChange?: () => void;
     onNotifyUser?: (message: string) => void;
   };
-  agent?: AgentConfig;
+  agent: AgentConfig;
   askAgentDepth?: number;
   runAgentFn?: RunAgentFn;
 }
@@ -43,7 +45,7 @@ const CAPABILITY_REGISTRY: Record<string, CapabilityResolver> = {
   secrets: (ctx) => createSecretsMcpServer(ctx.workspaceDir),
   agents: (ctx) => {
     if (!ctx.runAgentFn) return null;
-    return createAgentsMcpServer(ctx.agent!, ctx.askAgentDepth ?? 0, ctx.runAgentFn);
+    return createAgentsMcpServer(ctx.agent, ctx.askAgentDepth ?? 0, ctx.runAgentFn);
   },
   "agent-management": () => createAgentManagementMcpServer(),
   triggers: (ctx) => createTriggerMcpServer(ctx.agentDir, ctx.channel),

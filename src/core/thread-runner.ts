@@ -131,6 +131,7 @@ export function createAgentRunner(engine: Engine = claudeEngine): AgentRunner {
           threadId,
           channel: manifest.channel,
           directories,
+          manifest,
           callbacks: {
             onFileSend: (fp, caption, fileType) => callbacks?.onFileSend?.(agentId, threadId, manifest.channel, fp, caption, fileType),
             onShareNote: (title, slug, message) => callbacks?.onShareNote?.(agentId, threadId, manifest.channel, title, slug, message),
