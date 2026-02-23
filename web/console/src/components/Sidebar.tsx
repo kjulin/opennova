@@ -5,10 +5,10 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { cn } from "@/lib/utils";
 
 const navItems = [
-  { to: "/agents", label: "Agents", icon: Users },
-  { to: "/skills", label: "Skills", icon: Wrench },
-  { to: "/triggers", label: "Triggers", icon: Clock },
-  { to: "/secrets", label: "Secrets", icon: KeyRound },
+  { to: "/web/console/agents", label: "Agents", icon: Users },
+  { to: "/web/console/skills", label: "Skills", icon: Wrench },
+  { to: "/web/console/triggers", label: "Triggers", icon: Clock },
+  { to: "/web/console/secrets", label: "Secrets", icon: KeyRound },
 ] as const;
 
 export function Sidebar() {

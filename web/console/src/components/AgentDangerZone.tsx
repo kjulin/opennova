@@ -30,7 +30,7 @@ export function AgentDangerZone({ agentId, agentName }: AgentDangerZoneProps) {
     setDeleting(true);
     try {
       await deleteAgent(agentId);
-      navigate("/agents");
+      navigate("/web/console/agents");
     } catch {
       setDeleting(false);
     }
