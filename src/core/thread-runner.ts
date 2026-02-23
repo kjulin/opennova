@@ -26,7 +26,7 @@ export interface RunAgentOverrides {
   model?: Model | undefined;
   maxTurns?: number | undefined;
   systemPromptSuffix?: string | undefined;
-  silent?: boolean | undefined;  // Suppress channel notifications
+  background?: boolean | undefined;  // Running without a live user session
 }
 
 export interface AgentRunnerCallbacks extends EngineCallbacks {
@@ -115,8 +115,8 @@ export function createAgentRunner(engine: Engine = claudeEngine): AgentRunner {
           }
         }
 
-        // Add silent mode prompt if running in background
-        const silentPrompt = overrides?.silent
+        // Add background mode prompt if running without a live user session
+        const backgroundPrompt = overrides?.background
           ? `\n\n<Background>
 You are running in the background (scheduled task). Your responses will NOT be sent to the user automatically.
 If you need to notify the user about something important (questions, updates, completed work), use the notify_user tool.
@@ -124,8 +124,8 @@ If you need to notify the user about something important (questions, updates, co
           : "";
 
         const systemPrompt = overrides?.systemPromptSuffix
-          ? `${baseSystemPrompt}${silentPrompt}\n\n${overrides.systemPromptSuffix}`
-          : `${baseSystemPrompt}${silentPrompt}`;
+          ? `${baseSystemPrompt}${backgroundPrompt}\n\n${overrides.systemPromptSuffix}`
+          : `${baseSystemPrompt}${backgroundPrompt}`;
 
         const engineCallbacks: EngineCallbacks = {
           ...callbacks,
@@ -163,7 +163,7 @@ If you need to notify the user about something important (questions, updates, co
                 runAgentFn: runAgentForAskAgent,
               }),
               ...extraMcpServers,
-              ...(overrides?.silent ? {
+              ...(overrides?.background ? {
                 "notify-user": createNotifyUserMcpServer((message) => {
                   callbacks?.onNotifyUser?.(agentId, threadId, manifest.channel, message);
                 }),
