@@ -25,6 +25,8 @@ import { createConsoleAgentsRouter } from "#api/console-agents.js";
 import { createConsoleTriggersRouter } from "#api/console-triggers.js";
 import { createConsoleSkillsRouter } from "#api/console-skills.js";
 import { createConsoleSecretsRouter } from "#api/console-secrets.js";
+import { createSetupRouter } from "#api/setup.js";
+import { createConfigRouter } from "#api/config.js";
 
 const PORT = 3838;
 
@@ -224,6 +226,10 @@ function createApp(workspaceDir: string): Hono {
   app.route("/api/console/triggers", createConsoleTriggersRouter(workspaceDir));
   app.route("/api/console/skills", createConsoleSkillsRouter(workspaceDir));
   app.route("/api/console/secrets", createConsoleSecretsRouter(workspaceDir));
+
+  // Setup & Config API
+  app.route("/api/setup", createSetupRouter(workspaceDir));
+  app.route("/api/config", createConfigRouter(workspaceDir));
 
   // Webapp at /web/tasklist (for Telegram mini app compatibility)
   app.get("/web/tasklist", (c) => c.redirect("/web/tasklist/"));
