@@ -1,8 +1,4 @@
-import type { TrustLevel } from "../schemas.js";
-
-export function buildDirectoriesBlock(cwd: string, directories: string[], trust: TrustLevel): string {
-  if (trust === "sandbox") return "";
-
+export function buildDirectoriesBlock(cwd: string, directories: string[]): string {
   const lines: string[] = [
     `Your working directory is: ${cwd}`,
     "There may already be existing files — check before creating new ones.",
@@ -13,17 +9,6 @@ export function buildDirectoriesBlock(cwd: string, directories: string[], trust:
     lines.push("You also have access to these additional directories:");
     for (const dir of directories) {
       lines.push(`- ${dir}`);
-    }
-  }
-
-  if (trust === "controlled") {
-    lines.push("");
-    if (directories.length > 0) {
-      lines.push("Only read and write files within your working directory and the additional directories listed above.");
-      lines.push("Do NOT access files outside these directories.");
-    } else {
-      lines.push("Only read and write files within your working directory.");
-      lines.push("Do NOT access files outside your working directory.");
     }
   }
 

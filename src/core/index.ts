@@ -74,7 +74,6 @@ export {
   buildContextBlock,
   buildDirectoriesBlock,
   getFormattingInstructions,
-  TRUST_INSTRUCTIONS,
   STORAGE_INSTRUCTIONS,
 } from "./prompts/index.js";
 
