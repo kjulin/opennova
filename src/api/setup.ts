@@ -8,6 +8,8 @@ import { detectAuth } from "#daemon/auth.js";
 import { listSecretNames, setSecret, addSecretName } from "#core/secrets.js";
 import { safeParseJsonFile } from "#core/schemas.js";
 import { loadAgents } from "#core/agents.js";
+import { startPairing, getPairingStatus } from "#daemon/pairing-manager.js";
+import { reloadChannels } from "#daemon/channels.js";
 
 function readSettings(workspaceDir: string): Record<string, unknown> {
   const p = path.join(workspaceDir, "settings.json");
@@ -174,6 +176,9 @@ export function createSetupRouter(workspaceDir: string): Hono {
 
     writeTelegram(workspaceDir, { ...existing, token, activeAgentId: agentId ?? "" });
 
+    // Start pairing session so the frontend polling picks up the result
+    await startPairing(token, workspaceDir, () => reloadChannels());
+
     return c.json({ ok: true });
   });
 
@@ -191,6 +196,18 @@ export function createSetupRouter(workspaceDir: string): Hono {
         chatId: telegram.chatId,
         ...(telegram.chatName ? { chatName: telegram.chatName } : {}),
       });
+    }
+
+    // Check active pairing session
+    const pairing = getPairingStatus();
+    if (pairing.status === "message_received") {
+      return c.json({
+        status: "message_received",
+        user: pairing.user,
+      });
+    }
+    if (pairing.status === "error") {
+      return c.json({ status: "error", error: pairing.error });
     }
 
     return c.json({ status: "waiting" });

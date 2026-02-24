@@ -47,6 +47,13 @@ export interface SecretsResponse {
   secrets: string[];
 }
 
+export interface PairingStatus {
+  status: "idle" | "waiting" | "paired" | "error";
+  chatId?: string;
+  chatName?: string;
+  error?: string;
+}
+
 export interface ConfigResponse {
   workspace: { path: string };
   auth: { method: string; detail?: string };

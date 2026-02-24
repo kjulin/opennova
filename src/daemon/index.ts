@@ -1,7 +1,7 @@
 import fs from "fs";
 import path from "path";
 import { init } from "./init.js";
-import { loadChannels } from "./channels.js";
+import { loadChannels, getCurrentShutdown } from "./channels.js";
 import { startTriggerScheduler } from "./triggers.js";
 import { startServer } from "./https.js";
 import { detectAuth } from "./auth.js";
@@ -53,7 +53,8 @@ export function start() {
     taskScheduler.stop();
     episodicBackfillScheduler.stop();
     server.shutdown();
-    shutdown();
+    const channelShutdown = getCurrentShutdown();
+    if (channelShutdown) channelShutdown();
     try { fs.unlinkSync(pidFile); } catch { /* ignore */ }
     log.info("daemon", "nova daemon stopped");
     log.close();
