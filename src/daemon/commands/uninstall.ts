@@ -1,5 +1,8 @@
 import fs from "fs";
+import path from "path";
+import os from "os";
 import readline from "readline/promises";
+import { execFileSync } from "child_process";
 import { resolveWorkspace, resolveBackupDir, workspaceSummary } from "../workspace.js";
 
 export async function run() {
@@ -30,6 +33,21 @@ export async function run() {
       rl.close();
       console.log("Cancelled.");
       return;
+    }
+
+    // Stop daemon and remove service configuration before deleting workspace
+    if (process.platform === "darwin") {
+      const PLIST_PATH = path.join(os.homedir(), "Library", "LaunchAgents", "dev.opennova.daemon.plist");
+      try { execFileSync("launchctl", ["unload", PLIST_PATH], { stdio: "ignore" }); } catch {}
+      if (fs.existsSync(PLIST_PATH)) fs.unlinkSync(PLIST_PATH);
+      console.log("  Daemon stopped and LaunchAgent removed.");
+    } else if (process.platform === "linux") {
+      try { execFileSync("systemctl", ["stop", "opennova-daemon"], { stdio: "ignore" }); } catch {}
+      try { execFileSync("systemctl", ["disable", "opennova-daemon"], { stdio: "ignore" }); } catch {}
+      const servicePath = "/etc/systemd/system/opennova-daemon.service";
+      if (fs.existsSync(servicePath)) fs.unlinkSync(servicePath);
+      try { execFileSync("systemctl", ["daemon-reload"]); } catch {}
+      console.log("  Daemon stopped and service removed.");
     }
 
     fs.rmSync(workspaceDir, { recursive: true });
