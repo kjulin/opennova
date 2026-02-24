@@ -3,13 +3,12 @@ import path from "path";
 import os from "os";
 import https from "https";
 import readline from "readline/promises";
-import { execFileSync, spawn } from "child_process";
+import { execFileSync } from "child_process";
 import { detectAuth } from "../auth.js";
 import { Config } from "#core/config.js";
 import { downloadEmbeddingModel, isModelAvailable } from "#core/episodic/index.js";
 
-const PLIST_LABEL = "dev.opennova.daemon";
-const PLIST_PATH = path.join(os.homedir(), "Library", "LaunchAgents", `${PLIST_LABEL}.plist`);
+const platform = process.platform;
 const DEFAULT_PORT = 3838;
 
 function parsePort(): number {
@@ -36,9 +35,12 @@ function resolveNovaBin(): string {
   return execFileSync(cmd, ["nova"], { encoding: "utf-8" }).trim();
 }
 
-function buildPlist(novaBin: string, workspace: string, port: number): string {
+function installDaemonMacOS(novaBin: string, workspace: string, port: number): void {
+  const PLIST_LABEL = "dev.opennova.daemon";
+  const PLIST_PATH = path.join(os.homedir(), "Library", "LaunchAgents", `${PLIST_LABEL}.plist`);
   const logPath = path.join(workspace, "logs", "daemon.log");
-  return `<?xml version="1.0" encoding="UTF-8"?>
+
+  const plist = `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
@@ -69,22 +71,71 @@ function buildPlist(novaBin: string, workspace: string, port: number): string {
 </dict>
 </plist>
 `;
+
+  // Unload existing service if present
+  if (fs.existsSync(PLIST_PATH)) {
+    try {
+      execFileSync("launchctl", ["unload", PLIST_PATH], { stdio: "ignore" });
+    } catch { /* may not be loaded */ }
+  }
+
+  // Write plist and load
+  fs.mkdirSync(path.dirname(PLIST_PATH), { recursive: true });
+  fs.writeFileSync(PLIST_PATH, plist);
+  execFileSync("launchctl", ["load", PLIST_PATH]);
+  console.log("  Daemon installed as LaunchAgent.");
+}
+
+function installDaemonLinux(novaBin: string, workspace: string, port: number): void {
+  const servicePath = "/etc/systemd/system/opennova-daemon.service";
+  const logPath = path.join(workspace, "logs", "daemon.log");
+
+  const unit = `[Unit]
+Description=OpenNova Daemon
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=${novaBin} daemon
+Environment=NOVA_WORKSPACE=${workspace}
+Environment=NOVA_PORT=${port}
+Environment=PATH=${process.env.PATH}
+Restart=always
+RestartSec=5
+StandardOutput=append:${logPath}
+StandardError=append:${logPath}
+
+[Install]
+WantedBy=multi-user.target
+`;
+
+  // Stop existing service (ignore errors if not present)
+  try {
+    execFileSync("systemctl", ["stop", "opennova-daemon"], { stdio: "ignore" });
+  } catch { /* may not exist yet */ }
+
+  // Write service file, reload, enable, start
+  fs.writeFileSync(servicePath, unit);
+  execFileSync("systemctl", ["daemon-reload"]);
+  execFileSync("systemctl", ["enable", "opennova-daemon"], { stdio: "ignore" });
+  execFileSync("systemctl", ["start", "opennova-daemon"]);
+  console.log("  Daemon installed as systemd service.");
 }
 
 function probeHealth(port: number): Promise<boolean> {
   return new Promise((resolve) => {
-    // Try HTTPS first (Tailscale), skip cert validation since we're hitting 127.0.0.1
-    const req = https.get(
-      { hostname: "127.0.0.1", port, path: "/api/health", rejectUnauthorized: false, timeout: 2000 },
-      (res) => resolve(res.statusCode === 200),
-    );
-    req.on("error", () => {
-      // HTTPS failed, try plain HTTP
-      fetch(`http://127.0.0.1:${port}/api/health`, { signal: AbortSignal.timeout(2000) })
-        .then((res) => resolve(res.ok))
-        .catch(() => resolve(false));
-    });
-    req.on("timeout", () => { req.destroy(); resolve(false); });
+    // Try HTTP first (default now)
+    fetch(`http://127.0.0.1:${port}/api/health`, { signal: AbortSignal.timeout(2000) })
+      .then((res) => resolve(res.ok))
+      .catch(() => {
+        // HTTP failed, try HTTPS (legacy/Tailscale)
+        const req = https.get(
+          { hostname: "127.0.0.1", port, path: "/api/health", rejectUnauthorized: false, timeout: 2000 },
+          (res) => resolve(res.statusCode === 200),
+        );
+        req.on("error", () => resolve(false));
+        req.on("timeout", () => { req.destroy(); resolve(false); });
+      });
   });
 }
 
@@ -161,7 +212,7 @@ export async function run() {
     }
   }
 
-  // 4. Install & start daemon via launchd
+  // 4. Install & start daemon
   console.log("\nSetting up daemon...");
 
   let novaBin: string;
@@ -172,18 +223,11 @@ export async function run() {
     process.exit(1);
   }
 
-  // Unload existing service if present
-  if (fs.existsSync(PLIST_PATH)) {
-    try {
-      execFileSync("launchctl", ["unload", PLIST_PATH], { stdio: "ignore" });
-    } catch { /* may not be loaded */ }
+  if (platform === "darwin") {
+    installDaemonMacOS(novaBin, workspace, port);
+  } else {
+    installDaemonLinux(novaBin, workspace, port);
   }
-
-  // Write plist and load
-  fs.mkdirSync(path.dirname(PLIST_PATH), { recursive: true });
-  fs.writeFileSync(PLIST_PATH, buildPlist(novaBin, workspace, port));
-  execFileSync("launchctl", ["load", PLIST_PATH]);
-  console.log("  Daemon installed as LaunchAgent.");
 
   // Wait for health
   process.stdout.write("  Starting...");
@@ -194,21 +238,23 @@ export async function run() {
     console.log(" timed out. Check logs at " + path.join(workspace, "logs", "daemon.log"));
   }
 
-  // 5. Open Admin UI
+  // 5. Show Admin UI URL
   if (healthy) {
-    // Detect Tailscale HTTPS certs
-    const certDir = path.join(os.homedir(), ".nova", "certs");
-    let url = `http://localhost:${port}/web/console/`;
-    if (fs.existsSync(certDir)) {
-      const certFile = fs.readdirSync(certDir).find((f) => f.endsWith(".crt"));
-      if (certFile) {
-        const hostname = certFile.replace(".crt", "");
-        url = `https://${hostname}:${port}/web/console/`;
-      }
-    }
+    let tsIp: string | undefined;
+    try {
+      tsIp = execFileSync("tailscale", ["ip", "-4"], { encoding: "utf-8" }).trim();
+    } catch { /* Tailscale not available */ }
 
-    console.log(`\nOpening Admin UI at ${url}...`);
-    spawn("open", [url], { stdio: "ignore", detached: true }).unref();
+    const lines: string[] = ["Nova is running!", ""];
+    if (tsIp) {
+      lines.push(`Admin UI (local):      http://localhost:${port}/web/console/`);
+      lines.push(`Admin UI (Tailscale):  http://${tsIp}:${port}/web/console/`);
+    } else {
+      lines.push(`Admin UI:  http://localhost:${port}/web/console/`);
+    }
+    lines.push("", "Or pair Telegram via CLI:", "  nova telegram pair");
+
+    console.log("\n" + box(lines));
   }
 
   console.log("\nNova init completed!\n");
