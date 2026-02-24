@@ -41,11 +41,11 @@ export function run() {
   if (fs.existsSync(telegramPath)) {
     try {
       const tg = JSON.parse(fs.readFileSync(telegramPath, "utf-8"));
-      if (tg.botToken && tg.chatId) {
-        const token = tg.botToken as string;
+      if (tg.token && tg.chatId) {
+        const token = tg.token as string;
         const masked = `${token.slice(0, 4)}...${token.slice(-3)}`;
         telegramStatus = `Paired (bot: ${masked}, chat: ${tg.chatId})`;
-      } else if (tg.botToken) {
+      } else if (tg.token) {
         telegramStatus = "Bot configured, not paired";
       }
     } catch {

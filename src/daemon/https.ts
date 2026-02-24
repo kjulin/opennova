@@ -27,6 +27,8 @@ import { createConsoleSkillsRouter } from "#api/console-skills.js";
 import { createConsoleSecretsRouter } from "#api/console-secrets.js";
 import { createSetupRouter } from "#api/setup.js";
 import { createConfigRouter } from "#api/config.js";
+import { createTelegramPairRouter, createTelegramUnpairRouter } from "./routes/telegram-pair.js";
+import { reloadChannels } from "./channels.js";
 
 const PORT = parseInt(process.env.NOVA_PORT || "3838", 10);
 
@@ -230,6 +232,10 @@ function createApp(workspaceDir: string): Hono {
   // Setup & Config API
   app.route("/api/setup", createSetupRouter(workspaceDir));
   app.route("/api/config", createConfigRouter(workspaceDir));
+
+  // Telegram pairing API
+  app.route("/api/telegram/pair", createTelegramPairRouter(workspaceDir, () => reloadChannels()));
+  app.route("/api/telegram/unpair", createTelegramUnpairRouter(workspaceDir));
 
   // Webapp at /web/tasklist (for Telegram mini app compatibility)
   app.get("/web/tasklist", (c) => c.redirect("/web/tasklist/"));
