@@ -1,30 +1,4 @@
-import fs from "fs";
-import path from "path";
-import { resolveWorkspace } from "../workspace.js";
-
-interface PidInfo {
-  pid: number;
-  port: number;
-}
-
-function readPidFile(): PidInfo | null {
-  const pidPath = path.join(resolveWorkspace(), "daemon.pid");
-  if (!fs.existsSync(pidPath)) return null;
-  try {
-    return JSON.parse(fs.readFileSync(pidPath, "utf-8"));
-  } catch {
-    return null;
-  }
-}
-
-function isRunning(pid: number): boolean {
-  try {
-    process.kill(pid, 0);
-    return true;
-  } catch {
-    return false;
-  }
-}
+import { readPidFile, isRunning } from "./utils.js";
 
 export async function run() {
   const subcommand = process.argv[3];

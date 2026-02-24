@@ -2,12 +2,12 @@ import fs from "fs";
 import path from "path";
 import { resolveWorkspace } from "../workspace.js";
 import { detectAuth } from "../auth.js";
+import { readPidFile, isRunning } from "./utils.js";
 
 export function run() {
   const workspaceDir = resolveWorkspace();
   const exists = fs.existsSync(workspaceDir);
 
-  console.log("\n-- Nova Status --\n");
   console.log(`Workspace:  ${workspaceDir}${exists ? "" : " (not found)"}`);
 
   if (!exists) {
@@ -25,55 +25,45 @@ export function run() {
     console.log("Auth:       Not configured");
   }
 
+  // Daemon
+  const pidInfo = readPidFile();
+  if (pidInfo && isRunning(pidInfo.pid)) {
+    console.log(`Daemon:     Running (pid ${pidInfo.pid}, port ${pidInfo.port})`);
+  } else if (pidInfo) {
+    console.log("Daemon:     Not running (stale PID file)");
+  } else {
+    console.log("Daemon:     Not running");
+  }
+
   // Telegram
-  const hasTelegram = fs.existsSync(path.join(workspaceDir, "telegram.json"));
-  console.log(`Telegram:   ${hasTelegram ? "Configured" : "Not configured"}`);
+  const telegramPath = path.join(workspaceDir, "telegram.json");
+  let telegramStatus = "Not configured";
+  if (fs.existsSync(telegramPath)) {
+    try {
+      const tg = JSON.parse(fs.readFileSync(telegramPath, "utf-8"));
+      if (tg.botToken && tg.chatId) {
+        const token = tg.botToken as string;
+        const masked = `${token.slice(0, 4)}...${token.slice(-3)}`;
+        telegramStatus = `Paired (bot: ${masked}, chat: ${tg.chatId})`;
+      } else if (tg.botToken) {
+        telegramStatus = "Bot configured, not paired";
+      }
+    } catch {
+      // ignore parse errors
+    }
+  }
+  console.log(`Telegram:   ${telegramStatus}`);
 
   // Agents
   const agentsDir = path.join(workspaceDir, "agents");
+  let agentCount = 0;
   if (fs.existsSync(agentsDir)) {
     const agentDirs = fs.readdirSync(agentsDir, { withFileTypes: true }).filter((d) => d.isDirectory());
-    const agentNames: string[] = [];
-    let totalTriggers = 0;
-    let totalThreads = 0;
-
     for (const dir of agentDirs) {
-      const configPath = path.join(agentsDir, dir.name, "agent.json");
-      if (!fs.existsSync(configPath)) continue;
-
-      try {
-        const config = JSON.parse(fs.readFileSync(configPath, "utf-8"));
-        const label = config.name || dir.name;
-        agentNames.push(`${label} [${config.trust}]`);
-      } catch {
-        agentNames.push(dir.name);
-      }
-
-      // Count triggers
-      const triggersPath = path.join(agentsDir, dir.name, "triggers.json");
-      if (fs.existsSync(triggersPath)) {
-        try {
-          const triggers = JSON.parse(fs.readFileSync(triggersPath, "utf-8"));
-          totalTriggers += Array.isArray(triggers) ? triggers.length : 0;
-        } catch {
-          // ignore
-        }
-      }
-
-      // Count threads
-      const threadsDir = path.join(agentsDir, dir.name, "threads");
-      if (fs.existsSync(threadsDir)) {
-        const threadFiles = fs.readdirSync(threadsDir).filter((f) => f.endsWith(".jsonl"));
-        totalThreads += threadFiles.length;
+      if (fs.existsSync(path.join(agentsDir, dir.name, "agent.json"))) {
+        agentCount++;
       }
     }
-
-    console.log(`Agents:     ${agentNames.length > 0 ? agentNames.join(", ") : "None"}`);
-    console.log(`Threads:    ${totalThreads}`);
-    console.log(`Triggers:   ${totalTriggers}`);
-  } else {
-    console.log("Agents:     None");
   }
-
-  console.log();
+  console.log(`Agents:     ${agentCount}`);
 }
