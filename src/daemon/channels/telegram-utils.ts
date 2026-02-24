@@ -7,6 +7,8 @@
  * when possible.
  */
 
+import type { Context, NextFunction } from "grammy";
+
 const TELEGRAM_MAX_LENGTH = 4096;
 
 /**
@@ -49,4 +51,15 @@ export function splitMessage(text: string, maxLength = TELEGRAM_MAX_LENGTH): str
   }
 
   return chunks;
+}
+
+export function chatGuard(authorizedChatId: string) {
+  return (ctx: Context, next: NextFunction) => {
+    const chatId = ctx.chat?.id;
+    if (!chatId || String(chatId) !== authorizedChatId) {
+      // Silent drop — don't leak bot existence to unauthorized users
+      return;
+    }
+    return next();
+  };
 }
