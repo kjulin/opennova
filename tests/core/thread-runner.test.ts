@@ -33,6 +33,7 @@ vi.mock("#core/agents.js", () => ({
 
 vi.mock("#core/capabilities.js", () => ({
   resolveCapabilities: vi.fn(() => ({})),
+  resolveInjections: vi.fn(() => ({})),
 }));
 
 vi.mock("#core/usage.js", () => ({
@@ -118,14 +119,14 @@ describe("AgentRunner", () => {
     );
   });
 
-  it("fires onThreadResponse callback", async () => {
+  it("fires onResponse callback", async () => {
     const mockEngine = createMockEngine();
     const runner = createAgentRunner(mockEngine);
-    const onThreadResponse = vi.fn();
+    const onResponse = vi.fn();
 
-    await runner.runAgent("/agents/test-agent", "thread-1", "Hello", { onThreadResponse });
+    await runner.runAgent("/agents/test-agent", "thread-1", "Hello", { onResponse });
 
-    expect(onThreadResponse).toHaveBeenCalledWith(
+    expect(onResponse).toHaveBeenCalledWith(
       "test-agent",
       "thread-1",
       "test",
@@ -225,20 +226,20 @@ describe("AgentRunner", () => {
     );
   });
 
-  it("fires onThreadError callback on error", async () => {
+  it("fires onError callback on error", async () => {
     const mockEngine: Engine = {
       async run() {
         throw new Error("Engine failed");
       },
     };
     const runner = createAgentRunner(mockEngine);
-    const onThreadError = vi.fn();
+    const onError = vi.fn();
 
     await expect(
-      runner.runAgent("/agents/test-agent", "thread-1", "Hello", { onThreadError })
+      runner.runAgent("/agents/test-agent", "thread-1", "Hello", { onError })
     ).rejects.toThrow("Engine failed");
 
-    expect(onThreadError).toHaveBeenCalledWith(
+    expect(onError).toHaveBeenCalledWith(
       "test-agent",
       "thread-1",
       "test",
