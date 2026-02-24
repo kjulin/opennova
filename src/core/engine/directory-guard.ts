@@ -1,6 +1,7 @@
 import path from "node:path";
 import type { CanUseTool, PermissionResult } from "@anthropic-ai/claude-agent-sdk";
 import type { TrustLevel } from "../schemas.js";
+import { log } from "../logger.js";
 
 export type { CanUseTool } from "@anthropic-ai/claude-agent-sdk";
 
@@ -34,18 +35,21 @@ export function createDirectoryGuard(trust: TrustLevel, cwd: string, directories
   return async (toolName, input) => {
     // Unrestricted agents have no directory restrictions.
     if (trust === "unrestricted") {
+      log.debug("directory-guard", `allow ${toolName} (unrestricted trust)`);
       return ALLOW;
     }
 
     const pathKey = FILE_PATH_TOOLS[toolName];
     if (!pathKey) {
       // Not a file tool — allow unconditionally.
+      log.debug("directory-guard", `allow ${toolName} (not a file tool)`);
       return ALLOW;
     }
 
     const rawPath = input[pathKey];
     if (rawPath == null || rawPath === "") {
       // Glob/Grep without an explicit path default to cwd inside the SDK.
+      log.debug("directory-guard", `allow ${toolName} (no path specified, defaults to cwd)`);
       return ALLOW;
     }
 
@@ -53,10 +57,12 @@ export function createDirectoryGuard(trust: TrustLevel, cwd: string, directories
 
     for (const dir of allowedDirs) {
       if (resolved === dir || resolved.startsWith(dir + path.sep)) {
+        log.debug("directory-guard", `allow ${toolName} ${resolved} (within ${dir})`);
         return ALLOW;
       }
     }
 
+    log.debug("directory-guard", `deny ${toolName} ${resolved} (outside allowed directories: ${allowedDirs.join(", ")})`);
     return {
       behavior: "deny" as const,
       message: `Access denied: ${resolved} is outside allowed directories`,
