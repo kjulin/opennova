@@ -60,7 +60,7 @@ describe("ClaudeEngine", () => {
         settingSources: ["project"],
         // Trust "controlled" adds permissionMode, allowedTools, disallowedTools
         permissionMode: "dontAsk",
-        disallowedTools: ["Bash"],
+        disallowedTools: ["Bash", "Task", "TaskOutput"],
       }),
     });
 

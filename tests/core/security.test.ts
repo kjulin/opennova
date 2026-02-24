@@ -25,10 +25,11 @@ describe("trustOptions", () => {
       expect(allowed).toContain("WebFetch");
     });
 
-    it("allows Task for subtasks", () => {
+    it("disallows Task (subagents bypass directory guard)", () => {
       const opts = trustOptions("sandbox");
-      const allowed = opts.allowedTools as string[];
-      expect(allowed).toContain("Task");
+      const disallowed = opts.disallowedTools as string[];
+      expect(disallowed).toContain("Task");
+      expect(disallowed).toContain("TaskOutput");
     });
 
     it("allows MCP memory tools", () => {
@@ -47,10 +48,12 @@ describe("trustOptions", () => {
       expect(allowed).not.toContain("Grep");
     });
 
-    it("does not allow Bash", () => {
+    it("does not allow Bash or Task in allowed list", () => {
       const opts = trustOptions("sandbox");
       const allowed = opts.allowedTools as string[];
       expect(allowed).not.toContain("Bash");
+      expect(allowed).not.toContain("Task");
+      expect(allowed).not.toContain("TaskOutput");
     });
 
     it("does not bypass permissions", () => {
@@ -82,11 +85,17 @@ describe("trustOptions", () => {
       expect(allowed).toContain("WebFetch");
     });
 
-    it("allows Task and NotebookEdit", () => {
+    it("allows NotebookEdit", () => {
       const opts = trustOptions("controlled");
       const allowed = opts.allowedTools as string[];
-      expect(allowed).toContain("Task");
       expect(allowed).toContain("NotebookEdit");
+    });
+
+    it("disallows Task (subagents bypass directory guard)", () => {
+      const opts = trustOptions("controlled");
+      const disallowed = opts.disallowedTools as string[];
+      expect(disallowed).toContain("Task");
+      expect(disallowed).toContain("TaskOutput");
     });
 
     it("allows MCP tools via wildcards", () => {
@@ -121,10 +130,13 @@ describe("trustOptions", () => {
       expect(opts.allowDangerouslySkipPermissions).toBe(true);
     });
 
-    it("does not restrict tools", () => {
+    it("does not restrict tools except Task", () => {
       const opts = trustOptions("unrestricted");
       expect(opts.allowedTools).toBeUndefined();
-      expect(opts.disallowedTools).toBeUndefined();
+      const disallowed = opts.disallowedTools as string[];
+      expect(disallowed).toContain("Task");
+      expect(disallowed).toContain("TaskOutput");
+      expect(disallowed).not.toContain("Bash");
     });
   });
 });
