@@ -14,7 +14,7 @@ import { runAgent } from "../runner.js";
 import { createTriggerMcpServer } from "../triggers.js";
 import { listNotes, getPinnedNotes } from "#notes/index.js";
 import { relativeTime, getWebAppHost, HTTPS_PORT } from "./telegram.js";
-import { splitMessage } from "./telegram-utils.js";
+import { splitMessage, chatGuard } from "./telegram-utils.js";
 import { log } from "../logger.js";
 
 function resolveThreadId(config: AgentBotConfig, agentDir: string, channel: string): string {
@@ -83,6 +83,7 @@ export function startAgentTelegram(
   const channel = `telegram:${agentId}`;
   const agentDir = path.join(Config.workspaceDir, "agents", agentId);
   const bot = new Bot(botConfig.token);
+  bot.use(chatGuard(botConfig.chatId));
   let activeAbortController: AbortController | null = null;
 
   log.info("telegram-agent", `agent ${agentId}: started`);
@@ -190,8 +191,6 @@ export function startAgentTelegram(
   bot.on("message:text", async (ctx) => {
     const chatId = ctx.chat.id;
     const text = ctx.message.text;
-
-    if (String(chatId) !== botConfig.chatId) return;
 
     if (text === "/help" || text === "/start") {
       const kb = buildReplyKeyboard();
@@ -355,7 +354,6 @@ export function startAgentTelegram(
     fileType: string,
   ) {
     const chatId = ctx.chat.id;
-    if (String(chatId) !== botConfig.chatId) return;
 
     // Telegram bot API download limit is 20MB
     if (fileSize && fileSize > 20 * 1024 * 1024) {
@@ -454,9 +452,6 @@ You can read, process, or move this file as needed.`;
   });
 
   bot.on("callback_query:data", async (ctx) => {
-    const chatId = ctx.callbackQuery.message?.chat.id;
-    if (!chatId || String(chatId) !== botConfig.chatId) return;
-
     const data = ctx.callbackQuery.data;
     if (!data.startsWith("thread:")) return;
 

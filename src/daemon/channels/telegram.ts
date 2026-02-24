@@ -22,7 +22,7 @@ import { createTriggerMcpServer } from "../triggers.js";
 import { getTask, loadTasks } from "#tasks/index.js";
 import { listNotes, getPinnedNotes } from "#notes/index.js";
 import { TELEGRAM_HELP_MESSAGE } from "./telegram-help.js";
-import { splitMessage } from "./telegram-utils.js";
+import { splitMessage, chatGuard } from "./telegram-utils.js";
 import { log } from "../logger.js";
 
 export const HTTPS_PORT = 3838;
@@ -140,6 +140,7 @@ export function startTelegram() {
   }
 
   const bot = new Bot(config.token);
+  bot.use(chatGuard(config.chatId));
   log.info("telegram", "channel started");
 
   let activeAbortController: AbortController | null = null;
@@ -295,8 +296,6 @@ export function startTelegram() {
     const chatId = ctx.chat.id;
     const text = ctx.message.text;
     const agents = loadAgents();
-
-    if (String(chatId) !== config.chatId) return;
 
     // Handle /help command
     if (text === "/help" || text === "/start") {
@@ -511,7 +510,6 @@ export function startTelegram() {
   // Voice message handler
   bot.on("message:voice", async (ctx) => {
     const chatId = ctx.chat.id;
-    if (String(chatId) !== config.chatId) return;
 
     const agents = loadAgents();
     const agentId = config.activeAgentId;
@@ -647,7 +645,7 @@ Please read it and respond to what I said.`;
     fileType: string,
   ) {
     const chatId = ctx.chat.id;
-    if (!config || String(chatId) !== config.chatId) return;
+    if (!config) return;
 
     const agents = loadAgents();
     const agentId = config.activeAgentId;
@@ -754,9 +752,6 @@ You can read, process, or move this file as needed.`;
 
   // Handle Mini App data (from sendData)
   bot.on("message:web_app_data", async (ctx) => {
-    const chatId = ctx.chat.id;
-    if (String(chatId) !== config.chatId) return;
-
     try {
       const data = JSON.parse(ctx.message.web_app_data.data);
 
@@ -839,7 +834,7 @@ You can read, process, or move this file as needed.`;
 
   bot.on("callback_query:data", async (ctx) => {
     const chatId = ctx.callbackQuery.message?.chat.id;
-    if (!chatId || String(chatId) !== config.chatId) return;
+    if (!chatId) return;
 
     const data = ctx.callbackQuery.data;
 
