@@ -160,12 +160,13 @@ export function confirmPairing(
   let chatName = user.firstName;
   if (user.lastName) chatName += ` ${user.lastName}`;
 
-  // Save chatId to telegram.json
+  // Save chatId to telegram.json, defaulting activeAgentId to "nova"
   const existing = readTelegram(workspaceDir) ?? {};
   writeTelegram(workspaceDir, {
     ...existing,
     chatId: String(user.chatId),
     chatName,
+    activeAgentId: existing.activeAgentId ?? "nova",
   });
 
   log.info("pairing", `pairing confirmed for chatId ${user.chatId}`);
