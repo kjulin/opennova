@@ -4,6 +4,7 @@ import {query, type SettingSource} from "@anthropic-ai/claude-agent-sdk";
 import { log } from "../logger.js";
 import { trustOptions } from "../security.js";
 import type { TrustLevel } from "../schemas.js";
+import { createDirectoryGuard } from "./directory-guard.js";
 import type { Engine, EngineOptions, EngineResult, EngineCallbacks } from "./types.js";
 
 /** Generate a short random run ID for log correlation */
@@ -71,8 +72,11 @@ async function execQuery(
   // Translate trust level into SDK permission options
   const sdkTrustOptions = trustOptions(trust, mcpToolPatterns.length > 0 ? mcpToolPatterns : undefined);
 
+  // Enforce directory boundaries via canUseTool (guard handles trust internally)
+  const canUseTool = createDirectoryGuard(trust, options.cwd, options.directories ?? []);
+
   const queryOptions = {
-    ...(options.cwd ? { cwd: options.cwd } : {}),
+    cwd: options.cwd,
     ...(options.directories && options.directories.length > 0 ? { additionalDirectories: options.directories } : {}),
     ...(options.systemPrompt ? { systemPrompt: options.systemPrompt } : {}),
     ...(options.agents ? { agents: options.agents } : {}),
@@ -80,6 +84,7 @@ async function execQuery(
     model: options.model ?? "opus",
     ...(options.maxTurns ? { maxTurns: options.maxTurns } : {}),
     ...sdkTrustOptions,
+    canUseTool,
     ...(sessionId ? { resume: sessionId } : {}),
     settingSources: ["project"] as SettingSource[],
   };

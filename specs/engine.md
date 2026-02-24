@@ -30,7 +30,7 @@ TrustLevel = "sandbox" | "controlled" | "unrestricted"
 ```
 EngineOptions {
   // Execution context
-  cwd?: string                    // working directory
+  cwd: string                     // working directory (set automatically from agent config)
   directories?: string[]          // additional accessible directories
 
   // Prompt
@@ -63,6 +63,28 @@ How trust maps to SDK parameters is an implementation detail of each Engine. For
 - `sandbox` → `permissionMode: "dontAsk"`, `allowedTools` restricted to MCP patterns only
 - `controlled` → `permissionMode: "dontAsk"`, `disallowedTools: ["Bash"]`
 - `unrestricted` → `permissionMode: "bypassPermissions"`, `allowDangerouslySkipPermissions: true`
+
+### Directory Enforcement
+
+The SDK's `cwd` and `additionalDirectories` options are informational — they tell Claude where to look but do not block access outside those paths. The Engine enforces directory boundaries using the SDK's `canUseTool` callback via a **directory guard** (`createDirectoryGuard`).
+
+The guard is always attached. It receives the trust level and handles enforcement internally:
+
+- **`unrestricted`** — all tools allowed, no directory checks.
+- **`controlled` / `sandbox`** — file-bearing tools are checked against `[cwd, ...directories]`. Non-file tools pass through.
+
+File-bearing tools and the input key checked:
+
+| Tool | Input key |
+|------|-----------|
+| Read, Write, Edit | `file_path` |
+| NotebookEdit | `notebook_path` |
+| Glob, Grep | `path` (optional — if missing, SDK defaults to cwd) |
+
+Path resolution:
+- Relative paths are resolved against `cwd` via `path.resolve()`.
+- A path is allowed if it equals an allowed directory or starts with `<dir>/` (using `path.sep` to prevent prefix collisions like `/project` matching `/project-other`).
+- Denied tools receive `{ behavior: "deny", message: "Access denied: <path> is outside allowed directories" }`.
 
 ## EngineResult
 
@@ -140,6 +162,7 @@ If session resume fails (SDK error), Engine automatically retries as a new conve
 
 - AI SDK query execution
 - Trust → SDK permission mapping
+- Directory enforcement via `canUseTool` callback
 - Event stream processing (assistant text, tool use, results)
 - Callback dispatch with human-friendly tool status messages
 - Session resume with automatic fallback
