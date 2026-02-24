@@ -1,12 +1,12 @@
 import fs from "fs";
 import path from "path";
 import os from "os";
-import https from "https";
 import readline from "readline/promises";
 import { execFileSync } from "child_process";
 import { detectAuth } from "../auth.js";
 import { Config } from "#core/config.js";
 import { downloadEmbeddingModel, isModelAvailable } from "#core/episodic/index.js";
+import { waitForHealth } from "./utils.js";
 
 const platform = process.platform;
 const DEFAULT_PORT = 3838;
@@ -122,31 +122,6 @@ WantedBy=multi-user.target
   console.log("  Daemon installed as systemd service.");
 }
 
-function probeHealth(port: number): Promise<boolean> {
-  return new Promise((resolve) => {
-    // Try HTTP first (default now)
-    fetch(`http://127.0.0.1:${port}/api/health`, { signal: AbortSignal.timeout(2000) })
-      .then((res) => resolve(res.ok))
-      .catch(() => {
-        // HTTP failed, try HTTPS (legacy/Tailscale)
-        const req = https.get(
-          { hostname: "127.0.0.1", port, path: "/api/health", rejectUnauthorized: false, timeout: 2000 },
-          (res) => resolve(res.statusCode === 200),
-        );
-        req.on("error", () => resolve(false));
-        req.on("timeout", () => { req.destroy(); resolve(false); });
-      });
-  });
-}
-
-async function waitForHealth(port: number, maxMs = 30000): Promise<boolean> {
-  const start = Date.now();
-  while (Date.now() - start < maxMs) {
-    if (await probeHealth(port)) return true;
-    await new Promise((r) => setTimeout(r, 500));
-  }
-  return false;
-}
 
 export async function run() {
   const port = parsePort();
