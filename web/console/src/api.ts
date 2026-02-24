@@ -1,4 +1,4 @@
-import type { Agent, AgentsResponse, Skill, SkillsResponse, Trigger, TriggersResponse, SecretsResponse, ConfigResponse } from "@/types";
+import type { Agent, AgentsResponse, Skill, SkillsResponse, Trigger, TriggersResponse, SecretsResponse, ConfigResponse, PairingStatus } from "@/types";
 
 const API_BASE = "/api/console";
 const CONFIG_API = "/api/config";
@@ -181,6 +181,12 @@ export async function updateDaemon(autoStart: boolean): Promise<{ ok: true; auto
 export async function pairTelegram(): Promise<{ ok: true }> {
   const res = await fetch(`${CONFIG_API}/telegram/pair`, { method: "POST" });
   if (!res.ok) throw new Error("Failed to re-pair Telegram");
+  return res.json();
+}
+
+export async function fetchPairStatus(): Promise<PairingStatus> {
+  const res = await fetch(`${CONFIG_API}/telegram/pair/status`);
+  if (!res.ok) throw new Error("Failed to fetch pairing status");
   return res.json();
 }
 
