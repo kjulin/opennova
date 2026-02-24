@@ -312,7 +312,7 @@ export function startServer(workspaceDir: string): DaemonServer {
   const server = serve({
     fetch: app.fetch,
     port: PORT,
-    hostname: "127.0.0.1",
+    hostname: "0.0.0.0",
     createServer: http.createServer,
   });
 
