@@ -30,7 +30,7 @@ export interface EngineResult {
 
 export interface EngineOptions {
   // Working directory and paths
-  cwd?: string | undefined;
+  cwd: string;
   directories?: string[] | undefined;
 
   // Prompt configuration

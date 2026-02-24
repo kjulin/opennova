@@ -91,7 +91,7 @@ describe("ClaudeEngine", () => {
     mockQuery.mockReturnValue(mockGenerator());
 
     const engine = createClaudeEngine();
-    await engine.run("Continue", {}, "controlled", "sess-123");
+    await engine.run("Continue", { cwd: "/test" }, "controlled", "sess-123");
 
     expect(mockQuery).toHaveBeenCalledWith({
       prompt: "Continue",
@@ -126,7 +126,7 @@ describe("ClaudeEngine", () => {
     });
 
     const engine = createClaudeEngine();
-    const result = await engine.run("Hello", {}, "controlled", "old-session");
+    const result = await engine.run("Hello", { cwd: "/test" }, "controlled", "old-session");
 
     expect(mockQuery).toHaveBeenCalledTimes(2);
     expect(result.text).toBe("Fresh start");
@@ -160,7 +160,7 @@ describe("ClaudeEngine", () => {
     };
 
     const engine = createClaudeEngine();
-    await engine.run("Read file", {}, "controlled", undefined, callbacks);
+    await engine.run("Read file", { cwd: "/test" }, "controlled", undefined, callbacks);
 
     expect(callbacks.onToolUse).toHaveBeenCalledWith(
       "Read",
@@ -198,7 +198,7 @@ describe("ClaudeEngine", () => {
     };
 
     const engine = createClaudeEngine();
-    await engine.run("Read file", {}, "controlled", undefined, callbacks);
+    await engine.run("Read file", { cwd: "/test" }, "controlled", undefined, callbacks);
 
     expect(callbacks.onAssistantMessage).toHaveBeenCalledWith("Let me check that file");
   });
@@ -218,7 +218,7 @@ describe("ClaudeEngine", () => {
     mockQuery.mockReturnValue(mockGenerator());
 
     const engine = createClaudeEngine();
-    await engine.run("Hello", {}, "unrestricted");
+    await engine.run("Hello", { cwd: "/test" }, "unrestricted");
 
     expect(mockQuery).toHaveBeenCalledWith({
       prompt: "Hello",
@@ -247,6 +247,7 @@ describe("ClaudeEngine", () => {
 
     const engine = createClaudeEngine();
     await engine.run("Hello", {
+      cwd: "/test",
       mcpServers: {
         memory: {} as any,
         "custom-cap": {} as any,
@@ -277,7 +278,7 @@ describe("ClaudeEngine", () => {
     mockQuery.mockReturnValue(mockGenerator());
 
     const engine = createClaudeEngine();
-    const result = await engine.run("Hello", {}, "controlled", undefined, undefined, abortController);
+    const result = await engine.run("Hello", { cwd: "/test" }, "controlled", undefined, undefined, abortController);
 
     expect(result.text).toBe("");
   });
