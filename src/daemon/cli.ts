@@ -85,6 +85,20 @@ switch (command) {
     await run();
     break;
   }
+  case "telegram": {
+    const subcommand = process.argv[3];
+    if (subcommand === "pair") {
+      const { run } = await import("./commands/telegram.js");
+      await run("pair");
+    } else if (subcommand === "unpair") {
+      const { run } = await import("./commands/telegram.js");
+      await run("unpair");
+    } else {
+      console.log("Usage: nova telegram <pair|unpair>");
+      process.exit(1);
+    }
+    break;
+  }
   case "transcription": {
     const os = await import("os");
     const { Config } = await import("#core/index.js");
@@ -116,6 +130,8 @@ switch (command) {
     console.log("  start                         Start the daemon");
     console.log("  stop                          Stop the daemon");
     console.log("  status                        Show system status");
+    console.log("  telegram pair                 Connect a Telegram bot");
+    console.log("  telegram unpair               Disconnect Telegram bot");
     console.log("  daemon                        Start the daemon in foreground");
     console.log("  config list                   Show all configuration");
     console.log("  config get <key>              Get a config value");

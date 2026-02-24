@@ -191,7 +191,7 @@ export function createConfigRouter(workspaceDir: string): Hono {
   });
 
   // POST /telegram/pair — re-pair Telegram
-  app.post("/telegram/pair", (c) => {
+  app.post("/telegram/pair", async (c) => {
     const telegram = readTelegram(workspaceDir);
     if (!telegram?.token) {
       return c.json({ error: "telegram not configured" }, 400);
@@ -201,7 +201,7 @@ export function createConfigRouter(workspaceDir: string): Hono {
     writeTelegram(workspaceDir, rest);
 
     // Start pairing session
-    startPairing(telegram.token, workspaceDir, () => reloadChannels());
+    await startPairing(telegram.token, workspaceDir, () => reloadChannels());
 
     return c.json({ ok: true });
   });

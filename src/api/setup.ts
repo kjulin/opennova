@@ -177,7 +177,7 @@ export function createSetupRouter(workspaceDir: string): Hono {
     writeTelegram(workspaceDir, { ...existing, token, activeAgentId: agentId ?? "" });
 
     // Start pairing session so the frontend polling picks up the result
-    startPairing(token, workspaceDir, () => reloadChannels());
+    await startPairing(token, workspaceDir, () => reloadChannels());
 
     return c.json({ ok: true });
   });
@@ -200,11 +200,10 @@ export function createSetupRouter(workspaceDir: string): Hono {
 
     // Check active pairing session
     const pairing = getPairingStatus();
-    if (pairing.status === "paired") {
+    if (pairing.status === "message_received") {
       return c.json({
-        status: "paired",
-        chatId: pairing.chatId,
-        ...(pairing.chatName ? { chatName: pairing.chatName } : {}),
+        status: "message_received",
+        user: pairing.user,
       });
     }
     if (pairing.status === "error") {
