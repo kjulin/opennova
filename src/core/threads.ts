@@ -9,7 +9,7 @@ export type ChannelType = string;
 export interface ThreadManifest {
   title?: string;
   channel: ChannelType;
-  agentId: string;
+  agentId?: string;
   sessionId?: string;
   createdAt: string;
   updatedAt: string;
@@ -124,6 +124,7 @@ export function listThreads(agentDir: string): ThreadInfo[] {
     const id = file.replace(".jsonl", "");
     try {
       const manifest = loadManifest(path.join(threadsDir, file));
+      if (!manifest.agentId) manifest.agentId = agentId;
       threads.push({ id, agentId, manifest });
     } catch {
       // skip corrupt files
@@ -183,7 +184,9 @@ export function findThread(workspaceDir: string, threadId: string): ThreadManife
 export function getThreadManifest(agentId: string, threadId: string): ThreadManifest {
   const agentDir = path.join(Config.workspaceDir, "agents", agentId);
   const filePath = threadPath(agentDir, threadId);
-  return loadManifest(filePath);
+  const manifest = loadManifest(filePath);
+  if (!manifest.agentId) manifest.agentId = agentId;
+  return manifest;
 }
 
 export function updateThreadChannel(agentId: string, threadId: string, channel: string): void {
