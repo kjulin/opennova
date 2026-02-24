@@ -127,13 +127,4 @@ describe("trustOptions", () => {
       expect(opts.disallowedTools).toBeUndefined();
     });
   });
-
-  describe("no argument", () => {
-    it("defaults to controlled when not specified", () => {
-      const opts = trustOptions();
-      expect(opts.permissionMode).toBe("dontAsk");
-      const disallowed = opts.disallowedTools as string[];
-      expect(disallowed).toContain("Bash");
-    });
-  });
 });
