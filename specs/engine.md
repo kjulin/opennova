@@ -58,15 +58,19 @@ Trust controls what SDK-native tools the Engine makes available. It is the Engin
 
 Each level strictly adds to the previous. MCP servers (capabilities) work at every trust level — trust only governs SDK-native tools.
 
+**Subagents (Task tool) are disabled at all trust levels.** The SDK's Task tool spawns subagents that do not inherit the parent's PreToolUse hooks (hooks are session-scoped in the SDK) and receive the agent config directory as their cwd rather than the project directory. This means subagents would bypass directory enforcement and operate in the wrong directory. All trust levels include `Task` and `TaskOutput` in `disallowedTools`. The SDK evaluates deny rules before `bypassPermissions`, so this holds even for unrestricted agents.
+
 How trust maps to SDK parameters is an implementation detail of each Engine. For the Claude Agent SDK engine:
 
-- `sandbox` → `permissionMode: "dontAsk"`, `allowedTools` restricted to MCP patterns only
-- `controlled` → `permissionMode: "dontAsk"`, `disallowedTools: ["Bash"]`
-- `unrestricted` → `permissionMode: "bypassPermissions"`, `allowDangerouslySkipPermissions: true`
+- `sandbox` → `permissionMode: "dontAsk"`, `allowedTools` restricted to MCP patterns only, `disallowedTools: ["Bash", "Task", "TaskOutput"]`
+- `controlled` → `permissionMode: "dontAsk"`, `disallowedTools: ["Bash", "Task", "TaskOutput"]`
+- `unrestricted` → `permissionMode: "bypassPermissions"`, `allowDangerouslySkipPermissions: true`, `disallowedTools: ["Task", "TaskOutput"]`
 
 ### Directory Enforcement
 
-The SDK's `cwd` and `additionalDirectories` options are informational — they tell Claude where to look but do not block access outside those paths. The Engine enforces directory boundaries using the SDK's `canUseTool` callback via a **directory guard** (`createDirectoryGuard`).
+The SDK's `cwd` and `additionalDirectories` options are informational — they tell Claude where to look but do not block access outside those paths. The Engine enforces directory boundaries using a **PreToolUse hook** via `createDirectoryGuard`.
+
+The guard uses a PreToolUse hook rather than the SDK's `canUseTool` callback because `canUseTool` is never invoked for tools listed in `allowedTools` — the SDK auto-approves them first. PreToolUse hooks run before all SDK permission checks, ensuring the directory guard is always evaluated.
 
 The guard is always attached. It receives the trust level and handles enforcement internally:
 
@@ -84,7 +88,7 @@ File-bearing tools and the input key checked:
 Path resolution:
 - Relative paths are resolved against `cwd` via `path.resolve()`.
 - A path is allowed if it equals an allowed directory or starts with `<dir>/` (using `path.sep` to prevent prefix collisions like `/project` matching `/project-other`).
-- Denied tools receive `{ behavior: "deny", message: "Access denied: <path> is outside allowed directories" }`.
+- Denied tools return `{ permissionDecision: "deny", permissionDecisionReason: "Access denied: <path> is outside allowed directories" }`.
 
 ## EngineResult
 
@@ -162,7 +166,7 @@ If session resume fails (SDK error), Engine automatically retries as a new conve
 
 - AI SDK query execution
 - Trust → SDK permission mapping
-- Directory enforcement via `canUseTool` callback
+- Directory enforcement via PreToolUse hook
 - Event stream processing (assistant text, tool use, results)
 - Callback dispatch with human-friendly tool status messages
 - Session resume with automatic fallback

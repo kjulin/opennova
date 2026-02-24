@@ -6,16 +6,16 @@ import { log } from "./logger.js";
 // MCP wildcards pre-approve all tools exposed by each server.
 const STANDARD_ALLOWED_TOOLS = [
   "Skill", "Read", "Write", "Edit", "Glob", "Grep",
-  "WebSearch", "WebFetch", "Task", "TaskOutput", "NotebookEdit",
+  "WebSearch", "WebFetch", "NotebookEdit",
   "mcp__memory__*", "mcp__history__*", "mcp__triggers__*", "mcp__agents__*", "mcp__agent-management__*", "mcp__suggest-edit__*", "mcp__self__*", "mcp__media__*", "mcp__tasks__*", "mcp__notes__*", "mcp__notify-user__*", "mcp__secrets__*",
 ];
 
 /**
  * Map a trust level to Claude Agent SDK query options.
  *
- * - sandbox:      dontAsk — only web search and subtasks allowed.
- * - controlled:   dontAsk — file tools, web, MCP tools; Bash blocked.
- * - unrestricted: bypassPermissions — all tools, no restrictions.
+ * - sandbox:      dontAsk — only web search allowed; Bash + Task blocked.
+ * - controlled:   dontAsk — file tools, web, MCP tools; Bash + Task blocked.
+ * - unrestricted: bypassPermissions — all tools except Task.
  */
 export function trustOptions(level: TrustLevel, extraAllowedTools?: string[]): Record<string, unknown> {
   const opts = buildOptions(level);
@@ -31,18 +31,20 @@ function buildOptions(level: TrustLevel): Record<string, unknown> {
     case "sandbox":
       return {
         permissionMode: "dontAsk",
-        allowedTools: ["Skill", "WebSearch", "WebFetch", "Task", "TaskOutput", "mcp__memory__*", "mcp__history__*", "mcp__agents__*", "mcp__agent-management__*", "mcp__triggers__*", "mcp__suggest-edit__*", "mcp__tasks__*", "mcp__notes__*", "mcp__notify-user__*"],
+        disallowedTools: ["Bash", "Task", "TaskOutput"],
+        allowedTools: ["Skill", "WebSearch", "WebFetch", "mcp__memory__*", "mcp__history__*", "mcp__agents__*", "mcp__agent-management__*", "mcp__triggers__*", "mcp__suggest-edit__*", "mcp__tasks__*", "mcp__notes__*", "mcp__notify-user__*"],
       };
     case "controlled":
       return {
         permissionMode: "dontAsk",
-        disallowedTools: ["Bash"],
+        disallowedTools: ["Bash", "Task", "TaskOutput"],
         allowedTools: STANDARD_ALLOWED_TOOLS,
       };
     case "unrestricted":
       return {
         allowDangerouslySkipPermissions: true,
         permissionMode: "bypassPermissions",
+        disallowedTools: ["Task", "TaskOutput"],
       };
   }
 }
