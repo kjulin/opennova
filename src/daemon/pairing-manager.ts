@@ -172,6 +172,21 @@ export function confirmPairing(
   log.info("pairing", `pairing confirmed for chatId ${user.chatId}`);
   state = { status: "idle" };
 
+  // Send welcome message via Telegram API
+  const token = existing.token ?? readTelegram(workspaceDir)?.token;
+  if (token) {
+    fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        chat_id: user.chatId,
+        text: `Hi ${user.firstName}! Nova is connected and ready.`,
+      }),
+    }).catch((err) => {
+      log.warn("pairing", "failed to send welcome message:", err);
+    });
+  }
+
   if (onPaired) {
     try {
       onPaired();
