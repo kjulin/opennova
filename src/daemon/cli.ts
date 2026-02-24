@@ -15,6 +15,16 @@ if (arg === "--version" || arg === "-v") {
 const command = arg;
 
 switch (command) {
+  case "start": {
+    const { run } = await import("./commands/start.js");
+    await run();
+    break;
+  }
+  case "stop": {
+    const { run } = await import("./commands/stop.js");
+    await run();
+    break;
+  }
   case "daemon": {
     const { run } = await import("./commands/daemon.js");
     await run();
@@ -102,10 +112,11 @@ switch (command) {
   default:
     console.log("Usage: nova <command>\n");
     console.log("Commands:");
-    console.log("  init [--port <port>]           Set up nova workspace and start daemon");
+    console.log("  init [--port <port>]           Set up workspace and start daemon");
+    console.log("  start                         Start the daemon");
+    console.log("  stop                          Stop the daemon");
+    console.log("  status                        Show system status");
     console.log("  daemon                        Start the daemon in foreground");
-    console.log("  daemon status                 Show daemon status");
-    console.log("  daemon stop                   Stop the daemon");
     console.log("  config list                   Show all configuration");
     console.log("  config get <key>              Get a config value");
     console.log("  config set <key> <value>      Set a config value");
@@ -122,7 +133,6 @@ switch (command) {
     console.log("  secrets get <name>                Get a secret value");
     console.log("  secrets list                      List secret names");
     console.log("  secrets delete <name>             Delete a secret");
-    console.log("  status                        Show workspace and configuration status");
     console.log("  usage [--today|--week|--month] Show current period usage by agent");
     console.log("  usage weekly                  Show week-by-week usage");
     console.log("  usage monthly                 Show month-by-month usage");
