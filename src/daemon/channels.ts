@@ -15,6 +15,28 @@ export interface LoadChannelsResult {
   shutdown: () => void;
 }
 
+let currentShutdown: (() => void) | null = null;
+
+export function reloadChannels(): void {
+  if (currentShutdown) {
+    log.info("channels", "shutting down channels for reload");
+    try { currentShutdown(); } catch (err) {
+      log.error("channels", "shutdown error during reload:", err);
+    }
+    currentShutdown = null;
+  }
+
+  log.info("channels", "reloading channels");
+  const result = loadChannels();
+  for (const ch of result.channels) {
+    log.info("channels", `channel: ${ch.name} (${ch.detail})`);
+  }
+}
+
+export function getCurrentShutdown(): (() => void) | null {
+  return currentShutdown;
+}
+
 export function loadChannels(): LoadChannelsResult {
   const channels: ChannelInfo[] = [];
   const shutdowns: (() => void)[] = [];
@@ -50,14 +72,15 @@ export function loadChannels(): LoadChannelsResult {
     }
   }
 
-  return {
-    channels,
-    shutdown() {
-      for (const fn of shutdowns) {
-        try { fn(); } catch (err) {
-          log.error("channels", "shutdown error:", err);
-        }
+  const shutdown = () => {
+    for (const fn of shutdowns) {
+      try { fn(); } catch (err) {
+        log.error("channels", "shutdown error:", err);
       }
-    },
+    }
   };
+
+  currentShutdown = shutdown;
+
+  return { channels, shutdown };
 }

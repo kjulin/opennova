@@ -7,6 +7,8 @@ import { execFileSync } from "child_process";
 import { detectAuth } from "#daemon/auth.js";
 import { listSecretNames, setSecret, addSecretName } from "#core/secrets.js";
 import { safeParseJsonFile } from "#core/schemas.js";
+import { startPairing, getPairingStatus } from "#daemon/pairing-manager.js";
+import { reloadChannels } from "#daemon/channels.js";
 
 function readSettings(workspaceDir: string): Record<string, unknown> {
   const p = path.join(workspaceDir, "settings.json");
@@ -191,13 +193,23 @@ export function createConfigRouter(workspaceDir: string): Hono {
   // POST /telegram/pair — re-pair Telegram
   app.post("/telegram/pair", (c) => {
     const telegram = readTelegram(workspaceDir);
-    if (!telegram) {
+    if (!telegram?.token) {
       return c.json({ error: "telegram not configured" }, 400);
     }
 
-    const { chatId: _removed, ...rest } = telegram;
+    const { chatId: _removed, chatName: _removedName, ...rest } = telegram;
     writeTelegram(workspaceDir, rest);
+
+    // Start pairing session
+    startPairing(telegram.token, workspaceDir, () => reloadChannels());
+
     return c.json({ ok: true });
+  });
+
+  // GET /telegram/pair/status — pairing session status
+  app.get("/telegram/pair/status", (c) => {
+    const pairing = getPairingStatus();
+    return c.json(pairing);
   });
 
   // POST /audio/tts — update TTS settings (OpenAI key)
