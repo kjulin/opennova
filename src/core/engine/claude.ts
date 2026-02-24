@@ -72,8 +72,10 @@ async function execQuery(
   // Translate trust level into SDK permission options
   const sdkTrustOptions = trustOptions(trust, mcpToolPatterns.length > 0 ? mcpToolPatterns : undefined);
 
-  // Enforce directory boundaries via canUseTool (guard handles trust internally)
-  const canUseTool = createDirectoryGuard(trust, options.cwd, options.directories ?? []);
+  // Enforce directory boundaries via PreToolUse hook.
+  // This must be a hook (not canUseTool) because the SDK auto-allows tools
+  // in allowedTools before canUseTool is consulted.
+  const directoryGuard = createDirectoryGuard(trust, options.cwd, options.directories ?? []);
 
   const queryOptions = {
     cwd: options.cwd,
@@ -84,7 +86,7 @@ async function execQuery(
     model: options.model ?? "opus",
     ...(options.maxTurns ? { maxTurns: options.maxTurns } : {}),
     ...sdkTrustOptions,
-    canUseTool,
+    hooks: { PreToolUse: [directoryGuard] },
     ...(sessionId ? { resume: sessionId } : {}),
     settingSources: ["project"] as SettingSource[],
   };

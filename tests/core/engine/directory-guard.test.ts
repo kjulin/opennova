@@ -1,11 +1,54 @@
 import { describe, it, expect } from "vitest";
+import type { SyncHookJSONOutput, PreToolUseHookInput } from "@anthropic-ai/claude-agent-sdk";
 import { createDirectoryGuard } from "#core/engine/directory-guard.js";
 
 const CWD = "/home/user/project";
 
-// Helper: call the guard with a minimal options object.
-function call(guard: Awaited<ReturnType<typeof createDirectoryGuard>>, tool: string, input: Record<string, unknown>) {
-  return guard(tool, input, { signal: AbortSignal.abort() } as any);
+/** Build a minimal PreToolUse hook input. */
+function hookInput(tool: string, input: Record<string, unknown>): PreToolUseHookInput {
+  return {
+    session_id: "test",
+    transcript_path: "/tmp/transcript",
+    cwd: CWD,
+    hook_event_name: "PreToolUse",
+    tool_name: tool,
+    tool_input: input,
+    tool_use_id: "tu_test",
+  };
+}
+
+/** Call the guard hook and return the result. */
+async function call(
+  guard: ReturnType<typeof createDirectoryGuard>,
+  tool: string,
+  input: Record<string, unknown>,
+): Promise<SyncHookJSONOutput> {
+  const hook = guard.hooks[0];
+  return hook(hookInput(tool, input), "tu_test", { signal: AbortSignal.abort() }) as Promise<SyncHookJSONOutput>;
+}
+
+/** Check if the result represents an allow. */
+function isAllow(result: SyncHookJSONOutput): boolean {
+  return result.continue === true && !result.hookSpecificOutput;
+}
+
+/** Check if the result represents a deny. */
+function isDeny(result: SyncHookJSONOutput): boolean {
+  const output = result.hookSpecificOutput;
+  return (
+    output !== undefined &&
+    "permissionDecision" in output &&
+    output.permissionDecision === "deny"
+  );
+}
+
+/** Extract the deny message from a result. */
+function denyMessage(result: SyncHookJSONOutput): string | undefined {
+  const output = result.hookSpecificOutput;
+  if (output && "permissionDecisionReason" in output) {
+    return output.permissionDecisionReason;
+  }
+  return undefined;
 }
 
 describe("createDirectoryGuard", () => {
@@ -13,55 +56,43 @@ describe("createDirectoryGuard", () => {
     const guard = createDirectoryGuard("controlled", CWD, ["/shared/data"]);
 
     it("allows Read inside cwd", async () => {
-      const result = await call(guard, "Read", { file_path: "/home/user/project/src/index.ts" });
-      expect(result).toEqual({ behavior: "allow" });
+      expect(isAllow(await call(guard, "Read", { file_path: "/home/user/project/src/index.ts" }))).toBe(true);
     });
 
     it("allows Read inside additional directory", async () => {
-      const result = await call(guard, "Read", { file_path: "/shared/data/config.json" });
-      expect(result).toEqual({ behavior: "allow" });
+      expect(isAllow(await call(guard, "Read", { file_path: "/shared/data/config.json" }))).toBe(true);
     });
 
     it("allows Read of cwd itself", async () => {
-      const result = await call(guard, "Read", { file_path: CWD });
-      expect(result).toEqual({ behavior: "allow" });
+      expect(isAllow(await call(guard, "Read", { file_path: CWD }))).toBe(true);
     });
 
     it("denies Read outside allowed directories", async () => {
       const result = await call(guard, "Read", { file_path: "/etc/passwd" });
-      expect(result).toEqual({
-        behavior: "deny",
-        message: "Access denied: /etc/passwd is outside allowed directories",
-      });
+      expect(isDeny(result)).toBe(true);
+      expect(denyMessage(result)).toBe("Access denied: /etc/passwd is outside allowed directories");
     });
 
     it("denies paths that share a prefix but aren't inside the directory", async () => {
       const result = await call(guard, "Read", { file_path: "/home/user/project-other/file.txt" });
-      expect(result).toEqual({
-        behavior: "deny",
-        message: "Access denied: /home/user/project-other/file.txt is outside allowed directories",
-      });
+      expect(isDeny(result)).toBe(true);
+      expect(denyMessage(result)).toBe("Access denied: /home/user/project-other/file.txt is outside allowed directories");
     });
 
     it("denies traversal via ../", async () => {
       const result = await call(guard, "Read", { file_path: "/home/user/project/../../../etc/passwd" });
-      expect(result).toEqual({
-        behavior: "deny",
-        message: "Access denied: /etc/passwd is outside allowed directories",
-      });
+      expect(isDeny(result)).toBe(true);
+      expect(denyMessage(result)).toBe("Access denied: /etc/passwd is outside allowed directories");
     });
 
     it("resolves relative paths against cwd", async () => {
-      const result = await call(guard, "Read", { file_path: "src/index.ts" });
-      expect(result).toEqual({ behavior: "allow" });
+      expect(isAllow(await call(guard, "Read", { file_path: "src/index.ts" }))).toBe(true);
     });
 
     it("denies relative path that escapes cwd", async () => {
       const result = await call(guard, "Read", { file_path: "../../etc/shadow" });
-      expect(result).toEqual({
-        behavior: "deny",
-        message: expect.stringContaining("is outside allowed directories"),
-      });
+      expect(isDeny(result)).toBe(true);
+      expect(denyMessage(result)).toContain("is outside allowed directories");
     });
   });
 
@@ -69,38 +100,31 @@ describe("createDirectoryGuard", () => {
     const guard = createDirectoryGuard("controlled", CWD, []);
 
     it("checks Write via file_path", async () => {
-      const result = await call(guard, "Write", { file_path: "/etc/hosts" });
-      expect(result.behavior).toBe("deny");
+      expect(isDeny(await call(guard, "Write", { file_path: "/etc/hosts" }))).toBe(true);
     });
 
     it("checks Edit via file_path", async () => {
-      const result = await call(guard, "Edit", { file_path: "/etc/hosts" });
-      expect(result.behavior).toBe("deny");
+      expect(isDeny(await call(guard, "Edit", { file_path: "/etc/hosts" }))).toBe(true);
     });
 
     it("checks NotebookEdit via notebook_path", async () => {
-      const result = await call(guard, "NotebookEdit", { notebook_path: "/etc/notebook.ipynb" });
-      expect(result.behavior).toBe("deny");
+      expect(isDeny(await call(guard, "NotebookEdit", { notebook_path: "/etc/notebook.ipynb" }))).toBe(true);
     });
 
     it("checks Glob via path", async () => {
-      const result = await call(guard, "Glob", { path: "/etc", pattern: "*.conf" });
-      expect(result.behavior).toBe("deny");
+      expect(isDeny(await call(guard, "Glob", { path: "/etc", pattern: "*.conf" }))).toBe(true);
     });
 
     it("checks Grep via path", async () => {
-      const result = await call(guard, "Grep", { path: "/etc", pattern: "root" });
-      expect(result.behavior).toBe("deny");
+      expect(isDeny(await call(guard, "Grep", { path: "/etc", pattern: "root" }))).toBe(true);
     });
 
     it("allows Glob without path (defaults to cwd in SDK)", async () => {
-      const result = await call(guard, "Glob", { pattern: "*.ts" });
-      expect(result).toEqual({ behavior: "allow" });
+      expect(isAllow(await call(guard, "Glob", { pattern: "*.ts" }))).toBe(true);
     });
 
     it("allows Grep without path (defaults to cwd in SDK)", async () => {
-      const result = await call(guard, "Grep", { pattern: "TODO" });
-      expect(result).toEqual({ behavior: "allow" });
+      expect(isAllow(await call(guard, "Grep", { pattern: "TODO" }))).toBe(true);
     });
   });
 
@@ -108,19 +132,19 @@ describe("createDirectoryGuard", () => {
     const guard = createDirectoryGuard("controlled", CWD, []);
 
     it("allows Bash", async () => {
-      expect(await call(guard, "Bash", { command: "rm -rf /" })).toEqual({ behavior: "allow" });
+      expect(isAllow(await call(guard, "Bash", { command: "rm -rf /" }))).toBe(true);
     });
 
     it("allows WebSearch", async () => {
-      expect(await call(guard, "WebSearch", { query: "test" })).toEqual({ behavior: "allow" });
+      expect(isAllow(await call(guard, "WebSearch", { query: "test" }))).toBe(true);
     });
 
     it("allows Task", async () => {
-      expect(await call(guard, "Task", { prompt: "do something" })).toEqual({ behavior: "allow" });
+      expect(isAllow(await call(guard, "Task", { prompt: "do something" }))).toBe(true);
     });
 
     it("allows MCP tools", async () => {
-      expect(await call(guard, "mcp__memory__store", { key: "val" })).toEqual({ behavior: "allow" });
+      expect(isAllow(await call(guard, "mcp__memory__store", { key: "val" }))).toBe(true);
     });
   });
 
@@ -128,8 +152,8 @@ describe("createDirectoryGuard", () => {
     const guard = createDirectoryGuard("sandbox", CWD, []);
 
     it("enforces directory boundaries the same as controlled", async () => {
-      expect((await call(guard, "Read", { file_path: "/etc/passwd" })).behavior).toBe("deny");
-      expect((await call(guard, "Read", { file_path: `${CWD}/file.txt` })).behavior).toBe("allow");
+      expect(isDeny(await call(guard, "Read", { file_path: "/etc/passwd" }))).toBe(true);
+      expect(isAllow(await call(guard, "Read", { file_path: `${CWD}/file.txt` }))).toBe(true);
     });
   });
 
@@ -137,15 +161,15 @@ describe("createDirectoryGuard", () => {
     const guard = createDirectoryGuard("unrestricted", CWD, []);
 
     it("allows file reads anywhere", async () => {
-      expect(await call(guard, "Read", { file_path: "/etc/passwd" })).toEqual({ behavior: "allow" });
+      expect(isAllow(await call(guard, "Read", { file_path: "/etc/passwd" }))).toBe(true);
     });
 
     it("allows writes anywhere", async () => {
-      expect(await call(guard, "Write", { file_path: "/tmp/anything" })).toEqual({ behavior: "allow" });
+      expect(isAllow(await call(guard, "Write", { file_path: "/tmp/anything" }))).toBe(true);
     });
 
     it("allows non-file tools", async () => {
-      expect(await call(guard, "Bash", { command: "echo hi" })).toEqual({ behavior: "allow" });
+      expect(isAllow(await call(guard, "Bash", { command: "echo hi" }))).toBe(true);
     });
   });
 });
