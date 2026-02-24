@@ -25,6 +25,16 @@ switch (command) {
     await run();
     break;
   }
+  case "restart": {
+    const { run } = await import("./commands/restart.js");
+    await run();
+    break;
+  }
+  case "logs": {
+    const { run } = await import("./commands/logs.js");
+    await run();
+    break;
+  }
   case "daemon": {
     const { run } = await import("./commands/daemon.js");
     await run();
@@ -129,7 +139,9 @@ switch (command) {
     console.log("  init [--port <port>]           Set up workspace and start daemon");
     console.log("  start                         Start the daemon");
     console.log("  stop                          Stop the daemon");
+    console.log("  restart                       Restart the daemon");
     console.log("  status                        Show system status");
+    console.log("  logs [--lines <n>]            Tail daemon logs");
     console.log("  telegram pair                 Connect a Telegram bot");
     console.log("  telegram unpair               Disconnect Telegram bot");
     console.log("  daemon                        Start the daemon in foreground");
