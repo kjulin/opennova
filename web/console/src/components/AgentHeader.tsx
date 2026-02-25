@@ -121,10 +121,10 @@ export function AgentHeader({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="__default__">(system default)</SelectItem>
-                <SelectItem value="sonnet">sonnet</SelectItem>
-                <SelectItem value="opus">opus</SelectItem>
-                <SelectItem value="haiku">haiku</SelectItem>
+                <SelectItem value="__default__">Default (Sonnet)</SelectItem>
+                <SelectItem value="sonnet">Sonnet · Balanced</SelectItem>
+                <SelectItem value="opus">Opus · Best quality</SelectItem>
+                <SelectItem value="haiku">Haiku · Fast & cheap</SelectItem>
               </SelectContent>
             </Select>
           </div>

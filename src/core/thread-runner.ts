@@ -152,7 +152,7 @@ export function createAgentRunner(engine: Engine = claudeEngine): AgentRunner {
             cwd,
             ...(directories.length > 0 ? { directories } : {}),
             systemPrompt,
-            ...(overrides?.model ? { model: overrides.model } : {}),
+            ...(overrides?.model || agent.model ? { model: overrides?.model ?? agent.model } : {}),
             ...(overrides?.maxTurns ? { maxTurns: overrides.maxTurns } : {}),
             ...(agent.subagents ? { agents: agent.subagents as EngineOptions["agents"] } : {}),
             mcpServers,

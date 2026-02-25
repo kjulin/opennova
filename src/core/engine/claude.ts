@@ -83,7 +83,7 @@ async function execQuery(
     ...(options.systemPrompt ? { systemPrompt: options.systemPrompt } : {}),
     ...(options.agents ? { agents: options.agents } : {}),
     ...(options.mcpServers ? { mcpServers: options.mcpServers } : {}),
-    model: options.model ?? "opus",
+    model: options.model ?? "sonnet",
     ...(options.maxTurns ? { maxTurns: options.maxTurns } : {}),
     ...sdkTrustOptions,
     hooks: { PreToolUse: [directoryGuard] },
