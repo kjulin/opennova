@@ -1,4 +1,5 @@
-import type { Agent, AgentsResponse, Skill, SkillsResponse, Trigger, TriggersResponse, SecretsResponse, ConfigResponse, PairingStatus } from "@/types";
+import type { Agent, AgentsResponse, Skill, SkillsResponse, Trigger, TriggersResponse, SecretsResponse, ConfigResponse, PairingStatus, UsageResponse } from "@/types";
+export type { UsageResponse } from "@/types";
 export type { PairingStatus } from "@/types";
 
 const API_BASE = "/api/console";
@@ -233,6 +234,14 @@ export async function updateTtsKey(openaiKey: string): Promise<{ ok: true }> {
 export async function setupTailscale(): Promise<{ ok: true; hostname: string }> {
   const res = await fetch(`${CONFIG_API}/tailscale`, { method: "POST" });
   if (!res.ok) throw new Error("Failed to set up Tailscale");
+  return res.json();
+}
+
+// Usage
+
+export async function fetchUsage(view: "weekly" | "monthly"): Promise<UsageResponse> {
+  const res = await fetch(`${API_BASE}/usage?view=${view}`);
+  if (!res.ok) throw new Error("Failed to fetch usage");
   return res.json();
 }
 

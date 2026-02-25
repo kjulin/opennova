@@ -1,5 +1,5 @@
 import { NavLink } from "react-router-dom";
-import { LayoutDashboard, Users, Wrench, Clock, KeyRound, Settings } from "lucide-react";
+import { LayoutDashboard, Users, Wrench, Clock, KeyRound, Settings, BarChart3 } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { cn } from "@/lib/utils";
@@ -10,6 +10,7 @@ const navItems = [
   { to: "/web/console/skills", label: "Skills", icon: Wrench },
   { to: "/web/console/triggers", label: "Triggers", icon: Clock },
   { to: "/web/console/secrets", label: "Secrets", icon: KeyRound },
+  { to: "/web/console/usage", label: "Usage", icon: BarChart3 },
   { to: "/web/console/config", label: "Config", icon: Settings },
 ] as const;
 
