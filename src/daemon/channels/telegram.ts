@@ -8,17 +8,15 @@ import {
   listThreads,
   createThread,
   getThreadManifest,
-  updateThreadChannel,
+  runAgent,
   TelegramConfigSchema,
   safeParseJsonFile,
   transcribe,
   checkTranscriptionDependencies,
   getAgentDirectories,
+  createTriggerMcpServer,
   type TelegramConfig,
 } from "#core/index.js";
-import { bus } from "../events.js";
-import { runAgent } from "../runner.js";
-import { createTriggerMcpServer } from "../triggers.js";
 import { getTask, loadTasks } from "#tasks/index.js";
 import { listNotes, getPinnedNotes } from "#notes/index.js";
 import { TELEGRAM_HELP_MESSAGE } from "./telegram-help.js";
@@ -58,11 +56,11 @@ function resolveThreadId(config: TelegramConfig, agentDir: string): string {
     const file = path.join(agentDir, "threads", `${config.activeThreadId}.jsonl`);
     if (fs.existsSync(file)) return config.activeThreadId;
   }
-  // Fall back to most recent telegram thread for this agent
+  // Fall back to most recent non-task thread for this agent
   const threads = listThreads(agentDir)
-    .filter((t) => t.manifest.channel === "telegram" && !t.manifest.taskId)
+    .filter((t) => !t.manifest.taskId)
     .sort((a, b) => b.manifest.updatedAt.localeCompare(a.manifest.updatedAt));
-  const id = threads.length > 0 ? threads[0]!.id : createThread(agentDir, "telegram");
+  const id = threads.length > 0 ? threads[0]!.id : createThread(agentDir);
   config.activeThreadId = id;
   saveTelegramConfig(config);
   return id;
@@ -122,22 +120,23 @@ async function downloadTelegramFile(
 function agentKeyboard(agents: Map<string, { id: string; name: string }>, activeId: string): InlineKeyboard {
   const keyboard = new InlineKeyboard();
   for (const a of agents.values()) {
-    const label = a.id === activeId ? `✓ ${a.name}` : a.name;
+    const label = a.id === activeId ? `\u2713 ${a.name}` : a.name;
     keyboard.text(label, `agent:${a.id}`).row();
   }
   return keyboard;
 }
 
 export function startTelegram() {
-  const config = loadTelegramConfig();
-  if (!config) {
+  const maybeConfig = loadTelegramConfig();
+  if (!maybeConfig) {
     log.info("telegram", "channel skipped (no telegram.json)");
     return null;
   }
-  if (!config.chatId) {
+  if (!maybeConfig.chatId) {
     log.info("telegram", "channel skipped (chatId not configured)");
     return null;
   }
+  const config = maybeConfig;
 
   const bot = new Bot(config.token);
   bot.use(chatGuard(config.chatId));
@@ -179,41 +178,17 @@ export function startTelegram() {
     return keyboard.resized().persistent();
   }
 
-  bus.on("thread:response", async (payload) => {
-    if (payload.channel !== "telegram") return;
+  // Delivery helpers — shared across all runAgent call sites
+  async function deliverResponse(text: string) {
     const chatId = Number(config.chatId);
-
-    // Convert standard markdown from the agent to Telegram markdown
-    let text = toTelegramMarkdown(payload.text);
-    // Track active context — prepend switch notice when it changes (e.g. trigger firing on a different agent/thread)
-    if (payload.agentId !== config.activeAgentId || payload.threadId !== config.activeThreadId) {
-      const agents = loadAgents();
-      const agent = agents.get(payload.agentId);
-      const name = agent?.name ?? payload.agentId;
-      config.activeAgentId = payload.agentId;
-      config.activeThreadId = payload.threadId;
-      saveTelegramConfig(config);
-      log.info("telegram", `context switched to agent=${payload.agentId} thread=${payload.threadId}`);
-      // Include task title if thread is bound to a task
-      let taskInfo = "";
-      try {
-        const manifest = getThreadManifest(payload.agentId, payload.threadId);
-        const taskId = manifest.taskId as string | undefined;
-        if (taskId) {
-          const task = getTask(Config.workspaceDir, taskId);
-          if (task) taskInfo = ` (task: ${task.title})`;
-        }
-      } catch { /* ignore */ }
-      text = `_Switched to ${name}${taskInfo}_\n\n${text}`;
-    }
+    const formatted = toTelegramMarkdown(text);
 
     const replyMarkup = pendingReplyMarkup;
     pendingReplyMarkup = null;
 
-    const chunks = splitMessage(text);
+    const chunks = splitMessage(formatted);
     for (let i = 0; i < chunks.length; i++) {
       const chunk = chunks[i]!;
-      // Attach reply_markup only to the last chunk
       const isLast = i === chunks.length - 1;
       const opts: Record<string, unknown> = { parse_mode: "Markdown" };
       if (isLast && replyMarkup) opts.reply_markup = replyMarkup;
@@ -222,28 +197,19 @@ export function startTelegram() {
         // Markdown parse failed (unmatched entities) — retry as plain text
         const fallbackOpts = isLast && replyMarkup ? { reply_markup: replyMarkup } : {};
         return bot.api.sendMessage(chatId, chunk, fallbackOpts).catch((err) => {
-          log.error("telegram", "failed to deliver thread:response:", err);
+          log.error("telegram", "failed to deliver response:", err);
         });
       });
     }
-  });
+  }
 
-  bus.on("thread:error", (payload) => {
-    if (payload.channel !== "telegram") return;
-    bot.api.sendMessage(Number(config.chatId), "Something went wrong. Check the logs for details.").catch((err) => {
-      log.error("telegram", "failed to deliver thread:error:", err);
-    });
-  });
-
-  bus.on("thread:file", async (payload) => {
-    if (payload.channel !== "telegram") return;
+  async function deliverFile(filePath: string, caption: string | undefined, fileType: string) {
     const chatId = Number(config.chatId);
-
     try {
-      const file = new InputFile(payload.filePath);
-      const options = payload.caption ? { caption: payload.caption } : {};
+      const file = new InputFile(filePath);
+      const options = caption ? { caption } : {};
 
-      switch (payload.fileType) {
+      switch (fileType) {
         case "photo":
           await bot.api.sendPhoto(chatId, file, options);
           break;
@@ -259,39 +225,57 @@ export function startTelegram() {
           break;
       }
 
-      log.info("telegram", `sent file: ${path.basename(payload.filePath)}`);
+      log.info("telegram", `sent file: ${path.basename(filePath)}`);
     } catch (err) {
-      log.error("telegram", `failed to send file ${payload.filePath}:`, (err as Error).message);
+      log.error("telegram", `failed to send file ${filePath}:`, (err as Error).message);
       bot.api.sendMessage(chatId, `Failed to send file: ${(err as Error).message}`).catch(() => {});
     }
-  });
+  }
 
-  bus.on("thread:note", (payload) => {
-    if (payload.channel !== "telegram") return;
+  async function deliverNote(noteAgentId: string, title: string, slug: string, message: string | undefined) {
     const chatId = Number(config.chatId);
     const host = getWebAppHost();
     if (!host) return;
 
-    const text = payload.message ?? `📝 ${payload.title}`;
+    const text = message ?? `\uD83D\uDCDD ${title}`;
     const keyboard = new InlineKeyboard().webApp(
       "Open note",
-      `https://${host}:${HTTPS_PORT}/web/tasklist/#/note/${payload.agentId}/${payload.slug}`,
+      `https://${host}:${HTTPS_PORT}/web/tasklist/#/note/${noteAgentId}/${slug}`,
     );
     bot.api.sendMessage(chatId, text, { reply_markup: keyboard }).catch((err) => {
-      log.error("telegram", "failed to deliver thread:note:", err);
+      log.error("telegram", "failed to deliver note:", err);
     });
-  });
+  }
 
-  bus.on("thread:pin", (payload) => {
-    if (payload.channel !== "telegram") return;
-    if (payload.agentId !== config.activeAgentId) return;
+  function deliverPinChange(pinAgentId: string) {
+    if (pinAgentId !== config.activeAgentId) return;
     const chatId = Number(config.chatId);
     const kb = buildReplyKeyboard();
     if (!kb) return;
     bot.api.sendMessage(chatId, "\uD83D\uDCCC Pinned notes updated", { reply_markup: kb }).catch((err) => {
       log.error("telegram", "failed to send pin update:", err);
     });
-  });
+  }
+
+  function deliveryCallbacks() {
+    return {
+      onResponse(_agentId: string, _threadId: string, text: string) {
+        deliverResponse(text);
+      },
+      onFileSend(_agentId: string, _threadId: string, filePath: string, caption: string | undefined, fileType: string) {
+        deliverFile(filePath, caption, fileType);
+      },
+      onShareNote(agentId: string, _threadId: string, title: string, slug: string, message: string | undefined) {
+        deliverNote(agentId, title, slug, message);
+      },
+      onPinChange(agentId: string) {
+        deliverPinChange(agentId);
+      },
+      onNotifyUser(_agentId: string, _threadId: string, message: string) {
+        deliverResponse(message);
+      },
+    };
+  }
 
   bot.on("message:text", async (ctx) => {
     const chatId = ctx.chat.id;
@@ -322,7 +306,7 @@ export function startTelegram() {
     // Handle /new command
     if (text === "/new") {
       const agentDir = path.join(Config.workspaceDir, "agents", config.activeAgentId);
-      const id = createThread(agentDir, "telegram");
+      const id = createThread(agentDir);
       config.activeThreadId = id;
       saveTelegramConfig(config);
       await ctx.reply("New thread started");
@@ -333,7 +317,7 @@ export function startTelegram() {
     if (text === "/threads") {
       const agentDir = path.join(Config.workspaceDir, "agents", config.activeAgentId);
       const threads = listThreads(agentDir)
-        .filter((t) => t.manifest.channel === "telegram" && !t.manifest.taskId)
+        .filter((t) => !t.manifest.taskId)
         .sort((a, b) => b.manifest.updatedAt.localeCompare(a.manifest.updatedAt))
         .slice(0, 10);
 
@@ -444,7 +428,7 @@ export function startTelegram() {
     const agentDir = path.join(Config.workspaceDir, "agents", agent.id);
     const threadId = resolveThreadId(config, agentDir);
 
-    const truncated = text.length > 200 ? text.slice(0, 200) + "…" : text;
+    const truncated = text.length > 200 ? text.slice(0, 200) + "\u2026" : text;
     log.info("telegram", `[${chatId}] [${agent.id}] ${truncated}`);
 
     const abortController = new AbortController();
@@ -458,7 +442,7 @@ export function startTelegram() {
     let statusMessageId: number | undefined;
 
     async function updateStatus(status: string) {
-      const truncated = status.length > 100 ? status.slice(0, 100) + "…" : status;
+      const truncated = status.length > 100 ? status.slice(0, 100) + "\u2026" : status;
       const formatted = `_${truncated}_`;
       if (statusMessageId) {
         await bot.api.editMessageText(chatId, statusMessageId, formatted, { parse_mode: "Markdown" }).catch(() => {});
@@ -481,7 +465,7 @@ export function startTelegram() {
       agentDir, threadId, text,
       {
         onThinking() {
-          updateStatus("Thinking…");
+          updateStatus("Thinking\u2026");
         },
         onAssistantMessage(text) {
           updateStatus(text);
@@ -492,14 +476,14 @@ export function startTelegram() {
         onToolUseSummary(summary) {
           updateStatus(summary);
         },
+        ...deliveryCallbacks(),
       },
-      { triggers: createTriggerMcpServer(agentDir, "telegram") },
+      { triggers: createTriggerMcpServer(agentDir) },
       undefined,
       abortController,
     ).catch((err) => {
       if (!abortController.signal.aborted) {
         log.error("telegram", `claude error for ${agent.id}:`, (err as Error).message);
-        bot.api.sendMessage(chatId, "Something went wrong. Check the logs for details.").catch(() => {});
       }
     }).finally(() => {
       if (activeAbortController === abortController) activeAbortController = null;
@@ -532,11 +516,11 @@ export function startTelegram() {
       if (!deps.ffmpeg) missing.push("ffmpeg");
       if (!deps.whisper) missing.push("whisper-cpp");
       if (!deps.model) missing.push(`model at ${deps.modelPath}`);
-      await ctx.reply(`❌ Transcription not available. Missing: ${missing.join(", ")}\n\nRun \`nova transcription setup\` to configure.`);
+      await ctx.reply(`\u274C Transcription not available. Missing: ${missing.join(", ")}\n\nRun \`nova transcription setup\` to configure.`);
       return;
     }
 
-    const statusMsg = await ctx.reply("🎙️ Transcribing...");
+    const statusMsg = await ctx.reply("\uD83C\uDF99\uFE0F Transcribing...");
 
     try {
       // Download voice file
@@ -576,7 +560,7 @@ ${result.text}
       await bot.api.editMessageText(
         chatId,
         statusMsg.message_id,
-        `🎙️ Transcribed (${duration}s)`
+        `\uD83C\uDF99\uFE0F Transcribed (${duration}s)`
       );
 
       // Cleanup temp file
@@ -603,23 +587,23 @@ Please read it and respond to what I said.`;
           onThinking() {
             // Status already shown
           },
-          onAssistantMessage(text) {
+          onAssistantMessage() {
             bot.api.sendChatAction(chatId, "typing").catch(() => {});
           },
-          onToolUse(_toolName, _input, summary) {
+          onToolUse() {
             bot.api.sendChatAction(chatId, "typing").catch(() => {});
           },
-          onToolUseSummary(summary) {
+          onToolUseSummary() {
             bot.api.sendChatAction(chatId, "typing").catch(() => {});
           },
+          ...deliveryCallbacks(),
         },
-        { triggers: createTriggerMcpServer(agentDir, "telegram") },
+        { triggers: createTriggerMcpServer(agentDir) },
         undefined,
         abortController,
       ).catch((err) => {
         if (!abortController.signal.aborted) {
           log.error("telegram", `voice message error for ${agent.id}:`, (err as Error).message);
-          bot.api.sendMessage(chatId, "Something went wrong processing the voice message.").catch(() => {});
         }
       }).finally(() => {
         if (activeAbortController === abortController) activeAbortController = null;
@@ -631,7 +615,7 @@ Please read it and respond to what I said.`;
       await bot.api.editMessageText(
         chatId,
         statusMsg.message_id,
-        `❌ Transcription failed: ${(err as Error).message}`
+        `\u274C Transcription failed: ${(err as Error).message}`
       );
     }
   });
@@ -702,14 +686,14 @@ You can read, process, or move this file as needed.`;
           onToolUseSummary() {
             bot.api.sendChatAction(chatId, "typing").catch(() => {});
           },
+          ...deliveryCallbacks(),
         },
-        { triggers: createTriggerMcpServer(agentDir, "telegram") },
+        { triggers: createTriggerMcpServer(agentDir) },
         undefined,
         abortController,
       ).catch((err) => {
         if (!abortController.signal.aborted) {
           log.error("telegram", `file handling error for ${agent.id}:`, (err as Error).message);
-          bot.api.sendMessage(chatId, "Something went wrong processing the file.").catch(() => {});
         }
       }).finally(() => {
         if (activeAbortController === abortController) activeAbortController = null;
@@ -770,17 +754,6 @@ You can read, process, or move this file as needed.`;
         config.activeThreadId = data.threadId;
         saveTelegramConfig(config);
 
-        // Update thread channel to telegram so responses are delivered here
-        try {
-          const manifest = getThreadManifest(data.agentId, data.threadId);
-          if (manifest.channel !== "telegram") {
-            updateThreadChannel(data.agentId, data.threadId, "telegram");
-            log.info("telegram", `updated thread ${data.threadId} channel to telegram`);
-          }
-        } catch {
-          // Thread might not exist yet, that's fine
-        }
-
         log.info("telegram", `switched to agent=${data.agentId} thread=${data.threadId} via Mini App`);
 
         const taskInfo = data.taskTitle ? ` (task: ${data.taskTitle})` : "";
@@ -819,14 +792,15 @@ You can read, process, or move this file as needed.`;
           return;
         }
 
-        bus.emit("thread:file", {
-          agentId: data.agentId,
-          threadId: data.threadId,
-          channel: "telegram",
-          filePath: resolvedPath,
-        });
-
-        log.info("telegram", `delivering file ${path.basename(resolvedPath)} via Mini App`);
+        // Send file directly
+        const chatId = Number(config.chatId);
+        try {
+          await bot.api.sendDocument(chatId, new InputFile(resolvedPath));
+          log.info("telegram", `delivering file ${path.basename(resolvedPath)} via Mini App`);
+        } catch (err) {
+          log.error("telegram", `failed to deliver file via Mini App:`, (err as Error).message);
+          await ctx.reply(`Failed to send file: ${(err as Error).message}`);
+        }
       }
     } catch (err) {
       log.error("telegram", "failed to parse Mini App data:", err);
@@ -897,9 +871,11 @@ You can read, process, or move this file as needed.`;
       bot.api.sendChatAction(chatId, "typing").catch(() => {});
     }, 4000);
     bot.api.sendChatAction(chatId, "typing").catch(() => {});
-    runAgent(agentDir, threadId, "The user just switched to you. Greet them briefly, then in 1-2 sentences help them reorient — recap where you left off, any open questions or pending tasks. If there's no prior context, just say hi and what you can help with. Keep it short.", undefined, {
-      triggers: createTriggerMcpServer(agentDir, "telegram"),
-    }, undefined, undefined, { model: "haiku", maxTurns: 1 }).catch((err) => {
+    runAgent(agentDir, threadId, "The user just switched to you. Greet them briefly, then in 1-2 sentences help them reorient — recap where you left off, any open questions or pending tasks. If there's no prior context, just say hi and what you can help with. Keep it short.",
+      deliveryCallbacks(),
+      { triggers: createTriggerMcpServer(agentDir) },
+      undefined, undefined, { model: "haiku", maxTurns: 1 },
+    ).catch((err) => {
       log.error("telegram", `greeting failed for ${agentId}:`, (err as Error).message);
     }).finally(() => {
       clearInterval(typingInterval);

@@ -4,7 +4,7 @@ import { Config } from "#core/config.js";
 import { createThread } from "#core/threads.js";
 import { getTask, loadTasks, updateTask } from "./storage.js";
 import { TASK_WORK_PROMPT } from "./prompts.js";
-import { runAgent } from "#daemon/runner.js";
+import { runAgent } from "#core/index.js";
 import { log } from "#daemon/logger.js";
 
 // Track in-flight task invocations to avoid double-invoking
@@ -37,7 +37,7 @@ export function runTaskNow(workspaceDir: string, taskId: string): string | null 
   if (!threadId) {
     log.warn("tasks", `task ${taskId} has no thread, creating one`);
     const agentDir = path.join(workspaceDir, "agents", task.owner);
-    threadId = createThread(agentDir, "telegram", { taskId });
+    threadId = createThread(agentDir, { taskId });
     updateTask(workspaceDir, taskId, { threadId });
   }
 
@@ -68,7 +68,7 @@ export function startTaskScheduler() {
 
       if (!threadId) {
         log.warn("tasks", `task ${task.id} has no thread, creating one`);
-        threadId = createThread(agentDir, "telegram", { taskId: task.id });
+        threadId = createThread(agentDir, { taskId: task.id });
         updateTask(workspaceDir, task.id, { threadId });
       }
 

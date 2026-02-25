@@ -4,11 +4,8 @@ import { randomBytes } from "crypto";
 import { ThreadManifestSchema } from "./schemas.js";
 import { Config } from "./config.js";
 
-export type ChannelType = string;
-
 export interface ThreadManifest {
   title?: string;
-  channel: ChannelType;
   agentId?: string;
   sessionId?: string;
   createdAt: string;
@@ -90,14 +87,13 @@ export interface CreateThreadOptions {
   taskId?: string;
 }
 
-export function createThread(agentDir: string, channel: ChannelType, options?: CreateThreadOptions): string {
+export function createThread(agentDir: string, options?: CreateThreadOptions): string {
   const id = randomBytes(6).toString("hex");
   const threadsDir = path.join(agentDir, "threads");
   if (!fs.existsSync(threadsDir)) fs.mkdirSync(threadsDir, { recursive: true });
 
   const agentId = path.basename(agentDir);
   const manifest: ThreadManifest = {
-    channel,
     agentId,
     ...(options?.taskId ? { taskId: options.taskId } : {}),
     createdAt: new Date().toISOString(),
@@ -187,14 +183,6 @@ export function getThreadManifest(agentId: string, threadId: string): ThreadMani
   const manifest = loadManifest(filePath);
   if (!manifest.agentId) manifest.agentId = agentId;
   return manifest;
-}
-
-export function updateThreadChannel(agentId: string, threadId: string, channel: string): void {
-  const agentDir = path.join(Config.workspaceDir, "agents", agentId);
-  const filePath = threadPath(agentDir, threadId);
-  const manifest = loadManifest(filePath);
-  manifest.channel = channel;
-  saveManifest(filePath, manifest);
 }
 
 export function appendMessage(filePath: string, msg: ThreadMessage): void {
