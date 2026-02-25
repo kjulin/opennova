@@ -1,4 +1,5 @@
 import type { AgentConfig } from "../agents/index.js";
+import type { Responsibility } from "../schemas.js";
 import type { ChannelType } from "../threads.js";
 import type { Task } from "#tasks/types.js";
 
@@ -18,6 +19,14 @@ function buildIdentityBlock(agent: AgentConfig): string {
   return parts.join("\n\n");
 }
 
+function buildResponsibilitiesBlock(responsibilities: Responsibility[] | undefined): string {
+  if (!responsibilities || responsibilities.length === 0) return "";
+  const items = responsibilities
+    .map((r) => `  <Responsibility title="${r.title}">\n    ${r.content}\n  </Responsibility>`)
+    .join("\n");
+  return `\n\n<Responsibilities>\n${items}\n</Responsibilities>`;
+}
+
 export interface BuildSystemPromptOptions {
   task?: Task | undefined;
   background?: boolean | undefined;
@@ -34,7 +43,7 @@ export function buildSystemPrompt(
   const dirBlock = buildDirectoriesBlock(cwd, directories);
   const formatting = getFormattingInstructions(channel);
 
-  let prompt = `${buildIdentityBlock(agent)}${dirBlock}${STORAGE_INSTRUCTIONS}\n${formatting}${buildContextBlock()}${memories}`;
+  let prompt = `${buildIdentityBlock(agent)}${buildResponsibilitiesBlock(agent.responsibilities)}${dirBlock}${STORAGE_INSTRUCTIONS}\n${formatting}${buildContextBlock()}${memories}`;
 
   if (options?.task) {
     prompt += `\n\n${buildTaskContext(options.task)}`;
