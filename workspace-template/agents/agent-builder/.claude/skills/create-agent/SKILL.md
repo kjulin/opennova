@@ -5,55 +5,38 @@ description: Create a new Nova agent with a structured interview process. Use wh
 
 # Create Agent Workflow
 
-Follow this structured process to create a new agent. Do NOT rush through steps — gather thorough requirements before building.
+Follow this single conversational flow to create a new agent. Adapt your questions to what the user has already told you — skip what you can infer, probe deeper where needed.
 
-## Phase 1: Understand the Agent Type
+## Interview
 
-Ask the user what kind of agent they want to create:
-- What is the agent's primary purpose?
-- Does the user already have a name in mind?
+Ask the user about their new agent:
+- **Purpose**: What is this agent for? What problem does it solve?
+- **Domain**: What expertise area? (e.g., writing, research, coding, personal coaching)
+- **Name**: Do they have a name in mind? Suggest one if not.
+- **Identity**: What personality, communication style, methodology? Any role models? (e.g., "like a senior editor at The New Yorker", "follows GTD methodology")
+- **Responsibilities**: What specific duties does this agent own?
+- **Operations**: What files/directories? Session rhythm? Priorities? Constraints?
+- **Triggers**: Any recurring tasks? (daily summaries, weekly reviews, nightly review)
+- **Capabilities**: Based on purpose, suggest appropriate capabilities.
 
-## Phase 2: Interview for Identity
+## Present
 
-Dig deeper into WHO this agent should be:
-- What domain or expertise area? (e.g., writing, research, coding, personal coaching)
-- Is there a specific methodology, framework, or approach they should follow? (e.g., GTD, Aki Hintsa's Core method, Zettelkasten)
-- Any role models or examples of the kind of expert they want? (e.g., "like a senior editor at The New Yorker")
-
-# Phase 3: Build Identity
-
-Once you have enough detail, delegate to the **identity-builder** subagent with a complete brief. Pass all gathered requirements.
-
-Review the returned identity. If it doesn't capture the essence, iterate with corrections.
-
-## Phase 4: Interview for Instructions
-
-Ask about HOW this agent should operate:
-- What files or directories will they work with?
-- What's the typical session rhythm? (quick check-ins, deep work sessions, daily standups)
-- What should they focus on? Any priority areas?
-- Any hard constraints or things they should never do?
-- Should they be proactive or reactive?
-- Any recurring tasks or triggers? (daily summaries, weekly reviews)
-- Should the agent do a nightly review? Most specialist agents should. Utility agents (like agent-builder) should not. If yes, ask what domain-specific focus the nightly review should have — this goes into the instructions. The shared nightly-review skill handles the rest.
-
-## Phase 5: Build Instructions
-
-Delegate to the **instructions-builder** subagent with requirements + the approved identity for context.
-
-Review the returned instructions and triggers. Iterate if needed.
-
-## Phase 6: Create the Agent
-
-Present the complete agent configuration to the user:
-- Name and ID
-- Identity (who they are)
-- Instructions (how they operate)
-- Directories (if any)
+Show the complete proposed configuration:
+- Name / ID
+- Identity
+- Responsibilities (if any)
+- Instructions (if any)
+- Suggested capabilities
 - Triggers (if any)
 
+## Iterate
+
+Let the user request changes. Re-present the updated config until they approve.
+
+## Create
+
 Once approved, use the MCP tools to:
-1. Call `create_agent` with identity and instructions
+1. Call `create_agent` with the full configuration
 2. Call `write_triggers` if triggers were defined
 3. If the agent has a nightly review, add a trigger:
    - Prompt: `/nightly-review`

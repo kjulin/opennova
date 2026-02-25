@@ -78,6 +78,7 @@ export function createAgentManagementMcpServer(): McpSdkServerConfigWithInstance
           identity: z.string().describe("Who the agent is — expertise, personality, methodology"),
           instructions: z.string().optional().describe("How the agent operates — files, rhythm, focus, constraints"),
           directories: z.array(z.string()).optional().describe("Directories the agent can access (optional)"),
+          capabilities: z.array(z.string()).optional().describe("System capabilities to enable (e.g. memory, history, tasks, notes, web-search, agent-management)"),
         },
         async (args) => {
           if (!VALID_AGENT_ID.test(args.id)) {
@@ -93,6 +94,7 @@ export function createAgentManagementMcpServer(): McpSdkServerConfigWithInstance
             ...(args.description && { description: args.description }),
             ...(args.instructions && { instructions: args.instructions }),
             ...(args.directories && args.directories.length > 0 && { directories: args.directories }),
+            ...(args.capabilities && args.capabilities.length > 0 && { capabilities: args.capabilities }),
           });
           return ok(`Created agent "${args.id}"`);
         },
