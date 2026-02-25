@@ -148,7 +148,7 @@ function createApp(workspaceDir: string): Hono {
 
     // Create dedicated thread for the task
     const ownerAgentDir = path.join(workspaceDir, "agents", task.owner);
-    const threadId = createThread(ownerAgentDir, "telegram", { taskId: task.id });
+    const threadId = createThread(ownerAgentDir, { taskId: task.id });
 
     // Update task with thread ID
     const updatedTask = updateTask(workspaceDir, task.id, { threadId });
