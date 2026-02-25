@@ -62,6 +62,29 @@ export interface PairingStatus {
   error?: string;
 }
 
+export interface UsageBucket {
+  label: string;
+  messages: number;
+  inputTokens: number;
+  outputTokens: number;
+  cacheReadTokens: number;
+  costUsd: number;
+  durationMs: number;
+  byAgent: Array<{
+    agentId: string;
+    messages: number;
+    inputTokens: number;
+    outputTokens: number;
+    cacheReadTokens: number;
+    costUsd: number;
+    durationMs: number;
+  }>;
+}
+
+export interface UsageResponse {
+  buckets: UsageBucket[];
+}
+
 export interface ConfigResponse {
   workspace: { path: string };
   auth: { method: string; detail?: string };

@@ -7,6 +7,7 @@ import { TriggersPage } from "@/pages/TriggersPage";
 import { SecretsPage } from "@/pages/SecretsPage";
 import { ConfigPage } from "@/pages/ConfigPage";
 import { DashboardPage } from "@/pages/DashboardPage";
+import { UsagePage } from "@/pages/UsagePage";
 
 const router = createBrowserRouter([
   {
@@ -20,6 +21,7 @@ const router = createBrowserRouter([
       { path: "triggers", element: <TriggersPage /> },
       { path: "secrets", element: <SecretsPage /> },
       { path: "config", element: <ConfigPage /> },
+      { path: "usage", element: <UsagePage /> },
     ],
   },
 ]);

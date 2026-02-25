@@ -25,6 +25,7 @@ import { createConsoleAgentsRouter } from "#api/console-agents.js";
 import { createConsoleTriggersRouter } from "#api/console-triggers.js";
 import { createConsoleSkillsRouter } from "#api/console-skills.js";
 import { createConsoleSecretsRouter } from "#api/console-secrets.js";
+import { createConsoleUsageRouter } from "#api/console-usage.js";
 import { createConfigRouter } from "#api/config.js";
 import { createTelegramPairRouter, createTelegramUnpairRouter } from "./routes/telegram-pair.js";
 import { reloadChannels } from "./channels.js";
@@ -227,6 +228,7 @@ function createApp(workspaceDir: string): Hono {
   app.route("/api/console/triggers", createConsoleTriggersRouter(workspaceDir));
   app.route("/api/console/skills", createConsoleSkillsRouter(workspaceDir));
   app.route("/api/console/secrets", createConsoleSecretsRouter(workspaceDir));
+  app.route("/api/console/usage", createConsoleUsageRouter(workspaceDir));
 
   // Config API
   app.route("/api/config", createConfigRouter(workspaceDir));
