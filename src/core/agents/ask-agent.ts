@@ -41,10 +41,15 @@ export function createAgentsMcpServer(
         {},
         async () => {
           const agents = loadAgents();
-          const entries: { id: string; name: string; description: string }[] = [];
+          const entries: { id: string; name: string; description: string; responsibilities: string[] }[] = [];
           for (const a of agents.values()) {
             if (a.id === caller.id) continue;
-            entries.push({ id: a.id, name: a.name, description: a.description ?? "" });
+            entries.push({
+              id: a.id,
+              name: a.name,
+              description: a.description ?? "",
+              responsibilities: (a.responsibilities ?? []).map((r) => r.title),
+            });
           }
           return ok(JSON.stringify(entries, null, 2));
         },
