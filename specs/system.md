@@ -2,7 +2,7 @@
 
 ## What OpenNova Is
 
-OpenNova is a personal AI agent daemon. It runs persistently on the user's machine, manages a team of AI agents, and connects them to the user through messaging channels. Each agent has an identity, instructions, capabilities, skills, and access boundaries. The system is designed for a single user operating multiple specialized agents.
+OpenNova is a personal AI agent daemon. It runs persistently on the user's machine, manages a team of AI agents, and connects them to the user through messaging channels. Each agent has an identity, instructions, responsibilities, capabilities, skills, and access boundaries. The system is designed for a single user operating multiple specialized agents.
 
 ## Pace Layers
 
@@ -72,7 +72,7 @@ Core also exposes thread query functions for channel UX needs:
 Thread storage internals (file paths, JSONL format, locking) are never exposed outside Core.
 
 *What lives here:*
-- Agent model (config, identity, instructions, directories, trust, capabilities)
+- Agent model (config, identity, instructions, responsibilities, directories, trust, capabilities)
 - Thread model (manifest, messages, events, locking)
 - Capability resolution (registry, resolvers)
 - System prompt assembly
@@ -133,11 +133,17 @@ Agent {
   name: string            // display name
   identity: string        // who: expertise, personality, methodology
   instructions: string    // how: files, rhythm, constraints
+  responsibilities: Responsibility[]  // what: specific duties with lifecycle
   directories: string[]   // filesystem access boundaries
   capabilities: string[]  // explicit list of MCP servers this agent gets
   trust: TrustLevel       // sandbox | controlled | unrestricted
   model: Model            // default model override
   subagents: Record<string, SubagentConfig>  // Claude SDK subagents
+}
+
+Responsibility {
+  title: string           // short label, unique within agent
+  content: string         // instruction text for this duty
 }
 ```
 
@@ -254,7 +260,7 @@ Each boundary below should have its own spec. This system spec defines how they 
 
 4. *Layers only talk to neighbors.* Channels → Daemon → Core → Engine. No skipping.
 
-5. *Agents are configuration, not code.* An agent is fully defined by its JSON config (trust + capabilities + identity). No agent requires custom code.
+5. *Agents are configuration, not code.* An agent is fully defined by its JSON config (identity + instructions + responsibilities + capabilities + trust). No agent requires custom code.
 
 6. *Append-only where possible.* Threads, events, usage records, embeddings — append-only simplifies reasoning about state.
 

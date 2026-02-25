@@ -15,11 +15,17 @@ AgentConfig {
   description?: string    // one-line summary — shown to other agents for delegation discovery
   identity?: string       // who: expertise, personality, methodology
   instructions?: string   // how: files, rhythm, focus, constraints
+  responsibilities?: Responsibility[]  // what: specific duties with lifecycle
   directories?: string[]  // filesystem access boundaries
   capabilities?: string[] // explicit list of MCP servers this agent gets
   trust: TrustLevel       // sandbox | controlled | unrestricted (required)
   model?: Model           // default model override
   subagents?: Record<string, SubagentConfig> // Claude SDK inline subagents
+}
+
+Responsibility {
+  title: string           // short label, unique within agent (e.g., "Agent routing")
+  content: string         // instruction text for this responsibility
 }
 ```
 
@@ -37,13 +43,29 @@ Identity is set by the user (directly or via agent-builder).
 
 How the agent operates. Files to reference, session rhythm, constraints, learned preferences. This is the faster-changing field — it evolves as the agent learns what works. Maps to the `<Instructions>` block in the system prompt.
 
-If the agent has the `self` capability, it can read AND update its own instructions via `update_my_instructions`. This is the self-mutation surface — instructions are the only field an agent can change about itself.
+If the agent has the `self` capability, it can read and update its own instructions via `update_my_instructions`. See the pace layer hierarchy below for the full self-mutation surface.
 
-### identity vs instructions — the pace layer distinction
+### responsibilities
 
-Identity is the slow layer. It answers "who are you?" and should survive across many conversations unchanged. Instructions is the faster layer. It answers "how should you work right now?" and is expected to evolve.
+What the agent does. Specific duties with potential lifecycle. Each responsibility has a title (unique within the agent) and content (instruction text). Maps to the `<Responsibilities>` block in the system prompt.
 
-This separation matters because it makes `self` capability safe. An agent with `self` can refine how it works (instructions) but cannot redefine who it is (identity). The user controls identity; the agent controls instructions.
+Responsibilities are the fastest-changing layer of agent definition. They can be added and removed at runtime — by the agent itself (via `self` capability) or by the user (via Console or direct edit). Presence means active. Absence means done. No status fields, no state tracking.
+
+The title is the public API: other agents see responsibility titles through `list_available_agents` for delegation discovery. The content is private — only the owning agent sees it in its system prompt.
+
+Responsibilities are optional. An agent with just identity + instructions works exactly as before.
+
+### The pace layer hierarchy: identity → instructions → responsibilities
+
+Three fields define what an agent is, at three different rates of change:
+
+- *Identity* (slow) — who the agent is. Answers "who are you?" Survives across many conversations unchanged. User-controlled only.
+- *Instructions* (medium) — how the agent operates. Answers "how should you work right now?" Evolves as the agent learns. Agent-mutable via `self` capability (full replace).
+- *Responsibilities* (fast) — what the agent does. Answers "what are your current duties?" Can change at runtime. Agent-mutable via `self` capability (individual CRUD).
+
+This hierarchy forms: *be → operate → do.*
+
+This separation matters because it makes `self` capability safe. An agent with `self` can refine how it works (instructions) and manage what it does (responsibilities) but cannot redefine who it is (identity). The user controls identity; the agent controls instructions and responsibilities.
 
 ### description
 
@@ -122,8 +144,8 @@ All paths produce the same artifact: a directory with an `agent.json` file.
 ### Modification
 
 - `agent-management` MCP tools — `update_agent` (fields except trust)
-- `self` capability — agent updates its own instructions
-- Console UI — full config editing
+- `self` capability — agent updates its own instructions and manages its own responsibilities
+- Console UI — full config editing (including structural editing of responsibilities)
 - Manual file editing — user edits `agent.json` directly
 
 Trust level cannot be set through agent-management tools or self-management. It is always a user decision via CLI or direct file edit.
@@ -173,7 +195,7 @@ The agent directory is the agent's world. Everything the system needs to know ab
 - Agent config is the single source of truth for an agent's identity and access boundaries.
 - All agents are equal — no agent receives special runtime treatment based on its ID.
 - Trust is a user-controlled field — agents cannot set or change trust levels.
-- An agent with `self` capability can only modify its own `instructions` field. Identity and all other fields are user-controlled.
+- An agent with `self` capability can modify its own `instructions` field and CRUD its own `responsibilities`. Identity and all other fields are user-controlled.
 - Agent ID is derived from filesystem — not stored in config, not settable independently of the directory.
 - Capabilities are explicit — no implicit MCP server wiring. What's in `capabilities` is what the agent gets (plus run-time injections per the Capabilities spec).
 - Agent loading is stateless — configs are read from disk on each invocation with no caching.
