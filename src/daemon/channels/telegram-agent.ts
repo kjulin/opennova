@@ -17,15 +17,15 @@ import { relativeTime, getWebAppHost, HTTPS_PORT } from "./telegram.js";
 import { splitMessage, chatGuard } from "./telegram-utils.js";
 import { log } from "../logger.js";
 
-function resolveThreadId(config: AgentBotConfig, agentDir: string, channel: string): string {
+function resolveThreadId(config: AgentBotConfig, agentDir: string): string {
   if (config.activeThreadId) {
     const file = path.join(agentDir, "threads", `${config.activeThreadId}.jsonl`);
     if (fs.existsSync(file)) return config.activeThreadId;
   }
   const threads = listThreads(agentDir)
-    .filter((t) => t.manifest.channel === channel && !t.manifest.taskId)
+    .filter((t) => !t.manifest.taskId)
     .sort((a, b) => b.manifest.updatedAt.localeCompare(a.manifest.updatedAt));
-  const id = threads.length > 0 ? threads[0]!.id : createThread(agentDir, channel);
+  const id = threads.length > 0 ? threads[0]!.id : createThread(agentDir);
   config.activeThreadId = id;
   return id;
 }
@@ -217,7 +217,7 @@ export function startAgentTelegram(
 
     if (text === "/threads") {
       const threads = listThreads(agentDir)
-        .filter((t) => t.manifest.channel === channel && !t.manifest.taskId)
+        .filter((t) => !t.manifest.taskId)
         .sort((a, b) => b.manifest.updatedAt.localeCompare(a.manifest.updatedAt))
         .slice(0, 10);
 
@@ -276,14 +276,14 @@ export function startAgentTelegram(
     }
 
     if (text === "/new") {
-      const id = createThread(agentDir, channel);
+      const id = createThread(agentDir);
       botConfig.activeThreadId = id;
       saveConfig();
       await ctx.reply("New thread started");
       return;
     }
 
-    const threadId = resolveThreadId(botConfig, agentDir, channel);
+    const threadId = resolveThreadId(botConfig, agentDir);
     saveConfig();
 
     const truncated = text.length > 200 ? text.slice(0, 200) + "…" : text;
@@ -318,7 +318,7 @@ export function startAgentTelegram(
     }
 
     runAgent(
-      agentDir, threadId, text,
+      agentDir, threadId, text, channel,
       {
         onThinking() {
           updateStatus("Thinking…");
@@ -374,7 +374,7 @@ export function startAgentTelegram(
 
       await bot.api.editMessageText(chatId, (statusMsg as { message_id: number }).message_id, `Received: ${fileName}`);
 
-      const threadId = resolveThreadId(botConfig, agentDir, channel);
+      const threadId = resolveThreadId(botConfig, agentDir);
       saveConfig();
 
       const prompt = `The user sent you a file:
@@ -394,7 +394,7 @@ You can read, process, or move this file as needed.`;
       bot.api.sendChatAction(chatId, "typing").catch(() => {});
 
       runAgent(
-        agentDir, threadId, prompt,
+        agentDir, threadId, prompt, channel,
         {
           onThinking() {},
           onAssistantMessage() {

@@ -1,23 +1,21 @@
 import { EventEmitter } from "events";
-import type { ChannelType } from "#core/index.js";
-
 interface DaemonEvents {
   "thread:response": [payload: {
     agentId: string;
     threadId: string;
-    channel: ChannelType;
+    channel: string;
     text: string;
   }];
   "thread:error": [payload: {
     agentId: string;
     threadId: string;
-    channel: ChannelType;
+    channel: string;
     error: string;
   }];
   "thread:file": [payload: {
     agentId: string;
     threadId: string;
-    channel: ChannelType;
+    channel: string;
     filePath: string;
     caption?: string;
     fileType?: "document" | "photo" | "audio" | "video";
@@ -25,14 +23,14 @@ interface DaemonEvents {
   "thread:note": [payload: {
     agentId: string;
     threadId: string;
-    channel: ChannelType;
+    channel: string;
     title: string;
     slug: string;
     message?: string;
   }];
   "thread:pin": [payload: {
     agentId: string;
-    channel: ChannelType;
+    channel: string;
   }];
 }
 

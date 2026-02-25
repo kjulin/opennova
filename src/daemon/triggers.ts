@@ -82,11 +82,11 @@ export function startTriggerScheduler() {
               log.debug("trigger", `${agentId}/${trigger.id} using dedicated bot channel ${effectiveChannel}`);
             }
 
-            const threadId = createThread(agentDir, effectiveChannel);
+            const threadId = createThread(agentDir);
 
             log.info("trigger", `firing for agent ${agentId} thread ${threadId}: "${trigger.prompt}"`);
 
-            runAgent(agentDir, threadId, trigger.prompt, undefined, {
+            runAgent(agentDir, threadId, trigger.prompt, effectiveChannel, undefined, {
               triggers: createTriggerMcpServer(agentDir, effectiveChannel),
             })
               .then(() => {

@@ -1,5 +1,3 @@
-import type { ChannelType } from "../threads.js";
-
 const FORMATTING_INSTRUCTIONS: Record<string, string> = {
   telegram: `
 <Formatting>
@@ -17,7 +15,7 @@ Keep messages concise. Use bullet points and short paragraphs. Avoid walls of te
 </Formatting>`,
 };
 
-export function getFormattingInstructions(channel: ChannelType): string {
+export function getFormattingInstructions(channel: string): string {
   const baseChannel = channel.startsWith("telegram") ? "telegram" : channel;
   return FORMATTING_INSTRUCTIONS[baseChannel] ?? "";
 }

@@ -13,6 +13,7 @@ export async function runAgent(
   agentDir: string,
   threadId: string,
   message: string,
+  channel: string,
   callbacks?: AgentRunnerCallbacks,
   extraMcpServers?: Record<string, McpServerConfig>,
   askAgentDepth?: number,
@@ -25,19 +26,20 @@ export async function runAgent(
     agentDir,
     threadId,
     message,
+    channel,
     {
       ...callbacks,
-      onResponse(agentId, threadId, channel, text) {
+      onResponse(agentId, threadId, text) {
         if (!background) {
           bus.emit("thread:response", { agentId, threadId, channel, text });
         }
       },
-      onError(agentId, threadId, channel, error) {
+      onError(agentId, threadId, error) {
         if (!background) {
           bus.emit("thread:error", { agentId, threadId, channel, error });
         }
       },
-      onFileSend(agentId, threadId, channel, filePath, caption, fileType) {
+      onFileSend(agentId, threadId, filePath, caption, fileType) {
         if (!background) {
           bus.emit("thread:file", {
             agentId,
@@ -49,13 +51,13 @@ export async function runAgent(
           });
         }
       },
-      onShareNote(agentId, threadId, channel, title, slug, message) {
+      onShareNote(agentId, threadId, title, slug, message) {
         bus.emit("thread:note", { agentId, threadId, channel, title, slug, ...(message !== undefined ? { message } : {}) });
       },
-      onPinChange(agentId, channel) {
+      onPinChange(agentId) {
         bus.emit("thread:pin", { agentId, channel });
       },
-      onNotifyUser(agentId, threadId, channel, text) {
+      onNotifyUser(agentId, threadId, text) {
         // Always emit notify_user messages, even in background mode
         bus.emit("thread:response", { agentId, threadId, channel, text });
       },

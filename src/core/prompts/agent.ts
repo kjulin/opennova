@@ -1,5 +1,4 @@
 import type { AgentConfig } from "../agents.js";
-import type { ChannelType } from "../threads.js";
 import type { Task } from "#tasks/types.js";
 
 import { STORAGE_INSTRUCTIONS, buildMemoryPrompt } from "./memory.js";
@@ -25,7 +24,7 @@ export interface BuildSystemPromptOptions {
 
 export function buildSystemPrompt(
   agent: AgentConfig,
-  channel: ChannelType,
+  channel: string,
   cwd: string,
   directories: string[],
   options?: BuildSystemPromptOptions,

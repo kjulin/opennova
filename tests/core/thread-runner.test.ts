@@ -14,7 +14,7 @@ vi.mock("#core/logger.js", () => ({
 
 vi.mock("#core/threads.js", () => ({
   threadPath: vi.fn((agentDir: string, threadId: string) => `${agentDir}/threads/${threadId}.jsonl`),
-  loadManifest: vi.fn(() => ({ channel: "test", sessionId: "sess-123" })),
+  loadManifest: vi.fn(() => ({ sessionId: "sess-123" })),
   saveManifest: vi.fn(),
   loadMessages: vi.fn(() => []),
   appendMessage: vi.fn(),
@@ -68,7 +68,7 @@ describe("AgentRunner", () => {
     const mockEngine = createMockEngine();
     const runner = createAgentRunner(mockEngine);
 
-    await runner.runAgent("/agents/test-agent", "thread-1", "Hello");
+    await runner.runAgent("/agents/test-agent", "thread-1", "Hello", "test");
 
     expect(appendMessage).toHaveBeenCalledWith(
       "/agents/test-agent/threads/thread-1.jsonl",
@@ -83,7 +83,7 @@ describe("AgentRunner", () => {
     const mockEngine = createMockEngine();
     const runner = createAgentRunner(mockEngine);
 
-    await runner.runAgent("/agents/test-agent", "thread-1", "Hello");
+    await runner.runAgent("/agents/test-agent", "thread-1", "Hello", "test");
 
     expect(mockEngine.calls).toHaveLength(1);
     expect(mockEngine.calls[0]?.message).toBe("Hello");
@@ -94,7 +94,7 @@ describe("AgentRunner", () => {
     const mockEngine = createMockEngine();
     const runner = createAgentRunner(mockEngine);
 
-    await runner.runAgent("/agents/test-agent", "thread-1", "Hello");
+    await runner.runAgent("/agents/test-agent", "thread-1", "Hello", "test");
 
     expect(appendMessage).toHaveBeenCalledWith(
       "/agents/test-agent/threads/thread-1.jsonl",
@@ -109,7 +109,7 @@ describe("AgentRunner", () => {
     const mockEngine = createMockEngine();
     const runner = createAgentRunner(mockEngine);
 
-    await runner.runAgent("/agents/test-agent", "thread-1", "Hello");
+    await runner.runAgent("/agents/test-agent", "thread-1", "Hello", "test");
 
     expect(saveManifest).toHaveBeenCalledWith(
       "/agents/test-agent/threads/thread-1.jsonl",
@@ -124,12 +124,11 @@ describe("AgentRunner", () => {
     const runner = createAgentRunner(mockEngine);
     const onResponse = vi.fn();
 
-    await runner.runAgent("/agents/test-agent", "thread-1", "Hello", { onResponse });
+    await runner.runAgent("/agents/test-agent", "thread-1", "Hello", "test", { onResponse });
 
     expect(onResponse).toHaveBeenCalledWith(
       "test-agent",
       "thread-1",
-      "test",
       "Response from engine"
     );
   });
@@ -153,7 +152,7 @@ describe("AgentRunner", () => {
     };
     const runner = createAgentRunner(mockEngine);
 
-    await runner.runAgent("/agents/test-agent", "thread-1", "Hello");
+    await runner.runAgent("/agents/test-agent", "thread-1", "Hello", "test");
 
     expect(appendUsage).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -169,7 +168,7 @@ describe("AgentRunner", () => {
     const mockEngine = createMockEngine();
     const runner = createAgentRunner(mockEngine);
 
-    const result = await runner.runAgent("/agents/test-agent", "thread-1", "Hello");
+    const result = await runner.runAgent("/agents/test-agent", "thread-1", "Hello", "test");
 
     expect(result.text).toBe("Response from engine");
   });
@@ -182,7 +181,7 @@ describe("AgentRunner", () => {
     };
     const runner = createAgentRunner(mockEngine);
 
-    const result = await runner.runAgent("/agents/test-agent", "thread-1", "Hello");
+    const result = await runner.runAgent("/agents/test-agent", "thread-1", "Hello", "test");
 
     expect(result.text).toBe("(empty response)");
   });
@@ -192,7 +191,7 @@ describe("AgentRunner", () => {
     const runner = createAgentRunner(mockEngine);
 
     await expect(
-      runner.runAgent("/agents/unknown-agent", "thread-1", "Hello")
+      runner.runAgent("/agents/unknown-agent", "thread-1", "Hello", "test")
     ).rejects.toThrow("Agent not found: unknown-agent");
   });
 
@@ -210,6 +209,7 @@ describe("AgentRunner", () => {
       "/agents/test-agent",
       "thread-1",
       "Hello",
+      "test",
       undefined,
       undefined,
       undefined,
@@ -236,13 +236,12 @@ describe("AgentRunner", () => {
     const onError = vi.fn();
 
     await expect(
-      runner.runAgent("/agents/test-agent", "thread-1", "Hello", { onError })
+      runner.runAgent("/agents/test-agent", "thread-1", "Hello", "test", { onError })
     ).rejects.toThrow("Engine failed");
 
     expect(onError).toHaveBeenCalledWith(
       "test-agent",
       "thread-1",
-      "test",
       "Engine failed"
     );
   });

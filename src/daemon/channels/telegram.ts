@@ -8,7 +8,6 @@ import {
   listThreads,
   createThread,
   getThreadManifest,
-  updateThreadChannel,
   TelegramConfigSchema,
   safeParseJsonFile,
   transcribe,
@@ -58,11 +57,11 @@ function resolveThreadId(config: TelegramConfig, agentDir: string): string {
     const file = path.join(agentDir, "threads", `${config.activeThreadId}.jsonl`);
     if (fs.existsSync(file)) return config.activeThreadId;
   }
-  // Fall back to most recent telegram thread for this agent
+  // Fall back to most recent non-task thread for this agent
   const threads = listThreads(agentDir)
-    .filter((t) => t.manifest.channel === "telegram" && !t.manifest.taskId)
+    .filter((t) => !t.manifest.taskId)
     .sort((a, b) => b.manifest.updatedAt.localeCompare(a.manifest.updatedAt));
-  const id = threads.length > 0 ? threads[0]!.id : createThread(agentDir, "telegram");
+  const id = threads.length > 0 ? threads[0]!.id : createThread(agentDir);
   config.activeThreadId = id;
   saveTelegramConfig(config);
   return id;
@@ -321,7 +320,7 @@ export function startTelegram() {
     // Handle /new command
     if (text === "/new") {
       const agentDir = path.join(Config.workspaceDir, "agents", config.activeAgentId);
-      const id = createThread(agentDir, "telegram");
+      const id = createThread(agentDir);
       config.activeThreadId = id;
       saveTelegramConfig(config);
       await ctx.reply("New thread started");
@@ -332,7 +331,7 @@ export function startTelegram() {
     if (text === "/threads") {
       const agentDir = path.join(Config.workspaceDir, "agents", config.activeAgentId);
       const threads = listThreads(agentDir)
-        .filter((t) => t.manifest.channel === "telegram" && !t.manifest.taskId)
+        .filter((t) => !t.manifest.taskId)
         .sort((a, b) => b.manifest.updatedAt.localeCompare(a.manifest.updatedAt))
         .slice(0, 10);
 
@@ -477,7 +476,7 @@ export function startTelegram() {
     // Don't await — let it run in the background so subsequent messages
     // (like /stop) can be processed while the agent is working.
     runAgent(
-      agentDir, threadId, text,
+      agentDir, threadId, text, "telegram",
       {
         onThinking() {
           updateStatus("Thinking…");
@@ -597,7 +596,7 @@ Please read it and respond to what I said.`;
       bot.api.sendChatAction(chatId, "typing").catch(() => {});
 
       runAgent(
-        agentDir, threadId, prompt,
+        agentDir, threadId, prompt, "telegram",
         {
           onThinking() {
             // Status already shown
@@ -689,7 +688,7 @@ You can read, process, or move this file as needed.`;
       bot.api.sendChatAction(chatId, "typing").catch(() => {});
 
       runAgent(
-        agentDir, threadId, prompt,
+        agentDir, threadId, prompt, "telegram",
         {
           onThinking() {},
           onAssistantMessage() {
@@ -768,17 +767,6 @@ You can read, process, or move this file as needed.`;
         config.activeAgentId = data.agentId;
         config.activeThreadId = data.threadId;
         saveTelegramConfig(config);
-
-        // Update thread channel to telegram so responses are delivered here
-        try {
-          const manifest = getThreadManifest(data.agentId, data.threadId);
-          if (manifest.channel !== "telegram") {
-            updateThreadChannel(data.agentId, data.threadId, "telegram");
-            log.info("telegram", `updated thread ${data.threadId} channel to telegram`);
-          }
-        } catch {
-          // Thread might not exist yet, that's fine
-        }
 
         log.info("telegram", `switched to agent=${data.agentId} thread=${data.threadId} via Mini App`);
 
@@ -896,7 +884,7 @@ You can read, process, or move this file as needed.`;
       bot.api.sendChatAction(chatId, "typing").catch(() => {});
     }, 4000);
     bot.api.sendChatAction(chatId, "typing").catch(() => {});
-    runAgent(agentDir, threadId, "The user just switched to you. Greet them briefly, then in 1-2 sentences help them reorient — recap where you left off, any open questions or pending tasks. If there's no prior context, just say hi and what you can help with. Keep it short.", undefined, {
+    runAgent(agentDir, threadId, "The user just switched to you. Greet them briefly, then in 1-2 sentences help them reorient — recap where you left off, any open questions or pending tasks. If there's no prior context, just say hi and what you can help with. Keep it short.", "telegram", undefined, {
       triggers: createTriggerMcpServer(agentDir, "telegram"),
     }, undefined, undefined, { model: "haiku", maxTurns: 1 }).catch((err) => {
       log.error("telegram", `greeting failed for ${agentId}:`, (err as Error).message);

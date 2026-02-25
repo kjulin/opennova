@@ -16,7 +16,7 @@ async function invokeTask(workspaceDir: string, taskId: string, owner: string, t
 
   try {
     const agentDir = path.join(workspaceDir, "agents", owner);
-    await runAgent(agentDir, threadId, TASK_WORK_PROMPT, undefined, undefined, undefined, undefined, { background: true });
+    await runAgent(agentDir, threadId, TASK_WORK_PROMPT, "telegram", undefined, undefined, undefined, undefined, { background: true });
     log.info("tasks", `task ${taskId} invocation completed`);
   } catch (err) {
     log.error("tasks", `task ${taskId} invocation failed:`, err);
@@ -37,7 +37,7 @@ export function runTaskNow(workspaceDir: string, taskId: string): string | null 
   if (!threadId) {
     log.warn("tasks", `task ${taskId} has no thread, creating one`);
     const agentDir = path.join(workspaceDir, "agents", task.owner);
-    threadId = createThread(agentDir, "telegram", { taskId });
+    threadId = createThread(agentDir, { taskId });
     updateTask(workspaceDir, taskId, { threadId });
   }
 
@@ -68,7 +68,7 @@ export function startTaskScheduler() {
 
       if (!threadId) {
         log.warn("tasks", `task ${task.id} has no thread, creating one`);
-        threadId = createThread(agentDir, "telegram", { taskId: task.id });
+        threadId = createThread(agentDir, { taskId: task.id });
         updateTask(workspaceDir, task.id, { threadId });
       }
 
