@@ -8,20 +8,20 @@ import {
   tool,
   type McpSdkServerConfigWithInstance,
 } from "@anthropic-ai/claude-agent-sdk";
-import { Config } from "./config.js";
+import {
+  VALID_AGENT_ID,
+  MAX_INSTRUCTIONS_LENGTH,
+} from "../schemas.js";
+import {
+  agentDir,
+  agentsDir,
+  readAgentJson,
+  writeAgentJson,
+} from "./io.js";
 
 
 function generateTriggerId(): string {
   return crypto.randomBytes(6).toString("hex");
-}
-const VALID_AGENT_ID = /^[a-z0-9][a-z0-9-]*$/;
-
-function agentsDir(): string {
-  return path.join(Config.workspaceDir, "agents");
-}
-
-function agentDir(id: string): string {
-  return path.join(agentsDir(), id);
 }
 
 function ok(text: string) {
@@ -30,31 +30,6 @@ function ok(text: string) {
 
 function err(text: string) {
   return { content: [{ type: "text" as const, text }], isError: true as const };
-}
-
-interface AgentJson {
-  name: string;
-  description?: string;
-  identity?: string; // Who: expertise, personality, methodology
-  instructions?: string; // How: files, rhythm, focus, constraints
-  directories?: string[];
-  [key: string]: unknown;
-}
-
-function readAgentJson(id: string): AgentJson | null {
-  const configPath = path.join(agentDir(id), "agent.json");
-  if (!fs.existsSync(configPath)) return null;
-  try {
-    return JSON.parse(fs.readFileSync(configPath, "utf-8"));
-  } catch {
-    return null;
-  }
-}
-
-function writeAgentJson(id: string, data: AgentJson): void {
-  const dir = agentDir(id);
-  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-  fs.writeFileSync(path.join(dir, "agent.json"), JSON.stringify(data, null, 2) + "\n");
 }
 
 export function createAgentManagementMcpServer(): McpSdkServerConfigWithInstance {
@@ -69,7 +44,7 @@ export function createAgentManagementMcpServer(): McpSdkServerConfigWithInstance
           const dir = agentsDir();
           if (!fs.existsSync(dir)) return ok("[]");
 
-          const agents: { id: string; config: AgentJson }[] = [];
+          const agents: { id: string; config: unknown }[] = [];
           for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
             if (!entry.isDirectory()) continue;
             const config = readAgentJson(entry.name);
@@ -111,11 +86,13 @@ export function createAgentManagementMcpServer(): McpSdkServerConfigWithInstance
             return err(`Agent "${args.id}" already exists. Use update_agent to modify it.`);
           }
 
-          const data: AgentJson = { name: args.name, identity: args.identity };
-          if (args.description) data.description = args.description;
-          if (args.instructions) data.instructions = args.instructions;
-          if (args.directories && args.directories.length > 0) data.directories = args.directories;
-          writeAgentJson(args.id, data);
+          writeAgentJson(args.id, {
+            name: args.name,
+            identity: args.identity,
+            ...(args.description && { description: args.description }),
+            ...(args.instructions && { instructions: args.instructions }),
+            ...(args.directories && args.directories.length > 0 && { directories: args.directories }),
+          });
           return ok(`Created agent "${args.id}"`);
         },
       ),
@@ -278,10 +255,8 @@ export function createAgentManagementMcpServer(): McpSdkServerConfigWithInstance
   });
 }
 
-const MAX_INSTRUCTIONS_LENGTH = 10000;
-
 export function createSelfManagementMcpServer(
-  agentDir: string,
+  selfAgentDir: string,
 ): McpSdkServerConfigWithInstance {
   return createSdkMcpServer({
     name: "self",
@@ -296,7 +271,7 @@ export function createSelfManagementMcpServer(
             .describe("Your new instructions — how you operate"),
         },
         async (args) => {
-          const configPath = path.join(agentDir, "agent.json");
+          const configPath = path.join(selfAgentDir, "agent.json");
           if (!fs.existsSync(configPath)) {
             return err("Agent configuration not found");
           }
@@ -316,7 +291,7 @@ export function createSelfManagementMcpServer(
         "Read your current instructions before updating.",
         {},
         async () => {
-          const configPath = path.join(agentDir, "agent.json");
+          const configPath = path.join(selfAgentDir, "agent.json");
           if (!fs.existsSync(configPath)) {
             return err("Agent configuration not found");
           }

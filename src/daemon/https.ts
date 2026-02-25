@@ -6,7 +6,7 @@ import os from "os";
 import { Hono, type Context } from "hono";
 import { serve } from "@hono/node-server";
 import { log } from "./logger.js";
-import { loadAgents } from "#core/agents.js";
+import { loadAgents } from "#core/agents/index.js";
 import {
   loadTasks,
   getTask,

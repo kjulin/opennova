@@ -1,17 +1,22 @@
 import { Hono } from "hono"
-import { loadAgents } from "#core/agents.js"
+import { z } from "zod/v4"
+import { loadAgents, readAgentJson, writeAgentJson, agentDir } from "#core/agents/index.js"
 import { KNOWN_CAPABILITIES } from "#core/capabilities.js"
+import {
+  AgentJsonSchema,
+  VALID_AGENT_ID,
+  TrustLevel,
+  type AgentJson,
+} from "#core/schemas.js"
 import fs from "fs"
 import path from "path"
 
-const VALID_AGENT_ID = /^[a-z0-9][a-z0-9-]*$/
-
-function loadAgentDetail(workspaceDir: string, id: string, agent: { name: string; description?: string; identity?: string; instructions?: string; trust?: string; capabilities?: string[]; directories?: string[]; model?: string }) {
-  const agentDir = path.join(workspaceDir, "agents", id)
+function loadAgentDetail(workspaceDir: string, id: string, agent: { name: string; description?: string | undefined; identity?: string | undefined; instructions?: string | undefined; trust?: string | undefined; capabilities?: string[] | undefined; directories?: string[] | undefined; model?: string | undefined }) {
+  const dir = path.join(workspaceDir, "agents", id)
 
   // Load triggers
   let triggers: unknown[] = []
-  const triggersPath = path.join(agentDir, "triggers.json")
+  const triggersPath = path.join(dir, "triggers.json")
   if (fs.existsSync(triggersPath)) {
     try {
       triggers = JSON.parse(fs.readFileSync(triggersPath, "utf-8"))
@@ -20,7 +25,7 @@ function loadAgentDetail(workspaceDir: string, id: string, agent: { name: string
 
   // Load skills (directory names)
   let skills: string[] = []
-  const skillsDir = path.join(agentDir, ".claude", "skills")
+  const skillsDir = path.join(dir, ".claude", "skills")
   if (fs.existsSync(skillsDir)) {
     try {
       skills = fs.readdirSync(skillsDir, { withFileTypes: true })
@@ -43,6 +48,13 @@ function loadAgentDetail(workspaceDir: string, id: string, agent: { name: string
     triggers,
   }
 }
+
+// Schema for POST — requires id, identity, trust
+const CreateAgentSchema = AgentJsonSchema.extend({
+  id: z.string().min(1, "id is required"),
+  identity: z.string().min(1, "identity is required"),
+  trust: TrustLevel,
+})
 
 export function createConsoleAgentsRouter(workspaceDir: string): Hono {
   const app = new Hono()
@@ -76,30 +88,21 @@ export function createConsoleAgentsRouter(workspaceDir: string): Hono {
   // Create agent
   app.post("/", async (c) => {
     const body = await c.req.json()
-    const { id, name, description, identity, instructions, directories, trust } = body
 
-    if (!id || typeof id !== "string") {
-      return c.json({ error: "id is required" }, 400)
+    const parsed = CreateAgentSchema.safeParse(body)
+    if (!parsed.success) {
+      return c.json({ error: parsed.error.issues[0]?.message ?? "Validation failed" }, 400)
     }
+
+    const { id, ...agentData } = parsed.data
+
     if (!VALID_AGENT_ID.test(id)) {
       return c.json({ error: "Invalid agent ID. Use lowercase letters, numbers, and hyphens." }, 400)
     }
-    if (!name || typeof name !== "string") {
-      return c.json({ error: "name is required" }, 400)
-    }
-    if (!identity || typeof identity !== "string") {
-      return c.json({ error: "identity is required" }, 400)
-    }
-    const validTrustLevels = ["sandbox", "controlled", "unrestricted"]
-    if (!trust || !validTrustLevels.includes(trust)) {
-      return c.json({ error: `trust is required. Must be one of: ${validTrustLevels.join(", ")}` }, 400)
-    }
-    // Validate capabilities
-    if (body.capabilities) {
-      if (!Array.isArray(body.capabilities) || !body.capabilities.every((c: unknown) => typeof c === "string")) {
-        return c.json({ error: "capabilities must be an array of strings" }, 400)
-      }
-      const unknown = body.capabilities.filter((c: string) => !KNOWN_CAPABILITIES.includes(c))
+
+    // Validate capabilities against runtime registry
+    if (agentData.capabilities) {
+      const unknown = agentData.capabilities.filter((cap: string) => !KNOWN_CAPABILITIES.includes(cap))
       if (unknown.length > 0) {
         return c.json({ error: `Unknown capabilities: ${unknown.join(", ")}. Valid: ${KNOWN_CAPABILITIES.join(", ")}` }, 400)
       }
@@ -110,18 +113,13 @@ export function createConsoleAgentsRouter(workspaceDir: string): Hono {
       return c.json({ error: "Agent already exists" }, 409)
     }
 
-    const agentJson: Record<string, unknown> = { name, identity, trust }
-    if (description) agentJson.description = description
-    if (instructions) agentJson.instructions = instructions
-    if (directories && Array.isArray(directories) && directories.length > 0) agentJson.directories = directories
-    if (body.capabilities && Array.isArray(body.capabilities) && body.capabilities.length > 0) agentJson.capabilities = body.capabilities
+    const agentJson: AgentJson = { name: agentData.name, identity: agentData.identity, trust: agentData.trust }
+    if (agentData.description) agentJson.description = agentData.description
+    if (agentData.instructions) agentJson.instructions = agentData.instructions
+    if (agentData.directories && agentData.directories.length > 0) agentJson.directories = agentData.directories
+    if (agentData.capabilities && agentData.capabilities.length > 0) agentJson.capabilities = agentData.capabilities
 
-    const agentDir = path.join(workspaceDir, "agents", id)
-    fs.mkdirSync(agentDir, { recursive: true })
-    fs.writeFileSync(
-      path.join(agentDir, "agent.json"),
-      JSON.stringify(agentJson, null, 2) + "\n",
-    )
+    writeAgentJson(id, agentJson)
 
     const created = loadAgents().get(id)
     if (!created) {
@@ -137,49 +135,28 @@ export function createConsoleAgentsRouter(workspaceDir: string): Hono {
   app.patch("/:id", async (c) => {
     const id = c.req.param("id")
 
-    const agentDir = path.join(workspaceDir, "agents", id)
-    const configPath = path.join(agentDir, "agent.json")
-    if (!fs.existsSync(configPath)) {
+    const existing = readAgentJson(id)
+    if (!existing) {
       return c.json({ error: "Agent not found" }, 404)
     }
 
     const body = await c.req.json()
-    const allowedFields = ["name", "description", "identity", "instructions", "directories", "trust", "capabilities", "model"]
+    const allowedFields = ["name", "description", "identity", "instructions", "directories", "trust", "capabilities", "model"] as const
 
-    // Validate trust
-    if ("trust" in body) {
-      const validTrust = ["sandbox", "controlled", "unrestricted"]
-      if (!validTrust.includes(body.trust)) {
-        return c.json({ error: `Invalid trust level. Must be one of: ${validTrust.join(", ")}` }, 400)
-      }
+    const parsed = AgentJsonSchema.partial().safeParse(body)
+    if (!parsed.success) {
+      return c.json({ error: parsed.error.issues[0]?.message ?? "Validation failed" }, 400)
     }
 
-    // Validate model
-    if ("model" in body) {
-      const validModels = ["sonnet", "opus", "haiku"]
-      if (body.model != null && !validModels.includes(body.model)) {
-        return c.json({ error: `Invalid model. Must be one of: ${validModels.join(", ")}` }, 400)
-      }
-    }
-
-    // Validate capabilities
-    if ("capabilities" in body) {
-      if (!Array.isArray(body.capabilities) || !body.capabilities.every((c: unknown) => typeof c === "string")) {
-        return c.json({ error: "capabilities must be an array of strings" }, 400)
-      }
-      const unknown = body.capabilities.filter((c: string) => !KNOWN_CAPABILITIES.includes(c))
+    // Validate capabilities against runtime registry
+    if ("capabilities" in body && Array.isArray(body.capabilities)) {
+      const unknown = body.capabilities.filter((cap: string) => !KNOWN_CAPABILITIES.includes(cap))
       if (unknown.length > 0) {
         return c.json({ error: `Unknown capabilities: ${unknown.join(", ")}. Valid: ${KNOWN_CAPABILITIES.join(", ")}` }, 400)
       }
     }
 
-    let config: Record<string, unknown>
-    try {
-      config = JSON.parse(fs.readFileSync(configPath, "utf-8"))
-    } catch {
-      return c.json({ error: "Failed to read agent config" }, 500)
-    }
-
+    const config: Record<string, unknown> = { ...existing }
     for (const field of allowedFields) {
       if (field in body) {
         // Allow clearing model by setting to null/undefined
@@ -191,7 +168,7 @@ export function createConsoleAgentsRouter(workspaceDir: string): Hono {
       }
     }
 
-    fs.writeFileSync(configPath, JSON.stringify(config, null, 2) + "\n")
+    writeAgentJson(id, config as AgentJson)
 
     const updated = loadAgents().get(id)
     if (!updated) {
@@ -207,12 +184,12 @@ export function createConsoleAgentsRouter(workspaceDir: string): Hono {
   app.delete("/:id", (c) => {
     const id = c.req.param("id")
 
-    const agentDir = path.join(workspaceDir, "agents", id)
-    if (!fs.existsSync(agentDir)) {
+    const dir = agentDir(id)
+    if (!fs.existsSync(dir)) {
       return c.json({ error: "Agent not found" }, 404)
     }
 
-    fs.rmSync(agentDir, { recursive: true })
+    fs.rmSync(dir, { recursive: true })
     return c.json({ ok: true })
   })
 

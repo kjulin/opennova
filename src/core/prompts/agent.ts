@@ -1,4 +1,4 @@
-import type { AgentConfig } from "../agents.js";
+import type { AgentConfig } from "../agents/index.js";
 import type { ChannelType } from "../threads.js";
 import type { Task } from "#tasks/types.js";
 

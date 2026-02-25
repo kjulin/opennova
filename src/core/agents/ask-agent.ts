@@ -5,10 +5,10 @@ import {
   tool,
   type McpSdkServerConfigWithInstance,
 } from "@anthropic-ai/claude-agent-sdk";
-import { Config } from "./config.js";
+import { Config } from "../config.js";
 import { loadAgents, type AgentConfig } from "./agents.js";
-import { createThread } from "./threads.js";
-import { log } from "./logger.js";
+import { createThread } from "../threads.js";
+import { log } from "../logger.js";
 
 const MAX_DEPTH = 3;
 
