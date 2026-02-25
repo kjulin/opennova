@@ -94,11 +94,18 @@ export const MAX_IDENTITY_LENGTH = 4000;
 export const MAX_INSTRUCTIONS_LENGTH = 8000;
 export const MAX_DESCRIPTION_LENGTH = 500;
 
+export const ResponsibilitySchema = z.object({
+  title: z.string().min(1, "title is required"),
+  content: z.string().min(1, "content is required"),
+});
+export type Responsibility = z.infer<typeof ResponsibilitySchema>;
+
 export const AgentJsonSchema = z.object({
   name: z.string().min(1, "name is required"),
   description: z.string().max(MAX_DESCRIPTION_LENGTH).optional(),
   identity: z.string().max(MAX_IDENTITY_LENGTH).optional(),
   instructions: z.string().max(MAX_INSTRUCTIONS_LENGTH).optional(),
+  responsibilities: z.array(ResponsibilitySchema).optional(),
   directories: z.array(z.string()).optional(),
   trust: TrustLevel.optional(),
   subagents: z.record(z.string(), z.object({
