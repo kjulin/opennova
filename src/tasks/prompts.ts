@@ -18,7 +18,8 @@ export function buildTaskContext(task: Task): string {
     ? task.steps.map((s, i) => {
         const marker = s.done ? "✓" : (i === task.steps.findIndex(st => !st.done) ? "→" : "○");
         const subtask = s.taskId ? ` (#${s.taskId})` : "";
-        return `${i + 1}. ${marker} ${s.title}${subtask}`;
+        const details = s.details ? `\n   ${s.details}` : "";
+        return `${i + 1}. ${marker} ${s.title}${subtask}${details}`;
       }).join("\n")
     : "(no steps defined)";
 

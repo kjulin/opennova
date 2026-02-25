@@ -23,7 +23,8 @@ import {
 import type { Task, Step, Resource } from "./types.js";
 
 const StepSchema = z.object({
-  title: z.string().describe("Step title"),
+  title: z.string().max(60).describe("Short step label (max 60 chars)"),
+  details: z.string().optional().describe("Expanded description of the step"),
   done: z.boolean().describe("Whether the step is completed"),
 });
 
@@ -31,7 +32,8 @@ function formatTask(task: Task): string {
   const steps = task.steps.length > 0
     ? "\nSteps:\n" + task.steps.map((s: Step, i: number) => {
         const subtask = s.taskId ? ` (#${s.taskId})` : "";
-        return `  ${i + 1}. ${s.done ? "✓" : "○"} ${s.title}${subtask}`;
+        const details = s.details ? `\n     ${s.details}` : "";
+        return `  ${i + 1}. ${s.done ? "✓" : "○"} ${s.title}${subtask}${details}`;
       }).join("\n")
     : "";
 
