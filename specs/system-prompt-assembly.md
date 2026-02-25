@@ -28,15 +28,16 @@ The builder receives resolved values — cwd and directories are already expande
 The system prompt is a sequence of tagged sections. Each section is wrapped in an XML-style tag and has a single responsibility.
 
 ```
-<Identity>       Who the agent is
-<Instructions>   How the agent operates
-<Directories>    Filesystem boundaries
-<Storage>        Persistence guidance
-<Formatting>     Channel-specific output rules
-<Context>        Current time and timezone
-<Memories>       Shared cross-agent facts
-<Task>           Bound task context (conditional)
-<Background>     Silent execution mode (conditional)
+<Identity>           Who the agent is
+<Instructions>       How the agent operates
+<Responsibilities>   What the agent does (conditional)
+<Directories>        Filesystem boundaries
+<Storage>            Persistence guidance
+<Formatting>         Channel-specific output rules
+<Context>            Current time and timezone
+<Memories>           Shared cross-agent facts
+<Task>               Bound task context (conditional)
+<Background>         Silent execution mode (conditional)
 ```
 
 Sections are emitted in this order. Conditional sections are omitted entirely when their condition is not met — no empty tags, no placeholders.
@@ -66,6 +67,25 @@ Omitted if the agent has no `identity` field.
 Source: `agent.instructions` field.
 
 Omitted if the agent has no `instructions` field. Only emitted when `identity` is present (the new format). Legacy `role` agents do not get a separate Instructions block.
+
+### Responsibilities (conditional)
+
+```
+<Responsibilities>
+  <Responsibility title="Agent routing">
+    When a new conversation starts, determine whether to handle it or delegate...
+  </Responsibility>
+  <Responsibility title="Product onboarding">
+    Help the user get started with Nova. Goals: ...
+  </Responsibility>
+</Responsibilities>
+```
+
+Source: `agent.responsibilities` array.
+
+Each responsibility is rendered as a child element with its title as an attribute and content as body text. The XML structure makes individual responsibilities addressable — the agent can reference them by title when deciding to remove one.
+
+Omitted if the agent has no responsibilities. This is the common case — responsibilities are optional and most agents operate fine with just identity + instructions.
 
 ### Directories
 
@@ -183,7 +203,7 @@ Only emitted when the agent is running in silent mode (triggers, task scheduler)
 
 The section order follows a principle: *identity before context, context before state.*
 
-1. *Who you are* (Identity, Instructions) — establishes the agent's frame.
+1. *Who you are and what you do* (Identity, Instructions, Responsibilities) — establishes the agent's frame and current duties.
 2. *What you can access* (Directories, Storage) — sets operational boundaries.
 3. *How to communicate* (Formatting) — output constraints.
 4. *What's happening now* (Context, Memories) — current state of the world.
