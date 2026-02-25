@@ -1,7 +1,8 @@
 export interface Step {
-  title: string;
+  title: string;      // Short label (max 60 chars)
+  details?: string;   // Expanded description
   done: boolean;
-  taskId?: string;  // Linked subtask
+  taskId?: string;    // Linked subtask
 }
 
 export interface Resource {
