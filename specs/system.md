@@ -247,6 +247,8 @@ Each boundary below should have its own spec. This system spec defines how they 
 | Skills | DONE | Skill definitions, discovery, injection |
 | Scheduling | DONE | Triggers, task scheduler, delivery wiring |
 | Channel Contract | TODO | Adapter pattern, callback construction, message routing |
+| Tasks | DONE | Data model, lifecycle, subtasks, scheduler, thread binding, MCP tools |
+| Scheduling | TODO | Triggers, task scheduler, backfill — timer-based concerns |
 | Storage | TODO | Data layout, file formats, migration strategy |
 | Inter-Agent Communication | TODO | ask-agent, delegation depth, thread creation |
 
