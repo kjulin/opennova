@@ -103,6 +103,10 @@ export function startAgentTelegram(
     if (payload.channel !== channel) return;
     const chatId = Number(botConfig.chatId);
 
+    // Track the thread that last sent a message so user replies go there
+    botConfig.activeThreadId = payload.threadId;
+    saveConfig();
+
     const chunks = splitMessage(payload.text);
     for (const chunk of chunks) {
       await bot.api.sendMessage(chatId, chunk, { parse_mode: "Markdown" }).catch(() => {
