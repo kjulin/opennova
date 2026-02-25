@@ -26,6 +26,7 @@ export function TaskItem({
 }: TaskItemProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [confirmCancel, setConfirmCancel] = useState(false);
+  const [descExpanded, setDescExpanded] = useState(false);
 
   const completedSteps = task.steps.filter((s) => s.done).length;
   const totalSteps = task.steps.length;
@@ -84,7 +85,26 @@ export function TaskItem({
               Description
             </label>
             <div className="rounded-lg bg-[#0d1117] px-3 py-2.5 text-sm text-[#c9d1d9]">
-              {task.description || (
+              {task.description ? (
+                <>
+                  <div
+                    className={descExpanded ? "" : "line-clamp-3"}
+                  >
+                    {task.description}
+                  </div>
+                  {task.description.length > 150 && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setDescExpanded(!descExpanded);
+                      }}
+                      className="mt-1 text-xs text-blue-400 hover:text-blue-300"
+                    >
+                      {descExpanded ? "Show less" : "Show more"}
+                    </button>
+                  )}
+                </>
+              ) : (
                 <span className="text-gray-500 italic">No description</span>
               )}
             </div>
