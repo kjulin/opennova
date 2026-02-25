@@ -27,6 +27,7 @@ export function TaskItem({
   const [isOpen, setIsOpen] = useState(false);
   const [confirmCancel, setConfirmCancel] = useState(false);
   const [descExpanded, setDescExpanded] = useState(false);
+  const [expandedSteps, setExpandedSteps] = useState<Set<number>>(new Set());
 
   const completedSteps = task.steps.filter((s) => s.done).length;
   const totalSteps = task.steps.length;
@@ -117,19 +118,45 @@ export function TaskItem({
               </label>
               <div className="rounded-lg bg-[#0d1117] px-3 py-2.5 text-sm text-[#c9d1d9] space-y-1">
                 {task.steps.map((step, i) => (
-                  <div key={i} className="flex items-center gap-2">
-                    <span
-                      className={
-                        step.done ? "text-emerald-400" : "text-gray-500"
-                      }
-                    >
-                      {step.done ? "\u2713" : "\u25CB"}
-                    </span>
-                    <span className={step.done ? "text-gray-400" : ""}>
-                      {step.title}
-                    </span>
-                    {step.taskId && (
-                      <span className="text-blue-400 text-xs">#{step.taskId}</span>
+                  <div key={i}>
+                    <div className="flex items-center gap-2">
+                      <span
+                        className={
+                          step.done ? "text-emerald-400" : "text-gray-500"
+                        }
+                      >
+                        {step.done ? "\u2713" : "\u25CB"}
+                      </span>
+                      <span className={step.done ? "text-gray-400" : ""}>
+                        {step.title}
+                      </span>
+                      {step.taskId && (
+                        <span className="text-blue-400 text-xs">#{step.taskId}</span>
+                      )}
+                      {step.details && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setExpandedSteps((prev) => {
+                              const next = new Set(prev);
+                              if (next.has(i)) {
+                                next.delete(i);
+                              } else {
+                                next.add(i);
+                              }
+                              return next;
+                            });
+                          }}
+                          className="ml-auto text-gray-500 hover:text-gray-400 text-xs"
+                        >
+                          {expandedSteps.has(i) ? "hide" : "details"}
+                        </button>
+                      )}
+                    </div>
+                    {step.details && expandedSteps.has(i) && (
+                      <div className="ml-6 mt-1 text-xs text-gray-400 whitespace-pre-wrap">
+                        {step.details}
+                      </div>
                     )}
                   </div>
                 ))}
