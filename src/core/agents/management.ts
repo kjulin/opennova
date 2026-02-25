@@ -11,6 +11,7 @@ import {
 import {
   VALID_AGENT_ID,
   MAX_INSTRUCTIONS_LENGTH,
+  ResponsibilitySchema,
 } from "../schemas.js";
 import {
   agentDir,
@@ -300,6 +301,99 @@ export function createSelfManagementMcpServer(
             return ok(config.instructions ?? "(no instructions set)");
           } catch (e) {
             return err(`Failed to read: ${(e as Error).message}`);
+          }
+        },
+      ),
+
+      tool(
+        "list_responsibilities",
+        "List your current responsibilities — what you are responsible for doing.",
+        {},
+        async () => {
+          const configPath = path.join(selfAgentDir, "agent.json");
+          if (!fs.existsSync(configPath)) return err("Agent configuration not found");
+          try {
+            const config = JSON.parse(fs.readFileSync(configPath, "utf-8"));
+            const responsibilities = config.responsibilities ?? [];
+            if (responsibilities.length === 0) return ok("No responsibilities defined.");
+            return ok(JSON.stringify(responsibilities, null, 2));
+          } catch (e) {
+            return err(`Failed to read: ${(e as Error).message}`);
+          }
+        },
+      ),
+
+      tool(
+        "add_responsibility",
+        "Add a new responsibility — a specific duty or area you are responsible for. Use when you take on a new role or the user assigns you something.",
+        {
+          title: z.string().min(1).describe("Short label for this responsibility (e.g., 'Agent routing', 'Product onboarding')"),
+          content: z.string().min(1).describe("Instruction text — goals, behavior, context for this responsibility"),
+        },
+        async (args) => {
+          const configPath = path.join(selfAgentDir, "agent.json");
+          if (!fs.existsSync(configPath)) return err("Agent configuration not found");
+          try {
+            const config = JSON.parse(fs.readFileSync(configPath, "utf-8"));
+            const responsibilities = config.responsibilities ?? [];
+            if (responsibilities.some((r: { title: string }) => r.title === args.title)) {
+              return err(`Responsibility "${args.title}" already exists. Use update_responsibility to modify it.`);
+            }
+            responsibilities.push({ title: args.title, content: args.content });
+            config.responsibilities = responsibilities;
+            fs.writeFileSync(configPath, JSON.stringify(config, null, 2) + "\n");
+            return ok(`Added responsibility "${args.title}"`);
+          } catch (e) {
+            return err(`Failed to add: ${(e as Error).message}`);
+          }
+        },
+      ),
+
+      tool(
+        "update_responsibility",
+        "Update an existing responsibility's content. Use to refine goals or adjust scope.",
+        {
+          title: z.string().min(1).describe("Title of the responsibility to update"),
+          content: z.string().min(1).describe("New instruction text for this responsibility"),
+        },
+        async (args) => {
+          const configPath = path.join(selfAgentDir, "agent.json");
+          if (!fs.existsSync(configPath)) return err("Agent configuration not found");
+          try {
+            const config = JSON.parse(fs.readFileSync(configPath, "utf-8"));
+            const responsibilities = config.responsibilities ?? [];
+            const idx = responsibilities.findIndex((r: { title: string }) => r.title === args.title);
+            if (idx === -1) return err(`Responsibility "${args.title}" not found.`);
+            responsibilities[idx].content = args.content;
+            config.responsibilities = responsibilities;
+            fs.writeFileSync(configPath, JSON.stringify(config, null, 2) + "\n");
+            return ok(`Updated responsibility "${args.title}"`);
+          } catch (e) {
+            return err(`Failed to update: ${(e as Error).message}`);
+          }
+        },
+      ),
+
+      tool(
+        "remove_responsibility",
+        "Remove a responsibility when it is complete or no longer relevant. This is how you shed duties that are done.",
+        {
+          title: z.string().min(1).describe("Title of the responsibility to remove"),
+        },
+        async (args) => {
+          const configPath = path.join(selfAgentDir, "agent.json");
+          if (!fs.existsSync(configPath)) return err("Agent configuration not found");
+          try {
+            const config = JSON.parse(fs.readFileSync(configPath, "utf-8"));
+            const responsibilities = config.responsibilities ?? [];
+            const idx = responsibilities.findIndex((r: { title: string }) => r.title === args.title);
+            if (idx === -1) return err(`Responsibility "${args.title}" not found.`);
+            responsibilities.splice(idx, 1);
+            config.responsibilities = responsibilities.length > 0 ? responsibilities : undefined;
+            fs.writeFileSync(configPath, JSON.stringify(config, null, 2) + "\n");
+            return ok(`Removed responsibility "${args.title}"`);
+          } catch (e) {
+            return err(`Failed to remove: ${(e as Error).message}`);
           }
         },
       ),
