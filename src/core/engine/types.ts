@@ -22,9 +22,19 @@ export interface EngineResult {
     inputTokens: number;
     outputTokens: number;
     cacheReadTokens: number;
+    cacheCreationTokens: number;
     costUsd: number;
     durationMs: number;
+    durationApiMs: number;
     turns: number;
+    model: string;
+    modelUsage?: Record<string, {
+      inputTokens: number;
+      outputTokens: number;
+      cacheReadTokens: number;
+      cacheCreationTokens: number;
+      costUsd: number;
+    }>;
   } | undefined;
 }
 

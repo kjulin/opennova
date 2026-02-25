@@ -99,6 +99,8 @@ export function createAgentRunner(engine: Engine = claudeEngine): AgentRunner {
       };
 
       let result;
+      let systemPrompt: string | undefined;
+      let mcpServerCount = 0;
       try {
         const cwd = getAgentCwd(agent);
         const directories = getAgentDirectories(agent);
@@ -106,12 +108,10 @@ export function createAgentRunner(engine: Engine = claudeEngine): AgentRunner {
         const taskId = manifest.taskId as string | undefined;
         const task = taskId ? getTask(Config.workspaceDir, taskId) ?? undefined : undefined;
 
-        const baseSystemPrompt = buildSystemPrompt(agent, manifest.channel, cwd, directories, {
+        systemPrompt = buildSystemPrompt(agent, manifest.channel, cwd, directories, {
           task,
           background: overrides?.background,
         });
-
-        const systemPrompt = baseSystemPrompt;
 
         const engineCallbacks: EngineCallbacks = {
           ...callbacks,
@@ -140,6 +140,13 @@ export function createAgentRunner(engine: Engine = claudeEngine): AgentRunner {
           runAgentFn: runAgentForAskAgent,
         };
 
+        const mcpServers = {
+          ...resolveCapabilities(agent.capabilities, resolverContext),
+          ...extraMcpServers,
+          ...resolveInjections(resolverContext, { background: overrides?.background }),
+        };
+        mcpServerCount = Object.keys(mcpServers).length;
+
         result = await engine.run(
           message,
           {
@@ -149,11 +156,7 @@ export function createAgentRunner(engine: Engine = claudeEngine): AgentRunner {
             ...(overrides?.model ? { model: overrides.model } : {}),
             ...(overrides?.maxTurns ? { maxTurns: overrides.maxTurns } : {}),
             ...(agent.subagents ? { agents: agent.subagents as EngineOptions["agents"] } : {}),
-            mcpServers: {
-              ...resolveCapabilities(agent.capabilities, resolverContext),
-              ...extraMcpServers,
-              ...resolveInjections(resolverContext, { background: overrides?.background }),
-            },
+            mcpServers,
           },
           trust,
           manifest.sessionId,
@@ -192,6 +195,9 @@ export function createAgentRunner(engine: Engine = claudeEngine): AgentRunner {
           agentId,
           threadId,
           ...result.usage,
+          systemPromptChars: systemPrompt?.length,
+          mcpServerCount,
+          capabilityCount: agent.capabilities?.length ?? 0,
         });
       }
 
@@ -265,11 +271,19 @@ export function createAgentRunner(engine: Engine = claudeEngine): AgentRunner {
         // Wait for at least 2 user messages — the first is often just a greeting
         if (userMessages.length >= 2) {
           const topicMessages = userMessages.slice(-2).map((m) => m.text).join("\n");
-          generateThreadTitle(topicMessages, responseText).then((title) => {
+          generateThreadTitle(topicMessages, responseText).then(({ title, usage: titleUsage }) => {
             if (title) {
               manifest.title = title;
               saveManifest(filePath, manifest);
               log.info("thread-runner", `titled thread ${threadId}: "${title}"`);
+            }
+            if (titleUsage) {
+              appendUsage({
+                timestamp: new Date().toISOString(),
+                agentId: "_system",
+                threadId,
+                ...titleUsage,
+              });
             }
           }).catch((err) => {
             log.warn("thread-runner", `title generation failed for ${threadId}:`, (err as Error).message);
