@@ -19,7 +19,6 @@ export interface ResolverContext {
   agentDir: string;
   workspaceDir: string;
   threadId: string;
-  channel: string;
   directories: string[];
   manifest: ThreadManifest;
   callbacks: {
@@ -48,7 +47,7 @@ const CAPABILITY_REGISTRY: Record<string, CapabilityResolver> = {
     return createAgentsMcpServer(ctx.agent, ctx.askAgentDepth ?? 0, ctx.runAgentFn);
   },
   "agent-management": () => createAgentManagementMcpServer(),
-  triggers: (ctx) => createTriggerMcpServer(ctx.agentDir, ctx.channel),
+  triggers: (ctx) => createTriggerMcpServer(ctx.agentDir),
   browser: () => ({
     type: "stdio" as const,
     command: "npx",

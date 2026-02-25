@@ -28,12 +28,12 @@ export interface RunAgentOverrides {
 }
 
 export interface AgentRunnerCallbacks extends EngineCallbacks {
-  onResponse?: (agentId: string, threadId: string, channel: string, text: string) => void;
-  onError?: (agentId: string, threadId: string, channel: string, error: string) => void;
-  onFileSend?: (agentId: string, threadId: string, channel: string, filePath: string, caption: string | undefined, fileType: FileType) => void;
-  onShareNote?: (agentId: string, threadId: string, channel: string, title: string, slug: string, message: string | undefined) => void;
-  onPinChange?: (agentId: string, channel: string) => void;
-  onNotifyUser?: (agentId: string, threadId: string, channel: string, message: string) => void;
+  onResponse?: (agentId: string, threadId: string, text: string) => void;
+  onError?: (agentId: string, threadId: string, error: string) => void;
+  onFileSend?: (agentId: string, threadId: string, filePath: string, caption: string | undefined, fileType: FileType) => void;
+  onShareNote?: (agentId: string, threadId: string, title: string, slug: string, message: string | undefined) => void;
+  onPinChange?: (agentId: string) => void;
+  onNotifyUser?: (agentId: string, threadId: string, message: string) => void;
 }
 
 export interface AgentRunner {
@@ -126,14 +126,13 @@ export function createAgentRunner(engine: Engine = claudeEngine): AgentRunner {
           agentDir,
           workspaceDir: Config.workspaceDir,
           threadId,
-          channel: manifest.channel,
           directories,
           manifest,
           callbacks: {
-            onFileSend: (fp, caption, fileType) => callbacks?.onFileSend?.(agentId, threadId, manifest.channel, fp, caption, fileType),
-            onShareNote: (title, slug, message) => callbacks?.onShareNote?.(agentId, threadId, manifest.channel, title, slug, message),
-            onPinChange: () => callbacks?.onPinChange?.(agentId, manifest.channel),
-            onNotifyUser: (message) => callbacks?.onNotifyUser?.(agentId, threadId, manifest.channel, message),
+            onFileSend: (fp, caption, fileType) => callbacks?.onFileSend?.(agentId, threadId, fp, caption, fileType),
+            onShareNote: (title, slug, message) => callbacks?.onShareNote?.(agentId, threadId, title, slug, message),
+            onPinChange: () => callbacks?.onPinChange?.(agentId),
+            onNotifyUser: (message) => callbacks?.onNotifyUser?.(agentId, threadId, message),
           },
           agent,
           askAgentDepth: askAgentDepth ?? 0,
@@ -182,7 +181,7 @@ export function createAgentRunner(engine: Engine = claudeEngine): AgentRunner {
           text: `(error: ${errorMsg})`,
           timestamp: new Date().toISOString(),
         });
-        callbacks?.onError?.(agentId, threadId, manifest.channel, errorMsg);
+        callbacks?.onError?.(agentId, threadId, errorMsg);
         throw err;
       }
 
@@ -213,7 +212,7 @@ export function createAgentRunner(engine: Engine = claudeEngine): AgentRunner {
       manifest.updatedAt = new Date().toISOString();
       saveManifest(filePath, manifest);
 
-      callbacks?.onResponse?.(agentId, threadId, manifest.channel, responseText);
+      callbacks?.onResponse?.(agentId, threadId, responseText);
 
       log.info("thread-runner", `thread ${threadId} for agent ${agentId} completed (${responseText.length} chars)`);
 

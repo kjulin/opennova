@@ -24,8 +24,6 @@ export function loadTriggers(agentDir: string): Trigger[] {
   }
   const triggers: Trigger[] = [];
   for (const item of raw) {
-    // Backfill channel for triggers created before channel ownership was enforced
-    if (item && typeof item === "object" && !item.channel) item.channel = "telegram";
     const result = TriggerSchema.safeParse(item);
     if (result.success) {
       triggers.push(result.data);
@@ -45,7 +43,6 @@ export function saveTriggers(agentDir: string, triggers: Trigger[]) {
 
 export function createTriggerMcpServer(
   agentDir: string,
-  channel: string,
 ): McpSdkServerConfigWithInstance {
   return createSdkMcpServer({
     name: "triggers",
@@ -84,7 +81,6 @@ export function createTriggerMcpServer(
           const triggers = loadTriggers(agentDir);
           const trigger: Trigger = {
             id: randomBytes(6).toString("hex"),
-            channel,
             cron: args.cron,
             tz: args.tz,
             prompt: args.prompt,
