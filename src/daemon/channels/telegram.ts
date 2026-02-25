@@ -22,7 +22,7 @@ import { createTriggerMcpServer } from "../triggers.js";
 import { getTask, loadTasks } from "#tasks/index.js";
 import { listNotes, getPinnedNotes } from "#notes/index.js";
 import { TELEGRAM_HELP_MESSAGE } from "./telegram-help.js";
-import { splitMessage, chatGuard } from "./telegram-utils.js";
+import { splitMessage, chatGuard, toTelegramMarkdown } from "./telegram-utils.js";
 import { log } from "../logger.js";
 
 export const HTTPS_PORT = 3838;
@@ -183,8 +183,9 @@ export function startTelegram() {
     if (payload.channel !== "telegram") return;
     const chatId = Number(config.chatId);
 
+    // Convert standard markdown from the agent to Telegram markdown
+    let text = toTelegramMarkdown(payload.text);
     // Track active context — prepend switch notice when it changes (e.g. trigger firing on a different agent/thread)
-    let text = payload.text;
     if (payload.agentId !== config.activeAgentId || payload.threadId !== config.activeThreadId) {
       const agents = loadAgents();
       const agent = agents.get(payload.agentId);
