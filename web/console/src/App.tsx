@@ -1,4 +1,4 @@
-import { createBrowserRouter, Navigate, RouterProvider } from "react-router-dom";
+import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import { AppShell } from "@/components/AppShell";
 import { AgentsPage } from "@/pages/AgentsPage";
 import { AgentDetailPage } from "@/pages/AgentDetailPage";
@@ -6,18 +6,14 @@ import { SkillsPage } from "@/pages/SkillsPage";
 import { TriggersPage } from "@/pages/TriggersPage";
 import { SecretsPage } from "@/pages/SecretsPage";
 import { ConfigPage } from "@/pages/ConfigPage";
-import { SetupPage } from "@/pages/SetupPage";
+import { DashboardPage } from "@/pages/DashboardPage";
 
 const router = createBrowserRouter([
-  {
-    path: "/setup",
-    element: <SetupPage />,
-  },
   {
     path: "/web/console",
     element: <AppShell />,
     children: [
-      { index: true, element: <Navigate to="/web/console/agents" replace /> },
+      { index: true, element: <DashboardPage /> },
       { path: "agents", element: <AgentsPage /> },
       { path: "agents/:id", element: <AgentDetailPage /> },
       { path: "skills", element: <SkillsPage /> },

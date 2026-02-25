@@ -1,4 +1,5 @@
 import type { Agent, AgentsResponse, Skill, SkillsResponse, Trigger, TriggersResponse, SecretsResponse, ConfigResponse, PairingStatus } from "@/types";
+export type { PairingStatus } from "@/types";
 
 const API_BASE = "/api/console";
 const CONFIG_API = "/api/config";
@@ -178,15 +179,44 @@ export async function updateDaemon(autoStart: boolean): Promise<{ ok: true; auto
   return res.json();
 }
 
-export async function pairTelegram(): Promise<{ ok: true }> {
-  const res = await fetch(`${CONFIG_API}/telegram/pair`, { method: "POST" });
-  if (!res.ok) throw new Error("Failed to re-pair Telegram");
+// Telegram pairing — uses M4 daemon API at /api/telegram/pair/*
+export async function startPairing(botToken: string): Promise<{ status: string } | { error: string }> {
+  const res = await fetch("/api/telegram/pair/start", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ botToken }),
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({ error: "Failed to start pairing" }));
+    throw new Error(data.error || "Failed to start pairing");
+  }
   return res.json();
 }
 
-export async function fetchPairStatus(): Promise<PairingStatus> {
-  const res = await fetch(`${CONFIG_API}/telegram/pair/status`);
+export async function fetchPairingStatus(): Promise<PairingStatus> {
+  const res = await fetch("/api/telegram/pair/status");
   if (!res.ok) throw new Error("Failed to fetch pairing status");
+  return res.json();
+}
+
+export async function confirmPairing(): Promise<{ status: string; chatId: number }> {
+  const res = await fetch("/api/telegram/pair/confirm", { method: "POST" });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({ error: "Failed to confirm pairing" }));
+    throw new Error(data.error || "Failed to confirm pairing");
+  }
+  return res.json();
+}
+
+export async function cancelPairing(): Promise<{ status: string }> {
+  const res = await fetch("/api/telegram/pair/cancel", { method: "POST" });
+  if (!res.ok) throw new Error("Failed to cancel pairing");
+  return res.json();
+}
+
+export async function unpairTelegram(): Promise<{ status: string }> {
+  const res = await fetch("/api/telegram/unpair", { method: "POST" });
+  if (!res.ok) throw new Error("Failed to unpair Telegram");
   return res.json();
 }
 
@@ -201,7 +231,7 @@ export async function updateTtsKey(openaiKey: string): Promise<{ ok: true }> {
 }
 
 export async function setupTailscale(): Promise<{ ok: true; hostname: string }> {
-  const res = await fetch("/api/setup/tailscale", { method: "POST" });
+  const res = await fetch(`${CONFIG_API}/tailscale`, { method: "POST" });
   if (!res.ok) throw new Error("Failed to set up Tailscale");
   return res.json();
 }

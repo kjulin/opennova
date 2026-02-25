@@ -25,7 +25,6 @@ import { createConsoleAgentsRouter } from "#api/console-agents.js";
 import { createConsoleTriggersRouter } from "#api/console-triggers.js";
 import { createConsoleSkillsRouter } from "#api/console-skills.js";
 import { createConsoleSecretsRouter } from "#api/console-secrets.js";
-import { createSetupRouter } from "#api/setup.js";
 import { createConfigRouter } from "#api/config.js";
 import { createTelegramPairRouter, createTelegramUnpairRouter } from "./routes/telegram-pair.js";
 import { reloadChannels } from "./channels.js";
@@ -229,8 +228,7 @@ function createApp(workspaceDir: string): Hono {
   app.route("/api/console/skills", createConsoleSkillsRouter(workspaceDir));
   app.route("/api/console/secrets", createConsoleSecretsRouter(workspaceDir));
 
-  // Setup & Config API
-  app.route("/api/setup", createSetupRouter(workspaceDir));
+  // Config API
   app.route("/api/config", createConfigRouter(workspaceDir));
 
   // Telegram pairing API
