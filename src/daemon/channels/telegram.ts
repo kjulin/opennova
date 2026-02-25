@@ -127,15 +127,16 @@ function agentKeyboard(agents: Map<string, { id: string; name: string }>, active
 }
 
 export function startTelegram() {
-  const config = loadTelegramConfig();
-  if (!config) {
+  const maybeConfig = loadTelegramConfig();
+  if (!maybeConfig) {
     log.info("telegram", "channel skipped (no telegram.json)");
     return null;
   }
-  if (!config.chatId) {
+  if (!maybeConfig.chatId) {
     log.info("telegram", "channel skipped (chatId not configured)");
     return null;
   }
+  const config = maybeConfig;
 
   const bot = new Bot(config.token);
   bot.use(chatGuard(config.chatId));

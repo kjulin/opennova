@@ -78,7 +78,7 @@ export function createAgentsMcpServer(
           }
 
           const targetDir = path.join(Config.workspaceDir, "agents", target.id);
-          const threadId = createThread(targetDir, "internal");
+          const threadId = createThread(targetDir);
           const prompt = `[Message from agent "${caller.name}" (${caller.id})]\n\n${args.message}`;
 
           log.info("ask-agent", `${caller.id} → ${target.id} (depth ${depth}): ${args.message.slice(0, 100)}`);
