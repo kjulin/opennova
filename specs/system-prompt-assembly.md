@@ -11,17 +11,19 @@ The builder is the single entry point. Every section of the system prompt is ass
 ```
 buildSystemPrompt(
   agent: AgentConfig,
-  channel: ChannelType,
   cwd: string,
   directories: string[],
   options?: {
     task?: Task,
-    silent?: boolean,
+    background?: boolean,
+    formatting?: string,
   }
 ): string
 ```
 
 The builder receives resolved values — cwd and directories are already expanded, task is already loaded. The builder does not fetch, resolve, or look up anything. It formats.
+
+The builder does not know about channels. If the caller wants channel-specific formatting, it passes a `formatting` string. The builder includes it verbatim in the Formatting section.
 
 ## Prompt Structure
 
@@ -33,7 +35,7 @@ The system prompt is a sequence of tagged sections. Each section is wrapped in a
 <Responsibilities>   What the agent does (conditional)
 <Directories>        Filesystem boundaries
 <Storage>            Persistence guidance
-<Formatting>         Channel-specific output rules
+<Formatting>         Output formatting rules (conditional)
 <Context>            Current time and timezone
 <Memories>           Shared cross-agent facts
 <Task>               Bound task context (conditional)
@@ -54,7 +56,7 @@ Sections are emitted in this order. Conditional sections are omitted entirely wh
 
 Source: `agent.identity` field.
 
-Omitted if the agent has no `identity` field. 
+Omitted if the agent has no `identity` field.
 
 ### Instructions
 
@@ -120,19 +122,19 @@ Explains the four persistence mechanisms: files, instructions, memory, triggers.
 
 Omitted for agents without file or persistence capabilities. The test: if the agent has no capabilities that persist anything, Storage is noise.
 
-### Formatting
+### Formatting (conditional)
 
 ```
 <Formatting>
-{channel-specific formatting rules}
+{formatting rules}
 </Formatting>
 ```
 
-Source: channel type (e.g., "telegram").
+Source: `options.formatting` (provided by the caller).
 
-Channel-specific output formatting rules. Currently only Telegram has custom formatting (Markdown syntax). Other channels emit no Formatting block.
+Output formatting rules for the delivery channel. The builder does not know which channel is in use — it receives the formatting text from the caller and includes it verbatim. Callers that deliver via Telegram pass Telegram Markdown rules. Callers with no formatting requirements omit the parameter.
 
-Omitted for channels without specific formatting requirements.
+Omitted when `options.formatting` is not provided.
 
 ### Context
 
@@ -190,7 +192,7 @@ If you need to notify the user about something important, use the notify_user to
 
 Source: `options.background` flag.
 
-Only emitted when the agent is running in silent mode (triggers, task scheduler). Tells the agent its output won't reach the user directly and to use `notify_user` for important communication.
+Only emitted when the agent is running in background mode (triggers, task scheduler). Tells the agent its output won't reach the user directly and to use `notify_user` for important communication.
 
 ## What the Builder Does NOT Do
 
@@ -198,6 +200,7 @@ Only emitted when the agent is running in silent mode (triggers, task scheduler)
 - *Enforce security.* Trust levels are enforced by the Engine's SDK permission mapping. The prompt does not contain security instructions.
 - *Fetch data.* The builder receives pre-loaded values (agent config, memories, task). It does not read files, query databases, or call external services.
 - *Define behavior.* Agent-specific behavioral rules (communication style, interaction patterns, domain knowledge) belong in the agent's `identity` and `instructions` fields. The builder provides system-level context, not behavioral coaching.
+- *Know about channels.* The builder does not import channel types or make formatting decisions based on delivery target. Formatting is caller-provided content.
 
 ## Assembly Order Rationale
 
@@ -218,6 +221,7 @@ Early sections change slowly (identity rarely changes). Later sections change pe
 - Conditional sections are fully omitted, not empty.
 - The builder formats but does not fetch. All data arrives pre-loaded through its parameters.
 - Section order is fixed. Callers cannot reorder or inject between sections.
+- The builder does not import channel types. Formatting is an opaque string from the caller.
 - Legacy `<Role>` format is a migration path, not a target. New agents always use Identity + Instructions.
 
 ## What Lives Here
@@ -235,3 +239,4 @@ Early sections change slowly (identity rarely changes). Later sections change pe
 - Thread execution flow (Thread Lifecycle spec)
 - Skill injection (Skills spec — skills are injected by the SDK via `.claude/` directory, not by the prompt builder)
 - Memory storage format (Storage spec)
+- Channel-specific formatting content (owned by the channel, passed to the builder)

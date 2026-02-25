@@ -55,12 +55,14 @@ Not every resolver uses every field. But all resolvers receive the same context 
 | tasks | `createTasksMcpServer(agentId, workspaceDir)` |
 | notes | `createNotesMcpServer(agentDir, callbacks)` |
 | self | `createSelfManagementMcpServer(agentDir)` — instructions + responsibilities CRUD |
-| media | `createMediaMcpServer(agentDir, directories, callbacks)` — file send, transcription, future TTS |
+| media | `createMediaMcpServer(agentDir, directories, callbacks)` — file send, transcription, TTS |
 | secrets | `createSecretsMcpServer(workspaceDir)` |
-| triggers | `createTriggerMcpServer(agentDir, channel)` |
+| triggers | `createTriggerMcpServer(agentDir)` |
 | agents | `createAgentsMcpServer(depth, runAgent)` — inter-agent communication, can reach any agent |
 | agent-management | `createAgentManagementMcpServer()` |
 | browser | external stdio: `npx @playwright/mcp@latest` |
+
+The trigger resolver no longer accepts a `channel` parameter. Triggers are cron + prompt pairs. Delivery routing is determined by the daemon when triggers fire, not stored on the trigger or resolved during capability resolution.
 
 ## Run-time Injections
 
@@ -68,7 +70,7 @@ Not all MCP servers are capabilities. Some are wired by AgentRunner based on exe
 
 | Injection | When | Resolver |
 |-----------|------|----------|
-| notify-user | `silent: true` (background/task runs) | `createNotifyUserMcpServer(callbacks)` |
+| notify-user | `background: true` (trigger/task runs) | `createNotifyUserMcpServer(callbacks)` |
 
 Run-time injections are added after capability resolution. They use the same registry infrastructure but are not part of the agent's `capabilities` array.
 
@@ -95,3 +97,4 @@ The post-run side effects (usage tracking, embedding, title generation) are a se
 - Capabilities are orthogonal to trust. Trust governs SDK-native tools, capabilities govern MCP servers.
 - Run-time injections are never in agent config — they're derived from execution context.
 - The registry is the only place that knows how to create MCP servers. No MCP construction elsewhere.
+- No capability resolver receives a channel parameter. Core is channel-agnostic.

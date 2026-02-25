@@ -27,7 +27,7 @@ OpenNova has four layers. Each has a clear role and a contract with adjacent lay
 │             Channels                │  Telegram, HTTPS/API, CLI
 │        (user-facing edges)          │
 ├─────────────────────────────────────┤
-│              Daemon                 │  Lifecycle, scheduling, routing
+│              Daemon                 │  Lifecycle, scheduling, delivery wiring
 │         (orchestration)             │
 ├─────────────────────────────────────┤
 │              Core                   │  Agents, threads, capabilities,
@@ -62,11 +62,11 @@ OpenNova has four layers. Each has a clear role and a contract with adjacent lay
 
 *Contract with Engine:* Core assembles a fully resolved `EngineOptions` (system prompt, MCP servers) and the agent's trust level, then hands both to `Engine.run()`. Engine is a black box.
 
-*Contract with Daemon:* Core exposes the `AgentRunner` — the entry point for running a message through an agent. Daemon calls `runAgent(agentId, threadId, message, ...)` and receives callbacks for responses, errors, file sends, etc. Thread selection (which thread is active) is a channel concern — Core only needs the threadId.
+*Contract with Daemon:* Core exposes the `AgentRunner` — the entry point for running a message through an agent. Daemon calls `runAgent(agentId, threadId, message, callbacks, overrides)` and receives callbacks for responses, errors, file sends, etc. Core does not know what delivery channel the caller represents — callbacks are opaque functions provided by the caller.
 
-Core also exposes thread query functions for channel UX needs:
-- `createThread(agentId, channel)` → threadId
-- `listThreads(agentId)` → thread summaries (id, title, updatedAt, taskId)
+Core also exposes thread management functions:
+- `createThread(agentDir)` → threadId
+- `listThreads(agentDir)` → thread summaries (id, title, updatedAt, taskId)
 - `getThreadManifest(agentId, threadId)` → thread metadata
 
 Thread storage internals (file paths, JSONL format, locking) are never exposed outside Core.
@@ -86,22 +86,22 @@ Thread storage internals (file paths, JSONL format, locking) are never exposed o
 - `transcription/` — Local speech-to-text via Whisper
 
 *What does NOT live here:*
-- Channel-specific logic, daemon lifecycle, scheduling, HTTP routing
+- Channel-specific logic, daemon lifecycle, scheduling, delivery routing
 
 ### Daemon
 
-*Role:* Orchestration. Starts the system, manages channels, runs schedulers, routes messages between channels and Core. The daemon is the process that stays alive.
+*Role:* Orchestration. Starts the system, manages channels, runs schedulers, wires delivery callbacks. The daemon is the process that stays alive.
 
-*Contract with Core:* Calls `runAgent()`. Subscribes to callbacks. Wires callbacks to channel-specific delivery (e.g., send Telegram message). Uses thread query functions (`createThread`, `listThreads`, `getThreadManifest`) for UX needs. Never constructs thread file paths or accesses thread storage directly.
+*Contract with Core:* Calls `runAgent()` with caller-provided callbacks. Uses thread management functions (`createThread`, `listThreads`, `getThreadManifest`) for UX needs. Never constructs thread file paths or accesses thread storage directly.
 
-*Contract with Channels:* Provides event bus. Channels emit inbound messages, daemon routes them to Core. Core responses flow back through the event bus to channels.
+*Contract with Channels:* The daemon starts channels and provides them with the `runAgent` function and thread management functions. Channels call `runAgent` directly with their own callbacks — there is no intermediary bus.
 
 *What lives here:*
 - Process lifecycle (start, signal handling, graceful shutdown)
-- Event bus (`thread:response`, `thread:error`, `thread:file`, `thread:note`, `thread:pin`)
+- Delivery wiring (construction-time callback injection for schedulers)
 - Channel loading and management
 - Trigger scheduler (cron evaluation, thread creation, fire-and-forget runs)
-- Task scheduler (subtask execution)
+- Task scheduler (task invocation)
 - Episodic backfill scheduler
 - CLI command dispatch
 - HTTPS server (API routes, static file serving)
@@ -119,7 +119,7 @@ Thread storage internals (file paths, JSONL format, locking) are never exposed o
 - HTTPS/API (task management, agent management, notes, console)
 - CLI (nova commands for configuration and management)
 
-*Contract:* Channels are adapters. They translate between their protocol (Telegram Bot API, HTTP, CLI args) and the daemon's event bus / runAgent interface.
+*Contract:* Channels are adapters. They translate between their protocol (Telegram Bot API, HTTP, CLI args) and Core's `runAgent` interface. Each channel constructs its own callbacks for delivery — it does not subscribe to a shared event bus.
 
 ## Domain Model
 
@@ -157,7 +157,6 @@ A conversation between a user and an agent. Threads are append-only.
 Thread {
   manifest: {
     title: string
-    channel: string       // origin channel
     sessionId: string     // Claude SDK session (for resume)
     taskId: string        // optional bound task
   }
@@ -166,7 +165,7 @@ Thread {
 }
 ```
 
-Threads are locked during execution (one run at a time per thread).
+Threads are locked during execution (one run at a time per thread). Threads do not carry a channel field — Core is channel-agnostic.
 
 ### Task
 
@@ -225,7 +224,6 @@ All state lives under a single workspace directory (`~/.nova` by default).
       instructions.md     # self-updated instructions (via MCP)
       threads/
         {thread-id}.jsonl # messages + events
-        {thread-id}.json  # manifest
       embeddings.jsonl    # episodic memory vectors
       notes/              # markdown notes
       .claude/            # Claude SDK config, skills
@@ -243,10 +241,12 @@ Each boundary below should have its own spec. This system spec defines how they 
 | capabilities | DONE | Registry, resolver pattern, run-time injections |
 | engine | DONE | Engine interface, trust levels, options, result shape, session management |
 | threads | DONE | Creation, locking, message flow, cognitive boundary, post-run effects |
+| agent-runner | DONE | Orchestration, callbacks, caller wiring patterns |
 | Agent Model | DONE | Config shape, field semantics, lifecycle, self-mutation boundaries |
-| System Prompt Assembly | TODO | Prompt building, context injection, formatting |
-| Channel Contract | TODO | Adapter pattern, event bus, message routing |
-| Scheduling | TODO | Triggers, task scheduler, backfill — timer-based concerns |
+| System Prompt Assembly | DONE | Prompt building, context injection, formatting |
+| Skills | DONE | Skill definitions, discovery, injection |
+| Scheduling | DONE | Triggers, task scheduler, delivery wiring |
+| Channel Contract | TODO | Adapter pattern, callback construction, message routing |
 | Storage | TODO | Data layout, file formats, migration strategy |
 | Inter-Agent Communication | TODO | ask-agent, delegation depth, thread creation |
 
@@ -265,3 +265,5 @@ Each boundary below should have its own spec. This system spec defines how they 
 6. *Append-only where possible.* Threads, events, usage records, embeddings — append-only simplifies reasoning about state.
 
 7. *Capabilities are the unit of extension.* Adding a new tool to the system means adding a capability to the registry. Nothing else needs to change.
+
+8. *Core is channel-agnostic.* Core does not know about Telegram, HTTP, or any delivery mechanism. Callers provide callbacks; Core calls them. Delivery routing is the daemon's and channels' concern.
