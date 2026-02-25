@@ -1,8 +1,8 @@
 import path from "path";
 import type { McpServerConfig } from "@anthropic-ai/claude-agent-sdk";
 import type { Model } from "./models.js";
-import { claudeEngine, generateThreadTitle, type Engine, type EngineCallbacks, type EngineEvent } from "./engine/index.js";
-import { loadAgents, getAgentCwd, getAgentDirectories } from "./agents.js";
+import { claudeEngine, generateThreadTitle, type Engine, type EngineCallbacks, type EngineEvent, type EngineOptions } from "./engine/index.js";
+import { loadAgents, getAgentCwd, getAgentDirectories } from "./agents/index.js";
 import { Config } from "./config.js";
 import { buildSystemPrompt } from "./prompts/index.js";
 import { resolveCapabilities, resolveInjections, type ResolverContext } from "./capabilities.js";
@@ -148,7 +148,7 @@ export function createAgentRunner(engine: Engine = claudeEngine): AgentRunner {
             systemPrompt,
             ...(overrides?.model ? { model: overrides.model } : {}),
             ...(overrides?.maxTurns ? { maxTurns: overrides.maxTurns } : {}),
-            ...(agent.subagents ? { agents: agent.subagents } : {}),
+            ...(agent.subagents ? { agents: agent.subagents as EngineOptions["agents"] } : {}),
             mcpServers: {
               ...resolveCapabilities(agent.capabilities, resolverContext),
               ...extraMcpServers,

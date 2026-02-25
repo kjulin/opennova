@@ -1,17 +1,17 @@
 import type { McpServerConfig } from "@anthropic-ai/claude-agent-sdk";
-import type { AgentConfig } from "./agents.js";
+import type { AgentConfig } from "./agents/index.js";
 import type { ThreadManifest } from "./threads.js";
 import type { FileType } from "./media/mcp.js";
-import type { RunAgentFn } from "./ask-agent.js";
+import type { RunAgentFn } from "./agents/ask-agent.js";
 import { createNotifyUserMcpServer } from "./notify-user.js";
 import { createMemoryMcpServer } from "./memory.js";
 import { createHistoryMcpServer } from "./episodic/index.js";
 import { createTasksMcpServer } from "#tasks/index.js";
 import { createNotesMcpServer } from "#notes/index.js";
-import { createSelfManagementMcpServer, createAgentManagementMcpServer } from "./agent-management.js";
+import { createSelfManagementMcpServer, createAgentManagementMcpServer } from "./agents/management.js";
 import { createMediaMcpServer } from "./media/mcp.js";
 import { createSecretsMcpServer } from "./secrets.js";
-import { createAgentsMcpServer } from "./ask-agent.js";
+import { createAgentsMcpServer } from "./agents/ask-agent.js";
 import { createTriggerMcpServer } from "./triggers.js";
 
 export interface ResolverContext {

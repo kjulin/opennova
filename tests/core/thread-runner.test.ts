@@ -22,7 +22,7 @@ vi.mock("#core/threads.js", () => ({
   withThreadLock: vi.fn((_threadId: string, fn: () => unknown) => fn()),
 }));
 
-vi.mock("#core/agents.js", () => ({
+vi.mock("#core/agents/index.js", () => ({
   loadAgents: vi.fn(() => new Map([
     ["test-agent", { name: "Test Agent", role: "Test role", trust: "controlled", capabilities: ["memory"] }],
   ])),

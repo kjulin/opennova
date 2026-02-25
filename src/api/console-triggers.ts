@@ -1,5 +1,5 @@
 import { Hono } from "hono"
-import { loadAgents } from "#core/agents.js"
+import { loadAgents } from "#core/agents/index.js"
 import { CronExpressionParser } from "cron-parser"
 import crypto from "crypto"
 import fs from "fs"

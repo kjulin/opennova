@@ -192,7 +192,7 @@ describe("Spec Evals: Skills", () => {
 
     // "Agent creation does not call skills functions" — skills.md
     test("Agent creation does not sync or activate skills", () => {
-      const agentMgmt = readFileSync(join(ROOT, "src/core/agent-management.ts"), "utf-8")
+      const agentMgmt = readFileSync(join(ROOT, "src/core/agents/management.ts"), "utf-8")
       expect(agentMgmt).not.toMatch(/syncSharedSkills/)
       expect(agentMgmt).not.toMatch(/activateSkill/)
       expect(agentMgmt).not.toMatch(/from\s+["'].*skills/)
@@ -208,7 +208,7 @@ describe("Spec Evals: Skills", () => {
       const files = [
         "src/core/skills.ts",
         "src/daemon/index.ts",
-        "src/core/agent-management.ts",
+        "src/core/agents/management.ts",
         "src/api/console-agents.ts",
         "src/api/console-skills.ts",
         "src/daemon/commands/skills.ts",

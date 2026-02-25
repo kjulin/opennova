@@ -1,6 +1,7 @@
 import fs from "fs";
 import { z } from "zod/v4";
 import { log } from "./logger.js";
+import { MODELS } from "./models.js";
 
 export const AgentBotConfigSchema = z.object({
   token: z.string(),
@@ -86,6 +87,34 @@ export const ThreadEventSchema = z.union([
 
 export const TrustLevel = z.enum(["sandbox", "controlled", "unrestricted"]);
 export type TrustLevel = z.infer<typeof TrustLevel>;
+
+// Agent JSON schema and constants
+export const VALID_AGENT_ID = /^[a-z0-9][a-z0-9-]*$/;
+export const MAX_IDENTITY_LENGTH = 4000;
+export const MAX_INSTRUCTIONS_LENGTH = 8000;
+export const MAX_DESCRIPTION_LENGTH = 500;
+
+export const AgentJsonSchema = z.object({
+  name: z.string().min(1, "name is required"),
+  description: z.string().max(MAX_DESCRIPTION_LENGTH).optional(),
+  identity: z.string().max(MAX_IDENTITY_LENGTH).optional(),
+  instructions: z.string().max(MAX_INSTRUCTIONS_LENGTH).optional(),
+  directories: z.array(z.string()).optional(),
+  trust: TrustLevel.optional(),
+  subagents: z.record(z.string(), z.object({
+    description: z.string(),
+    prompt: z.string(),
+    tools: z.array(z.string()).optional(),
+    disallowedTools: z.array(z.string()).optional(),
+    model: z.enum(MODELS).optional(),
+    maxTurns: z.number().int().positive().optional(),
+  })).optional(),
+  capabilities: z.array(z.string()).optional(),
+  model: z.enum(MODELS).optional(),
+}).passthrough();
+
+export type AgentJson = z.infer<typeof AgentJsonSchema>;
+export type AgentConfig = AgentJson & { id: string; trust: TrustLevel };
 
 /**
  * Safely parse JSON from a file, returning null on failure.

@@ -62,9 +62,25 @@ export {
   loadAgents,
   getAgentCwd,
   getAgentDirectories,
-  type SubagentConfig,
+  agentsDir,
+  agentDir,
+  validateAgentId,
+  readAgentJson,
+  writeAgentJson,
+  loadAgentConfig,
+  loadAllAgents,
   type AgentConfig,
-} from "./agents.js";
+  type AgentJson,
+} from "./agents/index.js";
+
+// Agent schema constants
+export {
+  VALID_AGENT_ID,
+  MAX_IDENTITY_LENGTH,
+  MAX_INSTRUCTIONS_LENGTH,
+  MAX_DESCRIPTION_LENGTH,
+  AgentJsonSchema,
+} from "./schemas.js";
 
 // Prompts
 export {
@@ -116,8 +132,8 @@ export {
 
 // MCP Servers
 export { createMemoryMcpServer } from "./memory.js";
-export { createAgentManagementMcpServer, createSelfManagementMcpServer } from "./agent-management.js";
-export { createAgentsMcpServer, type RunAgentFn } from "./ask-agent.js";
+export { createAgentManagementMcpServer, createSelfManagementMcpServer } from "./agents/management.js";
+export { createAgentsMcpServer, type RunAgentFn } from "./agents/ask-agent.js";
 export { createMediaMcpServer, type FileType, type OnFileSendCallback } from "./media/mcp.js";
 export {
   appendUsage,
