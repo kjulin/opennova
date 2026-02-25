@@ -42,7 +42,7 @@ vi.mock("#core/usage.js", () => ({
 }));
 
 vi.mock("#core/claude.js", () => ({
-  generateThreadTitle: vi.fn(() => Promise.resolve(null)),
+  generateThreadTitle: vi.fn(() => Promise.resolve({ title: null })),
 }));
 
 import { appendMessage, saveManifest } from "#core/threads.js";
@@ -144,9 +144,12 @@ describe("AgentRunner", () => {
             inputTokens: 100,
             outputTokens: 50,
             cacheReadTokens: 10,
+            cacheCreationTokens: 5,
             costUsd: 0.01,
             durationMs: 1000,
+            durationApiMs: 800,
             turns: 2,
+            model: "opus",
           },
         };
       },

@@ -70,9 +70,12 @@ describe("ClaudeEngine", () => {
       inputTokens: 10,
       outputTokens: 20,
       cacheReadTokens: 0,
+      cacheCreationTokens: 0,
       costUsd: 0.01,
       durationMs: 100,
+      durationApiMs: 100,
       turns: 1,
+      model: "sonnet",
     });
   });
 

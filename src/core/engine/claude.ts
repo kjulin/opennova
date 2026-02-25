@@ -113,6 +113,7 @@ async function execQuery(
   let responseText = "";
   let resultSessionId: string | undefined;
   let resultUsage: EngineResult["usage"] | undefined;
+  let resultModel: string = String(queryOptions.model ?? "opus");
   let thinkingTimeout: ReturnType<typeof setTimeout> | null = null;
 
   for await (const event of result) {
@@ -122,6 +123,7 @@ async function execQuery(
     if (event.type === "system" && "subtype" in event && event.subtype === "init") {
       const initEvent = event as { model?: string };
       if (initEvent.model) {
+        resultModel = initEvent.model;
         log.info(tag, `model: ${initEvent.model}`);
       }
     }
@@ -191,15 +193,32 @@ async function execQuery(
       log.info(tag, `done — session: ${resultSessionId}, cost: $${event.total_cost_usd}, duration: ${event.duration_ms}ms, turns: ${event.num_turns}${denials.length > 0 ? `, denials: ${denials.length}` : ""}`);
 
       // Capture usage metrics
-      const usage = (event as { usage?: { input_tokens?: number; output_tokens?: number; cache_read_input_tokens?: number } }).usage;
+      const usage = (event as { usage?: { input_tokens?: number; output_tokens?: number; cache_read_input_tokens?: number; cache_creation_input_tokens?: number } }).usage;
+      const sdkModelUsage = (event as { model_usage?: Record<string, { input_tokens?: number; output_tokens?: number; cache_read_input_tokens?: number; cache_creation_input_tokens?: number; cost_usd?: number }> }).model_usage;
+      const durationApiMs = (event as { duration_api_ms?: number }).duration_api_ms;
       if (usage) {
+        const modelUsage = sdkModelUsage
+          ? Object.fromEntries(
+              Object.entries(sdkModelUsage).map(([model, mu]) => [model, {
+                inputTokens: mu.input_tokens ?? 0,
+                outputTokens: mu.output_tokens ?? 0,
+                cacheReadTokens: mu.cache_read_input_tokens ?? 0,
+                cacheCreationTokens: mu.cache_creation_input_tokens ?? 0,
+                costUsd: mu.cost_usd ?? 0,
+              }])
+            ) as Record<string, { inputTokens: number; outputTokens: number; cacheReadTokens: number; cacheCreationTokens: number; costUsd: number }>
+          : undefined;
         resultUsage = {
           inputTokens: usage.input_tokens ?? 0,
           outputTokens: usage.output_tokens ?? 0,
           cacheReadTokens: usage.cache_read_input_tokens ?? 0,
+          cacheCreationTokens: usage.cache_creation_input_tokens ?? 0,
           costUsd: event.total_cost_usd ?? 0,
           durationMs: event.duration_ms,
+          durationApiMs: durationApiMs ?? event.duration_ms,
           turns: event.num_turns,
+          model: resultModel,
+          ...(modelUsage ? { modelUsage } : {}),
         };
       }
       callbacks?.onEvent?.({
@@ -236,7 +255,7 @@ async function execQuery(
   return { text: responseText.trim(), sessionId: resultSessionId, usage: resultUsage };
 }
 
-export async function generateThreadTitle(userMessage: string, assistantResponse: string): Promise<string | null> {
+export async function generateThreadTitle(userMessage: string, assistantResponse: string): Promise<{ title: string | null; usage?: EngineResult["usage"] }> {
   const userSnippet = userMessage.slice(0, 200);
   const assistantSnippet = assistantResponse.slice(0, 200);
   const prompt = `What is this conversation about? Reply with ONLY a short title (3-6 words). No quotes, no labels, no preamble.\n\nUser: ${userSnippet}\nAssistant: ${assistantSnippet}`;
@@ -253,9 +272,25 @@ export async function generateThreadTitle(userMessage: string, assistantResponse
   });
 
   let text = "";
+  let titleUsage: EngineResult["usage"] | undefined;
   for await (const msg of result) {
     if (msg.type === "result" && msg.subtype === "success") {
       text = msg.result;
+      const usage = (msg as { usage?: { input_tokens?: number; output_tokens?: number; cache_read_input_tokens?: number; cache_creation_input_tokens?: number } }).usage;
+      const durationApiMs = (msg as { duration_api_ms?: number }).duration_api_ms;
+      if (usage) {
+        titleUsage = {
+          inputTokens: usage.input_tokens ?? 0,
+          outputTokens: usage.output_tokens ?? 0,
+          cacheReadTokens: usage.cache_read_input_tokens ?? 0,
+          cacheCreationTokens: usage.cache_creation_input_tokens ?? 0,
+          costUsd: msg.total_cost_usd ?? 0,
+          durationMs: msg.duration_ms,
+          durationApiMs: durationApiMs ?? msg.duration_ms,
+          turns: msg.num_turns,
+          model: "haiku",
+        };
+      }
     }
   }
 
@@ -263,7 +298,7 @@ export async function generateThreadTitle(userMessage: string, assistantResponse
     .replace(/^["']|["']$/g, "")
     .replace(/^(title|topic|conversation|subject|#)\s*[:—–-]\s*/i, "")
     .trim();
-  return title || null;
+  return { title: title || null, usage: titleUsage };
 }
 
 export function createClaudeEngine(): Engine {

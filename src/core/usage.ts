@@ -70,6 +70,23 @@ export interface UsageRecord {
   costUsd?: number;
   durationMs: number;
   turns: number;
+
+  // New SDK fields
+  cacheCreationTokens?: number;
+  durationApiMs?: number;
+  model?: string;
+  modelUsage?: Record<string, {
+    inputTokens: number;
+    outputTokens: number;
+    cacheReadTokens: number;
+    cacheCreationTokens: number;
+    costUsd: number;
+  }>;
+
+  // Composition metadata
+  systemPromptChars?: number;
+  mcpServerCount?: number;
+  capabilityCount?: number;
 }
 
 export interface UsageStats {
@@ -80,6 +97,8 @@ export interface UsageStats {
     inputTokens: number;
     outputTokens: number;
     cacheReadTokens: number;
+    cacheCreationTokens: number;
+    costUsd: number;
     durationMs: number;
   };
   byAgent: Record<
@@ -90,6 +109,8 @@ export interface UsageStats {
       inputTokens: number;
       outputTokens: number;
       cacheReadTokens: number;
+      cacheCreationTokens: number;
+      costUsd: number;
       durationMs: number;
     }
   >;
@@ -167,6 +188,8 @@ export function getUsageStats(period: "today" | "week" | "month", customStart?: 
     inputTokens: 0,
     outputTokens: 0,
     cacheReadTokens: 0,
+    cacheCreationTokens: 0,
+    costUsd: 0,
     durationMs: 0,
   };
 
@@ -179,6 +202,8 @@ export function getUsageStats(period: "today" | "week" | "month", customStart?: 
     totals.inputTokens += record.inputTokens;
     totals.outputTokens += record.outputTokens;
     totals.cacheReadTokens += record.cacheReadTokens;
+    totals.cacheCreationTokens += record.cacheCreationTokens ?? 0;
+    totals.costUsd += record.costUsd ?? 0;
     totals.durationMs += record.durationMs;
 
     let agentStats = byAgent[record.agentId];
@@ -189,6 +214,8 @@ export function getUsageStats(period: "today" | "week" | "month", customStart?: 
         inputTokens: 0,
         outputTokens: 0,
         cacheReadTokens: 0,
+        cacheCreationTokens: 0,
+        costUsd: 0,
         durationMs: 0,
       };
       byAgent[record.agentId] = agentStats;
@@ -199,6 +226,8 @@ export function getUsageStats(period: "today" | "week" | "month", customStart?: 
     agentStats.inputTokens += record.inputTokens;
     agentStats.outputTokens += record.outputTokens;
     agentStats.cacheReadTokens += record.cacheReadTokens;
+    agentStats.cacheCreationTokens += record.cacheCreationTokens ?? 0;
+    agentStats.costUsd += record.costUsd ?? 0;
     agentStats.durationMs += record.durationMs;
   }
 
