@@ -8,6 +8,7 @@ import {
 import { createThread } from "#core/threads.js";
 import {
   loadTasks,
+  loadHistory,
   getTask,
   createTask,
   updateTask,
@@ -137,6 +138,38 @@ export function createTasksMcpServer(
             content: [{
               type: "text" as const,
               text: output,
+            }],
+          };
+        },
+      ),
+
+      tool(
+        "list_history",
+        "List completed and canceled tasks from history. Returns the most recent entries first.",
+        {
+          limit: z.number().optional().describe("Maximum number of entries to return. Default: 20. Max: 100."),
+        },
+        async (args) => {
+          const limit = Math.min(Math.max(args.limit ?? 20, 1), 100);
+          const history = loadHistory(workspaceDir, limit);
+
+          if (history.length === 0) {
+            return {
+              content: [{
+                type: "text" as const,
+                text: "No task history.",
+              }],
+            };
+          }
+
+          const output = history.map(t =>
+            `- #${t.id}: ${t.title} [${t.status}]\n  Owner: ${t.owner} | Archived: ${t.archivedAt}`
+          ).join("\n\n");
+
+          return {
+            content: [{
+              type: "text" as const,
+              text: `Task history (${history.length} entries):\n\n${output}`,
             }],
           };
         },
