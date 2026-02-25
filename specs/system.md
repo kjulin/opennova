@@ -244,6 +244,7 @@ Each boundary below should have its own spec. This system spec defines how they 
 | engine | DONE | Engine interface, trust levels, options, result shape, session management |
 | threads | DONE | Creation, locking, message flow, cognitive boundary, post-run effects |
 | Agent Model | DONE | Config shape, field semantics, lifecycle, self-mutation boundaries |
+| Tasks | DONE | Data model, lifecycle, subtasks, scheduler, thread binding, MCP tools |
 | System Prompt Assembly | TODO | Prompt building, context injection, formatting |
 | Channel Contract | TODO | Adapter pattern, event bus, message routing |
 | Scheduling | TODO | Triggers, task scheduler, backfill — timer-based concerns |
