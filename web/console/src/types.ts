@@ -8,12 +8,18 @@ export interface Trigger {
   lastRun?: string;
 }
 
+export interface Responsibility {
+  title: string;
+  content: string;
+}
+
 export interface Agent {
   id: string;
   name: string;
   description?: string;
   identity?: string;
   instructions?: string;
+  responsibilities?: Responsibility[];
   trust: string;
   security?: string; // deprecated, use trust
   model?: string;

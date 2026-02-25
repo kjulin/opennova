@@ -7,11 +7,13 @@ import { Card, CardContent } from "@/components/ui/card";
 import { CollapsibleCard } from "@/components/ui/collapsible-card";
 import { AgentHeader } from "@/components/AgentHeader";
 import { AgentIdentity } from "@/components/AgentIdentity";
+import { AgentResponsibilities } from "@/components/AgentResponsibilities";
 import { AgentCapabilities } from "@/components/AgentCapabilities";
 import { AgentDirectories } from "@/components/AgentDirectories";
 import { AgentSkills } from "@/components/AgentSkills";
 import { AgentTriggers } from "@/components/AgentTriggers";
 import { AgentDangerZone } from "@/components/AgentDangerZone";
+import type { Responsibility } from "@/types";
 
 export function AgentDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -26,6 +28,7 @@ export function AgentDetailPage() {
   const [model, setModel] = useState("");
   const [identity, setIdentity] = useState("");
   const [instructions, setInstructions] = useState("");
+  const [responsibilities, setResponsibilities] = useState<Responsibility[]>([]);
   const [capabilities, setCapabilities] = useState<string[]>([]);
   const [directories, setDirectories] = useState<string[]>([]);
 
@@ -40,6 +43,7 @@ export function AgentDetailPage() {
         setModel(data.model ?? "");
         setIdentity(data.identity ?? "");
         setInstructions(data.instructions ?? "");
+        setResponsibilities(data.responsibilities ?? []);
         setCapabilities(data.capabilities ?? []);
         setDirectories(data.directories ?? []);
       })
@@ -75,6 +79,10 @@ export function AgentDetailPage() {
   }
 
   if (!agent || !id) return null;
+
+  const respSummary = responsibilities.length > 0
+    ? responsibilities.map((r) => r.title).join(", ")
+    : "No responsibilities defined";
 
   const capsSummary = capabilities.length > 0
     ? capabilities.join(", ")
@@ -135,6 +143,18 @@ export function AgentDetailPage() {
           instructions={instructions}
           onIdentityChange={setIdentity}
           onInstructionsChange={setInstructions}
+        />
+      </CollapsibleCard>
+
+      {/* Responsibilities */}
+      <CollapsibleCard
+        title="Responsibilities"
+        description={respSummary}
+      >
+        <AgentResponsibilities
+          agentId={id}
+          responsibilities={responsibilities}
+          onResponsibilitiesChange={setResponsibilities}
         />
       </CollapsibleCard>
 
