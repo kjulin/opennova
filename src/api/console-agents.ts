@@ -11,7 +11,7 @@ import {
 import fs from "fs"
 import path from "path"
 
-function loadAgentDetail(workspaceDir: string, id: string, agent: { name: string; description?: string | undefined; identity?: string | undefined; instructions?: string | undefined; trust?: string | undefined; capabilities?: string[] | undefined; directories?: string[] | undefined; model?: string | undefined }) {
+function loadAgentDetail(workspaceDir: string, id: string, agent: { name: string; description?: string | undefined; identity?: string | undefined; instructions?: string | undefined; responsibilities?: { title: string; content: string }[] | undefined; trust?: string | undefined; capabilities?: string[] | undefined; directories?: string[] | undefined; model?: string | undefined }) {
   const dir = path.join(workspaceDir, "agents", id)
 
   // Load triggers
@@ -40,6 +40,7 @@ function loadAgentDetail(workspaceDir: string, id: string, agent: { name: string
     description: agent.description,
     identity: agent.identity,
     instructions: agent.instructions,
+    responsibilities: agent.responsibilities,
     trust: agent.trust,
     capabilities: agent.capabilities,
     directories: agent.directories,
@@ -141,7 +142,7 @@ export function createConsoleAgentsRouter(workspaceDir: string): Hono {
     }
 
     const body = await c.req.json()
-    const allowedFields = ["name", "description", "identity", "instructions", "directories", "trust", "capabilities", "model"] as const
+    const allowedFields = ["name", "description", "identity", "instructions", "responsibilities", "directories", "trust", "capabilities", "model"] as const
 
     const parsed = AgentJsonSchema.partial().safeParse(body)
     if (!parsed.success) {
