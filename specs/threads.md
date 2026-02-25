@@ -27,7 +27,6 @@ Line 2+: ThreadEvent[]   (messages, tool use, results)
 
 ```
 ThreadManifest {
-  channel: string         // origin channel ("telegram", "internal", agent bot channel)
   agentId: string         // owning agent
   sessionId?: string      // Claude SDK session for conversation continuity
   taskId?: string         // bound task (thread becomes task's dedicated thread)
@@ -38,6 +37,8 @@ ThreadManifest {
 ```
 
 The manifest is mutable — it is the only part of a thread that gets rewritten. All other lines are append-only.
+
+The manifest does not carry a `channel` field. Core does not know or care which delivery channel originated a thread. Delivery routing is the caller's concern — channels and schedulers track their own thread associations externally.
 
 ### ThreadEvent
 
@@ -84,12 +85,12 @@ ThreadResultEvent {
 }
 ```
 
-Legacy format: older threads may contain messages without a `type` field (bare `{role, text, timestamp}` objects). Readers treat lines without a `type` field as `ThreadMessageEvent`.
+Legacy format: older threads may contain messages without a `type` field (bare `{role, text, timestamp}` objects). Readers treat lines without a `type` field as `ThreadMessageEvent`. Older threads may also contain a `channel` field in the manifest — readers ignore it.
 
 ## Thread Creation
 
 ```
-createThread(agentDir, channel, options?) → threadId
+createThread(agentDir, options?) → threadId
 ```
 
 - Generates a random 12-character hex ID.
@@ -102,12 +103,12 @@ createThread(agentDir, channel, options?) → threadId
 
 Threads are created by channels and schedulers, never by Core itself:
 
-| Caller | Channel Type | Context |
-|--------|-------------|---------|
-| Telegram channel | `"telegram"` or agent bot channel | `/new` command, first message auto-creation |
-| Task creation (HTTPS) | `"telegram"` | Dedicated task thread, `taskId` set |
-| Trigger scheduler | effective channel of trigger | Scheduled cron execution |
-| Ask-agent | `"internal"` | Inter-agent delegation |
+| Caller | Context |
+|--------|---------|
+| Telegram channel | `/new` command, first message auto-creation |
+| Task creation (HTTPS) | Dedicated task thread, `taskId` set |
+| Trigger scheduler | Scheduled cron execution |
+| Ask-agent | Inter-agent delegation |
 
 Core provides `createThread()` but does not decide *when* threads are created. That decision belongs to channels and schedulers.
 
@@ -135,10 +136,10 @@ A single `runAgent()` call follows this sequence:
 5. Resolve capabilities → MCP servers
 6. Run engine
    ├─ Stream events → append to thread (tool_use, assistant_text, result)
-   └─ Callbacks → channel delivery (thinking, tool status)
+   └─ Callbacks → caller delivery (thinking, tool status)
 7. Append assistant message
 8. Update manifest (sessionId, updatedAt)
-9. Emit thread:response callback
+9. Emit onResponse callback
 10. Dispatch post-run effects (fire-and-forget)
 11. Release thread lock
 ```
@@ -146,7 +147,7 @@ A single `runAgent()` call follows this sequence:
 ### Error Handling
 
 - *Abort (user-initiated stop):* Appends `(stopped by user)` as assistant message, updates manifest, returns empty. No error callback.
-- *Engine error:* Appends `(error: {message})` as assistant message, emits `onThreadError` callback, re-throws. Manifest is NOT updated with a new sessionId on error.
+- *Engine error:* Appends `(error: {message})` as assistant message, emits `onError` callback, re-throws. Manifest is NOT updated with a new sessionId on error.
 
 ### Event Streaming
 
@@ -204,7 +205,6 @@ The manifest is the only mutable part of a thread. It can be mutated by:
 |---------|--------|------|
 | AgentRunner (synchronous) | `sessionId`, `updatedAt` | After every successful run |
 | AgentRunner (fire-and-forget) | `title` | After 2+ user messages, if no title |
-| Channel | `channel` | Channel migration (`updateThreadChannel`) |
 
 All mutations go through `saveManifest()`, which rewrites line 1 of the JSONL file while preserving all event lines.
 
@@ -241,6 +241,7 @@ Deletes the JSONL file. No cascade — embeddings, usage records, and task bindi
 - Post-run effects are fire-and-forget — they never block the response.
 - All thread creation goes through `createThread()` — no direct file writes.
 - Threads belong to exactly one agent. No thread sharing, no thread migration between agents.
+- Core does not track or route by delivery channel. Threads are channel-agnostic.
 
 ## What Lives Here
 
@@ -253,7 +254,8 @@ Deletes the JSONL file. No cascade — embeddings, usage records, and task bindi
 
 ## What Does NOT Live Here
 
-- Active thread selection (channel concern)
+- Active thread selection (caller concern)
+- Delivery routing (caller concern)
 - System prompt assembly (separate spec)
 - Capability resolution (separate spec)
 - Engine execution (engine contract)

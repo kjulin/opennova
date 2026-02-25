@@ -7,7 +7,7 @@ The AgentRunner orchestrates a single agent turn: message in, response out. It i
 The AgentRunner owns no domain logic. It does not know how system prompts are structured, how capabilities resolve to MCP servers, or how the engine talks to the SDK. It receives an agent ID and thread ID, gathers what it needs from adjacent modules, hands everything to the engine, and records the result.
 
 ```
-Channel/Daemon
+Caller (channel, scheduler, ask-agent)
      │
      ▼
 AgentRunner.runAgent(agentId, threadId, message, ...)
@@ -67,22 +67,24 @@ AgentRunnerCallbacks {
   onEvent?: (event: EngineEvent) => void
 
   // AgentRunner-level
-  onResponse?: (agentId: string, threadId: string, channel: string, text: string) => void
-  onError?: (agentId: string, threadId: string, channel: string, error: string) => void
+  onResponse?: (agentId: string, threadId: string, text: string) => void
+  onError?: (agentId: string, threadId: string, error: string) => void
 
   // Capability callbacks (forwarded through ResolverContext)
-  onFileSend?: (agentId: string, threadId: string, channel: string, filePath: string, caption?: string, fileType: FileType) => void
-  onShareNote?: (agentId: string, threadId: string, channel: string, title: string, slug: string, message?: string) => void
-  onPinChange?: (agentId: string, channel: string) => void
-  onNotifyUser?: (agentId: string, threadId: string, channel: string, message: string) => void
+  onFileSend?: (agentId: string, threadId: string, filePath: string, caption?: string, fileType: FileType) => void
+  onShareNote?: (agentId: string, threadId: string, title: string, slug: string, message?: string) => void
+  onPinChange?: (agentId: string) => void
+  onNotifyUser?: (agentId: string, threadId: string, message: string) => void
 }
 ```
 
-Callbacks are the AgentRunner's upward interface — how it communicates with the Daemon layer without importing from it. The Daemon wrapper maps these to event bus emissions.
+Callbacks are the AgentRunner's upward interface — how it communicates with the caller without knowing who that caller is.
 
 Engine callbacks (`onThinking`, `onAssistantMessage`, etc.) pass through the runner transparently. The runner adds `onEvent` interception to persist events to the thread file.
 
-Capability callbacks (`onFileSend`, `onShareNote`, `onPinChange`, `onNotifyUser`) originate from MCP server implementations during engine execution. The runner receives them through capability resolution context and enriches them with `agentId`, `threadId`, and `channel` before forwarding to the caller.
+Capability callbacks (`onFileSend`, `onShareNote`, `onPinChange`, `onNotifyUser`) originate from MCP server implementations during engine execution. The runner receives them through capability resolution context and enriches them with `agentId` and `threadId` before forwarding to the caller.
+
+No callback carries a `channel` parameter. The runner does not know what delivery channel the caller represents. The caller already knows — it closes over its own delivery infrastructure when constructing the callbacks.
 
 ## Execution Sequence
 
@@ -92,7 +94,7 @@ Capability callbacks (`onFileSend`, `onShareNote`, `onPinChange`, `onNotifyUser`
 3. Load thread manifest
 4. Append user message to thread
 5. Build system prompt
-   └─ builder(agent, channel, cwd, directories, { task?, background? })
+   └─ builder(agent, cwd, directories, { task?, background? })
 6. Resolve capabilities → MCP servers
    └─ resolveCapabilities(agent.capabilities, context)
 7. Resolve run-time injections
@@ -115,7 +117,7 @@ Capability callbacks (`onFileSend`, `onShareNote`, `onPinChange`, `onNotifyUser`
 The runner calls the prompt builder with all resolved inputs. The builder returns a complete system prompt. The runner does not append, modify, or inspect the prompt after the builder returns.
 
 ```
-const systemPrompt = buildSystemPrompt(agent, manifest.channel, cwd, directories, {
+const systemPrompt = buildSystemPrompt(agent, cwd, directories, {
   task: taskId ? getTask(workspaceDir, taskId) : undefined,
   background: overrides?.background,
 })
@@ -199,39 +201,38 @@ The `askAgentDepth` parameter (tracked in resolver context) prevents infinite re
 - *Prompt content* — the builder decides what goes in the system prompt.
 - *MCP wiring* — the capability registry decides how capabilities resolve.
 - *Trust enforcement* — the engine translates trust into SDK permissions.
-- *Thread selection* — the caller (channel/daemon) decides which thread to use.
-- *Active thread tracking* — a channel concern, not a runner concern.
+- *Thread selection* — the caller decides which thread to use.
+- *Delivery* — the caller decides how responses reach the user.
 
 ## The Delegation Principle
 
-The runner's value is that it touches everything but knows nothing. It is the thinnest possible orchestration layer. If the runner contains domain logic — prompt string manipulation, MCP server construction, trust interpretation — the architecture has a boundary violation.
+The runner's value is that it touches everything but knows nothing. It is the thinnest possible orchestration layer. If the runner contains domain logic — prompt string manipulation, MCP server construction, trust interpretation, delivery routing — the architecture has a boundary violation.
 
 Test: the runner should be deletable and regenerable from the interfaces of its dependencies (prompt builder, capability resolver, engine, thread storage). If regeneration requires knowledge not captured in those interfaces, the adjacent specs are incomplete.
 
-## Daemon Wrapper
+## Caller Wiring
 
-The Daemon layer wraps the AgentRunner to map callbacks to event bus emissions:
+Each caller of `runAgent` provides its own callbacks. The runner does not wrap, intercept, or default them (beyond event persistence via `onEvent`).
 
-```
-daemon/runner.runAgent(...)
-  → core AgentRunner.runAgent(..., {
-      onResponse → bus.emit("thread:response", ...)
-      onError → bus.emit("thread:error", ...)
-      onFileSend → bus.emit("thread:file", ...)
-      onNotifyUser → bus.emit("thread:response", ...)  // always, even in background
-    })
-```
+### Interactive (Telegram channel)
 
-The wrapper also handles the `background` flag: in background mode, `onResponse` and `onError` do not emit bus events (the user isn't listening). `onNotifyUser` always emits — that's its purpose.
+The channel constructs callbacks that deliver to the active Telegram chat. Engine callbacks (`onThinking`, `onToolUse`) drive typing indicators and status messages. `onResponse` sends the final message. `onFileSend`, `onShareNote`, `onNotifyUser` deliver through the same bot instance.
 
-This is the Core↔Daemon boundary. Core's AgentRunner fires callbacks. The Daemon wrapper translates them into bus events that channels can subscribe to.
+### Background (triggers, task scheduler)
+
+The daemon constructs callbacks via a delivery factory (see Scheduling spec). `onResponse` and `onError` are suppressed (no live session). `onNotifyUser` always delivers — that's its purpose. `onFileSend` and `onShareNote` deliver through the resolved bot for that agent.
+
+### Ask-Agent
+
+Callbacks are forwarded from the parent run. The child run's `onResponse` is captured by the parent, not delivered to the user.
 
 ## Constraints
 
 - The AgentRunner is the sole caller of `engine.run()`. No other module executes AI turns.
 - The builder returns a complete system prompt. The runner never appends to it.
 - All MCP servers come from capability resolution or run-time injections. The runner does not construct MCP configs.
-- Callbacks are the only upward communication channel. The runner never imports from Daemon or Channels.
+- Callbacks are the only upward communication. The runner never imports from Daemon or Channels.
+- No callback carries a `channel` parameter. Delivery routing is the caller's concern.
 - Thread lock wraps the entire execution — from message append through post-run effect dispatch.
 - Post-run effects are fire-and-forget. They never block the response callback.
 
@@ -251,5 +252,6 @@ This is the Core↔Daemon boundary. Core's AgentRunner fires callbacks. The Daem
 - Engine execution (Engine Contract spec)
 - Thread storage internals (Thread Lifecycle spec)
 - Post-run effect implementation (Thread Lifecycle spec)
-- Active thread selection (channel concern)
-- Event bus integration (Daemon layer concern)
+- Active thread selection (caller concern)
+- Delivery infrastructure (Scheduling spec, channel implementations)
+- Event bus (eliminated — callbacks replace bus-mediated routing)
