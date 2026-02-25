@@ -114,6 +114,7 @@ export function createConfigRouter(workspaceDir: string): Hono {
       telegramSection.configured = true;
       telegramSection.token = maskToken(telegram.token);
       if (telegram.chatId) telegramSection.chatId = telegram.chatId;
+      if (telegram.chatName) telegramSection.chatName = telegram.chatName;
       if (telegram.activeAgentId) telegramSection.activeAgentId = telegram.activeAgentId;
     }
 
@@ -210,6 +211,33 @@ export function createConfigRouter(workspaceDir: string): Hono {
   app.get("/telegram/pair/status", (c) => {
     const pairing = getPairingStatus();
     return c.json(pairing);
+  });
+
+  // POST /tailscale — generate certs
+  app.post("/tailscale", (c) => {
+    const ts = checkTailscale();
+
+    if (!ts.installed) {
+      return c.json({ error: "tailscale is not installed" }, 400);
+    }
+    if (!ts.connected || !ts.hostname) {
+      return c.json({ error: "tailscale is not connected" }, 400);
+    }
+
+    const certDir = path.join(os.homedir(), ".nova", "certs");
+    fs.mkdirSync(certDir, { recursive: true });
+
+    try {
+      execFileSync("tailscale", [
+        "cert",
+        "--cert-file", path.join(certDir, `${ts.hostname}.crt`),
+        "--key-file", path.join(certDir, `${ts.hostname}.key`),
+      ], { encoding: "utf-8" });
+    } catch (err) {
+      return c.json({ error: `cert generation failed: ${(err as Error).message}` }, 500);
+    }
+
+    return c.json({ ok: true, hostname: ts.hostname });
   });
 
   // POST /audio/tts — update TTS settings (OpenAI key)

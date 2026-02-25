@@ -1,14 +1,13 @@
-import { useEffect, useState, useRef, useCallback } from "react";
+import { useEffect, useState } from "react";
 import {
   fetchConfig,
   updateDaemon,
-  pairTelegram,
-  fetchPairStatus,
   updateTtsKey,
   setupTailscale,
   deleteWorkspace,
+  unpairTelegram,
 } from "@/api";
-import type { ConfigResponse, PairingStatus } from "@/types";
+import type { ConfigResponse } from "@/types";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -27,6 +26,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { TelegramPairingDialog } from "@/components/TelegramPairingDialog";
 
 function formatUptime(seconds: number): string {
   const days = Math.floor(seconds / 86400);
@@ -48,38 +48,7 @@ export function ConfigPage() {
   const [showOpenaiKeyInput, setShowOpenaiKeyInput] = useState(false);
   const [confirmPath, setConfirmPath] = useState("");
   const [workspaceRemoved, setWorkspaceRemoved] = useState(false);
-  const [pairing, setPairing] = useState<PairingStatus | null>(null);
-  const pairPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  const stopPairPolling = useCallback(() => {
-    if (pairPollRef.current) {
-      clearInterval(pairPollRef.current);
-      pairPollRef.current = null;
-    }
-  }, []);
-
-  const startPairPolling = useCallback(() => {
-    stopPairPolling();
-    setPairing({ status: "waiting" });
-    pairPollRef.current = setInterval(async () => {
-      try {
-        const status = await fetchPairStatus();
-        setPairing(status);
-        if (status.status === "paired" || status.status === "error") {
-          stopPairPolling();
-          if (status.status === "paired") {
-            loadConfig();
-          }
-        }
-      } catch {
-        // Ignore transient fetch errors during polling
-      }
-    }, 2000);
-  }, [stopPairPolling]);
-
-  useEffect(() => {
-    return () => stopPairPolling();
-  }, [stopPairPolling]);
+  const [pairingDialogOpen, setPairingDialogOpen] = useState(false);
 
   function loadConfig() {
     return fetchConfig()
@@ -146,6 +115,8 @@ export function ConfigPage() {
     );
   }
 
+  const telegramPaired = config.telegram.configured && !!config.telegram.chatId;
+
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold tracking-tight">Config</h1>
@@ -191,68 +162,90 @@ export function ConfigPage() {
           <CardDescription>Telegram bot integration for remote agent control.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
-          {config.telegram.configured ? (
+          {telegramPaired ? (
             <>
               <div className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
                 <span className="text-muted-foreground">Bot Token</span>
                 <code className="font-mono">{config.telegram.token}</code>
                 <span className="text-muted-foreground">Chat ID</span>
-                <span className="font-mono">{config.telegram.chatId ?? "—"}</span>
+                <span className="font-mono">{config.telegram.chatId}</span>
+                {config.telegram.chatName && (
+                  <>
+                    <span className="text-muted-foreground">Chat Name</span>
+                    <span>{config.telegram.chatName}</span>
+                  </>
+                )}
               </div>
-              {pairing?.status === "waiting" ? (
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                  </svg>
-                  Waiting for message in Telegram... Send any message to your bot.
-                </div>
-              ) : pairing?.status === "paired" ? (
-                <div className="text-sm text-green-600">
-                  Paired with {pairing.chatName ?? pairing.chatId}
-                </div>
-              ) : pairing?.status === "error" ? (
-                <div className="space-y-2">
-                  <div className="text-sm text-destructive">{pairing.error}</div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={async () => {
-                      setActionError(null);
-                      try {
-                        await pairTelegram();
-                        startPairPolling();
-                      } catch (err) {
-                        setActionError(err instanceof Error ? err.message : "Action failed");
-                      }
-                    }}
-                  >
-                    Re-pair
-                  </Button>
-                </div>
-              ) : (
+              <div className="flex gap-2 pt-1">
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={async () => {
-                    setActionError(null);
-                    try {
-                      await pairTelegram();
-                      startPairPolling();
-                    } catch (err) {
-                      setActionError(err instanceof Error ? err.message : "Action failed");
-                    }
-                  }}
+                  onClick={() => setPairingDialogOpen(true)}
                 >
-                  Re-pair
+                  Pair again
                 </Button>
-              )}
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="outline" size="sm">
+                      Unpair
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Unpair Telegram?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        This will remove the bot token and chat pairing. You can re-pair later from the Dashboard or this page.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction
+                        variant="destructive"
+                        onClick={() => handleAction(() => unpairTelegram())}
+                      >
+                        Unpair
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </div>
+            </>
+          ) : config.telegram.configured ? (
+            <>
+              <div className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
+                <span className="text-muted-foreground">Bot Token</span>
+                <code className="font-mono">{config.telegram.token}</code>
+              </div>
+              <p className="text-sm text-muted-foreground">Token saved but not yet paired.</p>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setPairingDialogOpen(true)}
+              >
+                Set up Telegram
+              </Button>
             </>
           ) : (
-            <p className="text-sm text-muted-foreground">Not configured.</p>
+            <>
+              <p className="text-sm text-muted-foreground">Not configured.</p>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setPairingDialogOpen(true)}
+              >
+                Set up Telegram
+              </Button>
+            </>
           )}
         </CardContent>
       </Card>
+
+      <TelegramPairingDialog
+        open={pairingDialogOpen}
+        onOpenChange={setPairingDialogOpen}
+        onPaired={loadConfig}
+        existingToken={config.telegram.configured ? config.telegram.token : undefined}
+      />
 
       {/* Admin UI */}
       <Card>
