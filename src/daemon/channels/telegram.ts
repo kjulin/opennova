@@ -22,16 +22,7 @@ import { listNotes, getPinnedNotes } from "#notes/index.js";
 import { TELEGRAM_HELP_MESSAGE } from "./telegram-help.js";
 import { splitMessage, chatGuard, toTelegramMarkdown } from "./telegram-utils.js";
 import { log } from "../logger.js";
-
-export const HTTPS_PORT = 3838;
-
-export function getWebAppHost(): string | null {
-  const certDir = path.join(os.homedir(), ".nova", "certs");
-  if (!fs.existsSync(certDir)) return null;
-  const certFile = fs.readdirSync(certDir).find((f) => f.endsWith(".crt"));
-  if (!certFile) return null;
-  return certFile.replace(".crt", "");
-}
+import { getNovaUrl } from "../workspace.js";
 
 function loadTelegramConfig(): TelegramConfig | null {
   const filePath = path.join(Config.workspaceDir, "telegram.json");
@@ -167,13 +158,13 @@ export function startTelegram() {
   });
 
   function buildReplyKeyboard(): Keyboard | null {
-    const host = getWebAppHost();
-    if (!host || !config) return null;
+    const novaUrl = getNovaUrl();
+    if (!novaUrl || novaUrl.startsWith("http://localhost") || !config) return null;
     const keyboard = new Keyboard();
-    keyboard.webApp("Tasks", `https://${host}:${HTTPS_PORT}/web/tasklist/`).row();
+    keyboard.webApp("Tasks", `${novaUrl}/web/tasklist/`).row();
     const agentDir = path.join(Config.workspaceDir, "agents", config.activeAgentId);
     for (const note of getPinnedNotes(agentDir)) {
-      keyboard.webApp(note.title, `https://${host}:${HTTPS_PORT}/web/tasklist/#/note/${config.activeAgentId}/${note.slug}`).row();
+      keyboard.webApp(note.title, `${novaUrl}/web/tasklist/#/note/${config.activeAgentId}/${note.slug}`).row();
     }
     return keyboard.resized().persistent();
   }
@@ -234,13 +225,13 @@ export function startTelegram() {
 
   async function deliverNote(noteAgentId: string, title: string, slug: string, message: string | undefined) {
     const chatId = Number(config.chatId);
-    const host = getWebAppHost();
-    if (!host) return;
+    const novaUrl = getNovaUrl();
+    if (!novaUrl || novaUrl.startsWith("http://localhost")) return;
 
     const text = message ?? `\uD83D\uDCDD ${title}`;
     const keyboard = new InlineKeyboard().webApp(
       "Open note",
-      `https://${host}:${HTTPS_PORT}/web/tasklist/#/note/${noteAgentId}/${slug}`,
+      `${novaUrl}/web/tasklist/#/note/${noteAgentId}/${slug}`,
     );
     bot.api.sendMessage(chatId, text, { reply_markup: keyboard }).catch((err) => {
       log.error("telegram", "failed to deliver note:", err);
@@ -354,12 +345,12 @@ export function startTelegram() {
 
     // Handle /admin command
     if (text === "/admin") {
-      const host = getWebAppHost();
-      if (!host) {
-        await ctx.reply("Admin console requires HTTPS. Run `nova tailscale setup` first.");
+      const novaUrl = getNovaUrl();
+      if (!novaUrl || novaUrl.startsWith("http://localhost")) {
+        await ctx.reply("Set your Nova URL: `nova config set settings.url https://your-domain.com`");
         return;
       }
-      const url = `https://${host}:${HTTPS_PORT}/web/console/`;
+      const url = `${novaUrl}/web/console/`;
       const keyboard = new InlineKeyboard();
       keyboard.url("Open Console", url).row();
       await ctx.reply(`*Admin Console*\n\nManage your agents, skills, triggers, and secrets.`, {
@@ -371,9 +362,9 @@ export function startTelegram() {
 
     // Handle /notes command
     if (text === "/notes") {
-      const host = getWebAppHost();
-      if (!host) {
-        await ctx.reply("Notes requires HTTPS. Run `nova tailscale setup` first.");
+      const novaUrl = getNovaUrl();
+      if (!novaUrl || novaUrl.startsWith("http://localhost")) {
+        await ctx.reply("Set your Nova URL: `nova config set settings.url https://your-domain.com`");
         return;
       }
       const agentDir = path.join(Config.workspaceDir, "agents", config.activeAgentId);
@@ -386,7 +377,7 @@ export function startTelegram() {
       for (const note of notes) {
         keyboard.webApp(
           note.title,
-          `https://${host}:${HTTPS_PORT}/web/tasklist/#/note/${config.activeAgentId}/${note.slug}`,
+          `${novaUrl}/web/tasklist/#/note/${config.activeAgentId}/${note.slug}`,
         ).row();
       }
       await ctx.reply("*Notes:*", { parse_mode: "Markdown", reply_markup: keyboard });

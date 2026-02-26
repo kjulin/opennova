@@ -47,7 +47,7 @@ switch (command) {
   }
   case "config": {
     const { run } = await import("./commands/config.js");
-    run();
+    await run();
     break;
   }
   case "status": {
