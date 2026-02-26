@@ -21,6 +21,7 @@ import { getTask, loadTasks } from "#tasks/index.js";
 import { listNotes, getPinnedNotes } from "#notes/index.js";
 import { TELEGRAM_HELP_MESSAGE } from "./telegram-help.js";
 import { splitMessage, chatGuard, toTelegramMarkdown } from "./telegram-utils.js";
+import { taskgroupMiddleware } from "./telegram-taskgroup.js";
 import { log } from "../logger.js";
 import { getNovaUrl } from "../workspace.js";
 import { generateSetupToken } from "#api/auth.js";
@@ -131,6 +132,10 @@ export function startTelegram() {
   const config = maybeConfig;
 
   const bot = new Bot(config.token);
+
+  // Taskgroup pairing — must run BEFORE chatGuard
+  bot.use(taskgroupMiddleware(bot, config, () => saveTelegramConfig(config)));
+
   bot.use(chatGuard(config.chatId));
   log.info("telegram", "channel started");
 
@@ -333,7 +338,11 @@ export function startTelegram() {
     if (text === "/tasks") {
       const tasks = loadTasks(Config.workspaceDir);
       if (tasks.length === 0) {
-        await ctx.reply("No active tasks.");
+        let msg = "No active tasks.";
+        if (!config.taskgroup) {
+          msg += "\n\n_Tip: Create a Telegram group with topics and add me as admin — I'll set it up as your task board._";
+        }
+        await ctx.reply(msg, { parse_mode: "Markdown" });
         return;
       }
       // Separate parent tasks from subtasks
@@ -357,7 +366,11 @@ export function startTelegram() {
           }
         }
       }
-      await ctx.reply("*Tasks:*", { parse_mode: "Markdown", reply_markup: keyboard });
+      let tasksHeader = "*Tasks:*";
+      if (!config.taskgroup) {
+        tasksHeader += "\n\n_Tip: Create a Telegram group with topics and add me as admin — I'll set it up as your task board._";
+      }
+      await ctx.reply(tasksHeader, { parse_mode: "Markdown", reply_markup: keyboard });
       return;
     }
 
