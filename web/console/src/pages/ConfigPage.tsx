@@ -199,40 +199,8 @@ export function ConfigPage() {
         </CardHeader>
         <CardContent>
           <code className="font-mono text-sm bg-muted px-3 py-1.5 rounded-md">
-            {config.tailscale.certsReady && config.tailscale.url
-              ? config.tailscale.url
-              : "http://localhost:3838"}
+            http://localhost:3838
           </code>
-        </CardContent>
-      </Card>
-
-      {/* Tailscale */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Tailscale</CardTitle>
-          <CardDescription>Remote access via Tailscale HTTPS.</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="flex items-center gap-3">
-            <Badge variant={config.tailscale.installed ? "default" : "secondary"}>
-              {config.tailscale.installed ? (config.tailscale.connected ? "Connected" : "Disconnected") : "Not installed"}
-            </Badge>
-            {config.tailscale.certsReady && (
-              <Badge variant="outline">Certs ready</Badge>
-            )}
-          </div>
-          {config.tailscale.hostname && (
-            <div className="text-sm text-muted-foreground">
-              Hostname: <code className="font-mono">{config.tailscale.hostname}</code>
-            </div>
-          )}
-          {!config.tailscale.installed && (
-            <Button variant="outline" size="sm" asChild>
-              <a href="https://tailscale.com/download" target="_blank" rel="noopener noreferrer">
-                Install Tailscale
-              </a>
-            </Button>
-          )}
         </CardContent>
       </Card>
 
