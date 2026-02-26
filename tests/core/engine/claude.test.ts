@@ -76,6 +76,7 @@ describe("ClaudeEngine", () => {
       durationApiMs: 100,
       turns: 1,
       model: "sonnet",
+      stopReason: "success",
     });
   });
 
