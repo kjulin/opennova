@@ -120,13 +120,17 @@ export function createTasksMcpServer(
 
       tool(
         "list_tasks",
-        "List your active tasks.",
-        {},
-        async () => {
+        "List active tasks. By default shows only your own tasks.",
+        {
+          all: z.boolean().optional().describe("If true, show all active tasks across all agents. Default: false (your tasks only)."),
+        },
+        async (args) => {
           const allTasks = loadTasks(workspaceDir);
-          const tasks = allTasks.filter(t => t.owner === agentId);
+          const active = args.all
+            ? allTasks.filter(t => t.status === "active" || t.status === "draft")
+            : allTasks.filter(t => (t.status === "active" || t.status === "draft") && t.owner === agentId);
 
-          if (tasks.length === 0) {
+          if (active.length === 0) {
             return {
               content: [{
                 type: "text" as const,
@@ -135,14 +139,9 @@ export function createTasksMcpServer(
             };
           }
 
-          const active = tasks.filter(t => t.status === "active");
-
-          let output = "";
-          if (active.length > 0) {
-            output += active.map(t =>
-              `- **#${t.id}: ${t.title}**\n  Owner: ${t.owner} | Steps: ${t.steps.filter(s => s.done).length}/${t.steps.length}`
-            ).join("\n\n");
-          }
+          const output = active.map(t =>
+            `- **#${t.id}: ${t.title}**\n  Owner: ${t.owner} | Steps: ${t.steps.filter(s => s.done).length}/${t.steps.length}`
+          ).join("\n\n");
 
           return {
             content: [{
