@@ -13,6 +13,7 @@ import {
   MAX_INSTRUCTIONS_LENGTH,
   ResponsibilitySchema,
 } from "../schemas.js";
+import { MODELS } from "../models.js";
 import {
   agentDir,
   agentsDir,
@@ -79,6 +80,7 @@ export function createAgentManagementMcpServer(): McpSdkServerConfigWithInstance
           instructions: z.string().optional().describe("How the agent operates — files, rhythm, focus, constraints"),
           directories: z.array(z.string()).optional().describe("Directories the agent can access (optional)"),
           capabilities: z.array(z.string()).optional().describe("System capabilities to enable (e.g. memory, history, tasks, notes, web-search, agent-management)"),
+          model: z.enum(MODELS).optional().describe("Model to use. Defaults to 'sonnet'."),
         },
         async (args) => {
           if (!VALID_AGENT_ID.test(args.id)) {
@@ -91,6 +93,7 @@ export function createAgentManagementMcpServer(): McpSdkServerConfigWithInstance
           writeAgentJson(args.id, {
             name: args.name,
             identity: args.identity,
+            model: args.model ?? "sonnet",
             ...(args.description && { description: args.description }),
             ...(args.instructions && { instructions: args.instructions }),
             ...(args.directories && args.directories.length > 0 && { directories: args.directories }),

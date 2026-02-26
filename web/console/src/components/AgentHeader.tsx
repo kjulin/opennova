@@ -109,11 +109,10 @@ export function AgentHeader({
             <Label>Model</Label>
             <Select
               key={modelKey}
-              value={model || "__default__"}
+              value={model}
               onValueChange={(value) => {
-                const newModel = value === "__default__" ? "" : value;
-                onModelChange(newModel);
-                saveModel({ model: newModel || null });
+                onModelChange(value);
+                saveModel({ model: value });
                 setModelKey((k) => k + 1);
               }}
             >
@@ -121,7 +120,6 @@ export function AgentHeader({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="__default__">Default (Sonnet)</SelectItem>
                 <SelectItem value="sonnet">Sonnet · Balanced</SelectItem>
                 <SelectItem value="opus">Opus · Best quality</SelectItem>
                 <SelectItem value="haiku">Haiku · Fast & cheap</SelectItem>
