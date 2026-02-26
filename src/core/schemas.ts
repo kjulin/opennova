@@ -115,7 +115,7 @@ export const AgentJsonSchema = z.object({
     maxTurns: z.number().int().positive().optional(),
   })).optional(),
   capabilities: z.array(z.string()).optional(),
-  model: z.enum(MODELS).optional(),
+  model: z.enum(MODELS).default("sonnet"),
 }).passthrough();
 
 export type AgentJson = z.infer<typeof AgentJsonSchema>;

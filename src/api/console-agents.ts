@@ -114,7 +114,7 @@ export function createConsoleAgentsRouter(workspaceDir: string): Hono {
       return c.json({ error: "Agent already exists" }, 409)
     }
 
-    const agentJson: AgentJson = { name: agentData.name, identity: agentData.identity, trust: agentData.trust }
+    const agentJson: AgentJson = { name: agentData.name, identity: agentData.identity, trust: agentData.trust, model: "sonnet" }
     if (agentData.description) agentJson.description = agentData.description
     if (agentData.instructions) agentJson.instructions = agentData.instructions
     if (agentData.directories && agentData.directories.length > 0) agentJson.directories = agentData.directories
@@ -160,12 +160,7 @@ export function createConsoleAgentsRouter(workspaceDir: string): Hono {
     const config: Record<string, unknown> = { ...existing }
     for (const field of allowedFields) {
       if (field in body) {
-        // Allow clearing model by setting to null/undefined
-        if (field === "model" && body[field] == null) {
-          delete config[field]
-        } else {
-          config[field] = body[field]
-        }
+        config[field] = body[field]
       }
     }
 

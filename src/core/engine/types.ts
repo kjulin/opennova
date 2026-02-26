@@ -45,7 +45,7 @@ export interface EngineOptions {
 
   // Prompt configuration
   systemPrompt?: string | undefined;
-  model?: Model | undefined;
+  model: Model;
   maxTurns?: number | undefined;
 
   // Sub-agents and MCP
