@@ -16,7 +16,7 @@ export function run() {
   }
 
   // Auth
-  const auth = detectAuth(workspaceDir);
+  const auth = detectAuth();
   if (auth.method === "claude-code") {
     console.log("Auth:       Claude Code (subscription)");
   } else if (auth.method === "api-key") {
