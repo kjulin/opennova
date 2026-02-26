@@ -16,6 +16,7 @@ import { relativeTime } from "./telegram.js";
 import { splitMessage, chatGuard } from "./telegram-utils.js";
 import { log } from "../logger.js";
 import { getNovaUrl } from "../workspace.js";
+import { generateSetupToken } from "#api/auth.js";
 
 function resolveThreadId(config: AgentBotConfig, agentDir: string): string {
   if (config.activeThreadId) {
@@ -238,7 +239,8 @@ export function startAgentTelegram(
         await ctx.reply("Set your Nova URL: `nova config set settings.url https://your-domain.com`");
         return;
       }
-      const url = `${novaUrl}/web/console/`;
+      const token = generateSetupToken();
+      const url = `${novaUrl}/web/console/#setup=${token}`;
       const keyboard = new InlineKeyboard();
       keyboard.url("Open Console", url).row();
       await ctx.reply(`*Admin Console*\n\nManage your agents, skills, triggers, and secrets.`, {

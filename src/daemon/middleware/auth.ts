@@ -66,6 +66,11 @@ export function createAuthMiddleware(workspaceDir: string, readTelegramConfig: (
       return next();
     }
 
+    // Skip auth for POST /api/auth/setup (setup token exchange IS the auth mechanism)
+    if (c.req.method === "POST" && c.req.path === "/api/auth/setup") {
+      return next();
+    }
+
     // 1. Try Bearer token
     const apiToken = getApiToken();
     if (apiToken) {

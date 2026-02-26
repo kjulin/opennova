@@ -25,6 +25,7 @@ import { createConsoleSkillsRouter } from "#api/console-skills.js";
 import { createConsoleSecretsRouter } from "#api/console-secrets.js";
 import { createConsoleUsageRouter } from "#api/console-usage.js";
 import { createConfigRouter } from "#api/config.js";
+import { createAuthRouter } from "#api/auth.js";
 import { createAuthMiddleware } from "./middleware/auth.js";
 import { safeParseJsonFile } from "#core/schemas.js";
 
@@ -241,6 +242,9 @@ function createApp(workspaceDir: string): Hono {
 
   // Config API
   app.route("/api/config", createConfigRouter(workspaceDir));
+
+  // Auth setup API (setup token exchange — exempt from auth middleware)
+  app.route("/api/auth", createAuthRouter());
 
   // Webapp at /web/tasklist (for Telegram mini app compatibility)
   app.get("/web/tasklist", (c) => c.redirect("/web/tasklist/"));
