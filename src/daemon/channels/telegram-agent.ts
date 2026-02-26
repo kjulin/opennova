@@ -334,6 +334,7 @@ export function startAgentTelegram(
       { triggers: createTriggerMcpServer(agentDir) },
       undefined,
       abortController,
+      { source: "chat" },
     ).catch((err) => {
       if (!abortController.signal.aborted) {
         log.error("telegram-agent", `agent ${agentId} error:`, (err as Error).message);
@@ -408,6 +409,7 @@ You can read, process, or move this file as needed.`;
         { triggers: createTriggerMcpServer(agentDir) },
         undefined,
         abortController,
+        { source: "chat" },
       ).catch((err) => {
         if (!abortController.signal.aborted) {
           log.error("telegram-agent", `agent ${agentId} file handling error:`, (err as Error).message);

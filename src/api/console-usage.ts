@@ -161,6 +161,20 @@ function aggregate(records: UsageRecord[], view: View) {
 export function createConsoleUsageRouter(workspaceDir: string): Hono {
   const app = new Hono();
 
+  app.get("/detail", (c) => {
+    const agent = c.req.query("agent");
+    const source = c.req.query("source");
+    const limit = parseInt(c.req.query("limit") ?? "50", 10);
+
+    Config.workspaceDir = workspaceDir;
+
+    let records = loadUsageRecords();
+    if (agent) records = records.filter((r) => r.agentId === agent);
+    if (source) records = records.filter((r) => r.source === source);
+
+    return c.json({ records: records.slice(-limit).reverse() });
+  });
+
   app.get("/", (c) => {
     const viewParam = c.req.query("view") ?? "weekly";
     const view: View = viewParam === "monthly" ? "monthly" : "weekly";

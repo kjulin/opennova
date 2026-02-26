@@ -116,6 +116,12 @@ async function execQuery(
   let resultModel: string = String(queryOptions.model ?? "opus");
   let thinkingTimeout: ReturnType<typeof setTimeout> | null = null;
 
+  // Detailed tracking
+  const toolStats: Record<string, { calls: number; inputChars: number; resultChars: number }> = {};
+  const pendingToolUses = new Map<string, string>(); // tool_use_id → tool name
+  let stopReason: "success" | "error" | "max_turns" | "aborted" = "success";
+  let permissionDenialCount = 0;
+
   for await (const event of result) {
     log.debug(tag, `event: ${event.type}${("subtype" in event && event.subtype) ? `:${event.subtype}` : ""}`);
 
@@ -142,6 +148,12 @@ async function execQuery(
         const preview = typeof tr.content === "string" ? tr.content.slice(0, 200) : "";
         if (preview.includes("task_id") || preview.includes("Task")) {
           log.info(tag, `subagent result received (tool_use_id: ${tr.tool_use_id ?? "?"}, preview: ${preview})`);
+        }
+        // Track tool result chars
+        const toolName = tr.tool_use_id ? pendingToolUses.get(tr.tool_use_id) : undefined;
+        if (toolName && toolStats[toolName]) {
+          const resultLen = typeof tr.content === "string" ? tr.content.length : JSON.stringify(tr.content).length;
+          toolStats[toolName].resultChars += resultLen;
         }
       }
       // Tool results delivered — show "Thinking..." after 3s delay if no other event
@@ -170,6 +182,13 @@ async function execQuery(
           responseText = block.text;
         } else if (block.type === "tool_use") {
           const input = block.input as Record<string, unknown>;
+          // Track tool stats
+          const toolName = block.name;
+          if (!toolStats[toolName]) toolStats[toolName] = { calls: 0, inputChars: 0, resultChars: 0 };
+          toolStats[toolName].calls++;
+          toolStats[toolName].inputChars += JSON.stringify(block.input).length;
+          if (block.id) pendingToolUses.set(block.id, toolName);
+
           if (block.name === "Task") {
             log.info(tag, `subagent spawned: "${input.description ?? "unnamed"}" (prompt: ${String(input.prompt ?? "").slice(0, 120)})`);
           } else if (block.name === "TaskOutput") {
@@ -190,6 +209,7 @@ async function execQuery(
           log.warn(tag, `permission denied: ${d.tool_name}`);
         }
       }
+      permissionDenialCount += denials.length;
       log.info(tag, `done — session: ${resultSessionId}, cost: $${event.total_cost_usd}, duration: ${event.duration_ms}ms, turns: ${event.num_turns}${denials.length > 0 ? `, denials: ${denials.length}` : ""}`);
 
       // Capture usage metrics
@@ -218,6 +238,9 @@ async function execQuery(
           durationApiMs: durationApiMs ?? event.duration_ms,
           turns: event.num_turns,
           model: resultModel,
+          ...(Object.keys(toolStats).length > 0 ? { toolStats } : {}),
+          stopReason,
+          ...(permissionDenialCount > 0 ? { permissionDenials: permissionDenialCount } : {}),
           ...(modelUsage ? { modelUsage } : {}),
         };
       }
@@ -234,11 +257,33 @@ async function execQuery(
       log.debug(tag, `summary: ${event.summary}`);
       callbacks?.onToolUseSummary?.(event.summary);
     } else if (event.type === "result" && (event.subtype === "error_during_execution" || event.subtype === "error_max_turns")) {
+      stopReason = event.subtype === "error_max_turns" ? "max_turns" : "error";
       const denials = (event as { permission_denials?: { tool_name: string }[] }).permission_denials ?? [];
+      permissionDenialCount += denials.length;
       for (const d of denials) {
         log.warn(tag, `permission denied: ${d.tool_name}`);
       }
       log.error(tag, `${event.subtype}:`, "error" in event ? (event as { error: string }).error : "unknown error");
+
+      // Capture usage from error events (otherwise lost entirely)
+      const usage = (event as { usage?: { input_tokens?: number; output_tokens?: number; cache_read_input_tokens?: number; cache_creation_input_tokens?: number } }).usage;
+      const durationApiMs = (event as { duration_api_ms?: number }).duration_api_ms;
+      if (usage && !resultUsage) {
+        resultUsage = {
+          inputTokens: usage.input_tokens ?? 0,
+          outputTokens: usage.output_tokens ?? 0,
+          cacheReadTokens: usage.cache_read_input_tokens ?? 0,
+          cacheCreationTokens: usage.cache_creation_input_tokens ?? 0,
+          costUsd: (event as { total_cost_usd?: number }).total_cost_usd ?? 0,
+          durationMs: (event as { duration_ms?: number }).duration_ms ?? 0,
+          durationApiMs: durationApiMs ?? (event as { duration_ms?: number }).duration_ms ?? 0,
+          turns: (event as { num_turns?: number }).num_turns ?? 0,
+          model: resultModel,
+          ...(Object.keys(toolStats).length > 0 ? { toolStats } : {}),
+          stopReason,
+          ...(permissionDenialCount > 0 ? { permissionDenials: permissionDenialCount } : {}),
+        };
+      }
     }
   }
 
@@ -249,6 +294,8 @@ async function execQuery(
 
   if (abortController?.signal.aborted) {
     log.info(tag, "aborted by caller");
+    stopReason = "aborted";
+    if (resultUsage) resultUsage.stopReason = "aborted";
     return { text: "", sessionId: resultSessionId, usage: resultUsage };
   }
 
