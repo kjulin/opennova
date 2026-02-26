@@ -53,21 +53,6 @@ export interface SecretsResponse {
   secrets: string[];
 }
 
-export interface PairingUser {
-  chatId: number;
-  firstName: string;
-  lastName?: string | null;
-  username?: string | null;
-}
-
-export interface PairingStatus {
-  status: "idle" | "waiting_for_message" | "message_received" | "paired" | "cancelled" | "error";
-  user?: PairingUser;
-  chatId?: string;
-  chatName?: string;
-  error?: string;
-}
-
 export interface UsageBucket {
   label: string;
   messages: number;

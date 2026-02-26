@@ -27,8 +27,8 @@ import { createConsoleSkillsRouter } from "#api/console-skills.js";
 import { createConsoleSecretsRouter } from "#api/console-secrets.js";
 import { createConsoleUsageRouter } from "#api/console-usage.js";
 import { createConfigRouter } from "#api/config.js";
-import { createTelegramPairRouter, createTelegramUnpairRouter } from "./routes/telegram-pair.js";
-import { reloadChannels } from "./channels.js";
+import { createAuthMiddleware } from "./middleware/auth.js";
+import { safeParseJsonFile } from "#core/schemas.js";
 
 const PORT = parseInt(process.env.NOVA_PORT || "3838", 10);
 
@@ -103,7 +103,7 @@ function createApp(workspaceDir: string): Hono {
   app.use("*", async (c, next) => {
     c.header("Access-Control-Allow-Origin", "*");
     c.header("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
-    c.header("Access-Control-Allow-Headers", "Content-Type");
+    c.header("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Telegram-Init-Data");
 
     if (c.req.method === "OPTIONS") {
       return c.body(null, 204);
@@ -111,6 +111,17 @@ function createApp(workspaceDir: string): Hono {
 
     await next();
   });
+
+  // Telegram config reader for auth middleware
+  function readTelegramConfig() {
+    const p = path.join(workspaceDir, "telegram.json");
+    if (!fs.existsSync(p)) return null;
+    const raw = safeParseJsonFile(p, "telegram.json");
+    return raw as { token?: string; chatId?: string; chatName?: string } | null;
+  }
+
+  // Auth middleware — protect all /api/* routes (except GET /api/health)
+  app.use("/api/*", createAuthMiddleware(workspaceDir, readTelegramConfig));
 
   // API routes
   app.get("/api/health", (c) => c.json({ ok: true }));
@@ -232,10 +243,6 @@ function createApp(workspaceDir: string): Hono {
 
   // Config API
   app.route("/api/config", createConfigRouter(workspaceDir));
-
-  // Telegram pairing API
-  app.route("/api/telegram/pair", createTelegramPairRouter(workspaceDir, () => reloadChannels()));
-  app.route("/api/telegram/unpair", createTelegramUnpairRouter(workspaceDir));
 
   // Webapp at /web/tasklist (for Telegram mini app compatibility)
   app.get("/web/tasklist", (c) => c.redirect("/web/tasklist/"));

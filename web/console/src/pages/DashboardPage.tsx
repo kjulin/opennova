@@ -3,7 +3,6 @@ import { Link } from "react-router-dom";
 import { fetchConfig, fetchAgents } from "@/api";
 import type { ConfigResponse } from "@/types";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { TelegramPairingBlock } from "@/components/TelegramPairingBlock";
 
 function formatUptime(seconds: number): string {
   const days = Math.floor(seconds / 86400);
@@ -60,15 +59,9 @@ export function DashboardPage() {
     );
   }
 
-  const needsPairing = !config.telegram.configured || !config.telegram.chatId;
-
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
-
-      {needsPairing && (
-        <TelegramPairingBlock onPaired={loadData} />
-      )}
 
       <Card>
         <CardHeader>
