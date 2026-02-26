@@ -17,7 +17,7 @@ export const TelegramConfigSchema = z.object({
   activeAgentId: z.string(),
   activeThreadId: z.string().optional(),
   agentBots: z.record(z.string(), AgentBotConfigSchema).optional(),
-  supergroup: z.object({
+  taskgroup: z.object({
     chatId: z.string(),
     topicMappings: z.array(z.object({
       taskId: z.string(),
