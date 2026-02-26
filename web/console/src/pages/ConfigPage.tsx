@@ -3,9 +3,7 @@ import {
   fetchConfig,
   updateDaemon,
   updateTtsKey,
-  setupTailscale,
   deleteWorkspace,
-  unpairTelegram,
 } from "@/api";
 import type { ConfigResponse } from "@/types";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
@@ -26,7 +24,6 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { TelegramPairingDialog } from "@/components/TelegramPairingDialog";
 
 function formatUptime(seconds: number): string {
   const days = Math.floor(seconds / 86400);
@@ -48,7 +45,6 @@ export function ConfigPage() {
   const [showOpenaiKeyInput, setShowOpenaiKeyInput] = useState(false);
   const [confirmPath, setConfirmPath] = useState("");
   const [workspaceRemoved, setWorkspaceRemoved] = useState(false);
-  const [pairingDialogOpen, setPairingDialogOpen] = useState(false);
 
   function loadConfig() {
     return fetchConfig()
@@ -164,6 +160,7 @@ export function ConfigPage() {
         <CardContent className="space-y-3">
           {telegramPaired ? (
             <>
+              <Badge variant="default">Connected</Badge>
               <div className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
                 <span className="text-muted-foreground">Bot Token</span>
                 <code className="font-mono">{config.telegram.token}</code>
@@ -176,76 +173,23 @@ export function ConfigPage() {
                   </>
                 )}
               </div>
-              <div className="flex gap-2 pt-1">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setPairingDialogOpen(true)}
-                >
-                  Pair again
-                </Button>
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button variant="outline" size="sm">
-                      Unpair
-                    </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Unpair Telegram?</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        This will remove the bot token and chat pairing. You can re-pair later from the Dashboard or this page.
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Cancel</AlertDialogCancel>
-                      <AlertDialogAction
-                        variant="destructive"
-                        onClick={() => handleAction(() => unpairTelegram())}
-                      >
-                        Unpair
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
-              </div>
             </>
           ) : config.telegram.configured ? (
             <>
+              <Badge variant="secondary">Token saved, not paired</Badge>
               <div className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
                 <span className="text-muted-foreground">Bot Token</span>
                 <code className="font-mono">{config.telegram.token}</code>
               </div>
-              <p className="text-sm text-muted-foreground">Token saved but not yet paired.</p>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setPairingDialogOpen(true)}
-              >
-                Set up Telegram
-              </Button>
             </>
           ) : (
-            <>
-              <p className="text-sm text-muted-foreground">Not configured.</p>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setPairingDialogOpen(true)}
-              >
-                Set up Telegram
-              </Button>
-            </>
+            <Badge variant="outline">Not configured</Badge>
           )}
+          <p className="text-xs text-muted-foreground">
+            To pair or unpair Telegram, use the CLI: <code className="font-mono bg-muted px-1 rounded">nova telegram pair</code>
+          </p>
         </CardContent>
       </Card>
-
-      <TelegramPairingDialog
-        open={pairingDialogOpen}
-        onOpenChange={setPairingDialogOpen}
-        onPaired={loadConfig}
-        existingToken={config.telegram.configured ? config.telegram.token : undefined}
-      />
 
       {/* Admin UI */}
       <Card>
@@ -282,24 +226,13 @@ export function ConfigPage() {
               Hostname: <code className="font-mono">{config.tailscale.hostname}</code>
             </div>
           )}
-          <div className="flex gap-2">
-            {!config.tailscale.installed && (
-              <Button variant="outline" size="sm" asChild>
-                <a href="https://tailscale.com/download" target="_blank" rel="noopener noreferrer">
-                  Install Tailscale
-                </a>
-              </Button>
-            )}
-            {config.tailscale.installed && config.tailscale.connected && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => handleAction(() => setupTailscale())}
-              >
-                Regenerate Certs
-              </Button>
-            )}
-          </div>
+          {!config.tailscale.installed && (
+            <Button variant="outline" size="sm" asChild>
+              <a href="https://tailscale.com/download" target="_blank" rel="noopener noreferrer">
+                Install Tailscale
+              </a>
+            </Button>
+          )}
         </CardContent>
       </Card>
 
