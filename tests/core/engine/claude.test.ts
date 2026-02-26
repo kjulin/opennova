@@ -94,12 +94,12 @@ describe("ClaudeEngine", () => {
     mockQuery.mockReturnValue(mockGenerator());
 
     const engine = createClaudeEngine();
-    await engine.run("Continue", { cwd: "/test" }, "controlled", "sess-123");
+    await engine.run("Continue", { cwd: "/test", model: "sonnet" }, "controlled", "sess-123");
 
     expect(mockQuery).toHaveBeenCalledWith({
       prompt: "Continue",
       options: expect.objectContaining({
-        model: "opus",
+        model: "sonnet",
         resume: "sess-123",
         settingSources: ["project"],
         permissionMode: "dontAsk",
@@ -221,12 +221,12 @@ describe("ClaudeEngine", () => {
     mockQuery.mockReturnValue(mockGenerator());
 
     const engine = createClaudeEngine();
-    await engine.run("Hello", { cwd: "/test" }, "unrestricted");
+    await engine.run("Hello", { cwd: "/test", model: "sonnet" }, "unrestricted");
 
     expect(mockQuery).toHaveBeenCalledWith({
       prompt: "Hello",
       options: expect.objectContaining({
-        model: "opus",
+        model: "sonnet",
         settingSources: ["project"],
         permissionMode: "bypassPermissions",
         allowDangerouslySkipPermissions: true,

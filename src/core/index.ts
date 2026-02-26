@@ -110,7 +110,7 @@ export {
   type AgentRunner,
   type AgentRunnerCallbacks,
   type RunAgentOverrides,
-} from "./thread-runner.js";
+} from "./agent-runner.js";
 
 // Capabilities
 export {
