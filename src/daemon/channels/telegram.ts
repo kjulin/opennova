@@ -344,9 +344,26 @@ export function startTelegram() {
         await ctx.reply("No active tasks.");
         return;
       }
-      const keyboard = new InlineKeyboard();
+      // Separate parent tasks from subtasks
+      const subtaskIds = new Set(tasks.filter(t => t.parentTaskId).map(t => t.id));
+      const parentTasks = tasks.filter(t => !t.parentTaskId);
+      const subtasksByParent = new Map<string, typeof tasks>();
       for (const t of tasks) {
+        if (t.parentTaskId) {
+          const list = subtasksByParent.get(t.parentTaskId) ?? [];
+          list.push(t);
+          subtasksByParent.set(t.parentTaskId, list);
+        }
+      }
+      const keyboard = new InlineKeyboard();
+      for (const t of parentTasks) {
         keyboard.text(`#${t.id} ${t.title}`, `task:${t.id}`).row();
+        const subs = subtasksByParent.get(t.id);
+        if (subs) {
+          for (const sub of subs) {
+            keyboard.text(`  \u21B3 #${sub.id} ${sub.title}`, `task:${sub.id}`).row();
+          }
+        }
       }
       await ctx.reply("*Tasks:*", { parse_mode: "Markdown", reply_markup: keyboard });
       return;

@@ -21,6 +21,7 @@ import {
   isValidOwner,
 } from "./storage.js";
 import type { Task, Step, Resource } from "./types.js";
+import { taskBus } from "./events.js";
 
 const StepSchema = z.object({
   title: z.string().max(60).describe("Short step label (max 60 chars)"),
@@ -44,10 +45,12 @@ function formatTask(task: Task): string {
       }).join("\n")
     : "";
 
+  const parent = task.parentTaskId ? `\nParent: #${task.parentTaskId}` : "";
+
   return `Task #${task.id}: ${task.title}
 Status: ${task.status}
 Owner: ${task.owner}
-Created by: ${task.createdBy}
+Created by: ${task.createdBy}${parent}
 Thread: ${task.threadId ?? "(not yet created)"}${steps}${resources}
 Created: ${task.createdAt}
 Updated: ${task.updatedAt}`;
@@ -100,6 +103,11 @@ export function createTasksMcpServer(
 
           // Update task with the thread ID
           const updatedTask = updateTask(workspaceDir, task.id, { threadId });
+
+          taskBus.emit("task:created", { taskId: task.id });
+          if (task.status !== "draft") {
+            taskBus.emit("task:started", { taskId: task.id });
+          }
 
           return {
             content: [{
@@ -258,6 +266,13 @@ export function createTasksMcpServer(
             };
           }
 
+          // Emit events for status transitions
+          if (updates.status === "active") {
+            taskBus.emit("task:started", { taskId: id });
+          } else if (updates.status === "done") {
+            taskBus.emit("task:completed", { taskId: id });
+          }
+
           const action = task.status === "done" ? "completed and archived" : "updated";
           return {
             content: [{
@@ -315,6 +330,8 @@ export function createTasksMcpServer(
               isError: true,
             };
           }
+
+          taskBus.emit("task:completed", { taskId: args.id });
 
           return {
             content: [{
@@ -398,6 +415,7 @@ export function createTasksMcpServer(
               title: args.title,
               description: args.description,
               ...(args.owner !== undefined ? { owner: args.owner } : {}),
+              parentTaskId: args.taskId,
             },
             createdBy: agentId,
           });
@@ -409,6 +427,10 @@ export function createTasksMcpServer(
 
           // Link subtask to the parent task's step
           const updatedParent = linkSubtask(workspaceDir, args.taskId, args.stepIndex, subtask.id);
+
+          // Fire event to wake the subtask owner
+          taskBus.emit("task:created", { taskId: subtask.id });
+          taskBus.emit("task:started", { taskId: subtask.id });
 
           return {
             content: [{
@@ -486,6 +508,8 @@ export function createTasksMcpServer(
               isError: true,
             };
           }
+
+          taskBus.emit("task:canceled", { taskId: args.id });
 
           return {
             content: [{

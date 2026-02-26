@@ -1,9 +1,7 @@
-import type { Task } from "./types.js";
-
 export const TASK_WORK_PROMPT = `Check your current task status and take appropriate action:
 
 1. Review the task details in the <Task> block above
-2. Check your progress against the steps
+2. Use get_task to check your full task details, steps, and progress
 3. If steps are not defined, create a plan with update_steps
 4. For steps with linked subtasks (#id), use get_task to check their status before proceeding
 5. Work on the next incomplete step
@@ -12,25 +10,3 @@ export const TASK_WORK_PROMPT = `Check your current task status and take appropr
 8. If complete, use complete_task to finish
 
 Focus on making concrete progress. Be thorough but efficient.`;
-
-export function buildTaskContext(task: Task): string {
-  const stepsText = task.steps.length > 0
-    ? task.steps.map((s, i) => {
-        const marker = s.done ? "✓" : (i === task.steps.findIndex(st => !st.done) ? "→" : "○");
-        const subtask = s.taskId ? ` (#${s.taskId})` : "";
-        const details = s.details ? `\n   ${s.details}` : "";
-        return `${i + 1}. ${marker} ${s.title}${subtask}${details}`;
-      }).join("\n")
-    : "(no steps defined)";
-
-  return `<Task>
-You are working on task #${task.id}. Focus solely on progressing this task. Do not work on anything else.
-
-Title: ${task.title}
-Description: ${task.description}
-Status: ${task.status}
-Owner: ${task.owner}
-Steps:
-${stepsText}
-</Task>`;
-}

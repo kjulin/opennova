@@ -12,8 +12,10 @@ export {
   addResource,
   removeResource,
   isValidOwner,
+  findParentTask,
   type CreateTaskOptions,
 } from "./storage.js";
 export { createTasksMcpServer } from "./mcp.js";
-export { buildTaskContext, TASK_WORK_PROMPT } from "./prompts.js";
+export { taskBus, type TaskEventType, type TaskEventPayload } from "./events.js";
+export { TASK_WORK_PROMPT } from "./prompts.js";
 export { startTaskScheduler, isTaskInFlight, runTaskNow } from "./scheduler.js";

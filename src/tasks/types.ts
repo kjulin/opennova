@@ -20,6 +20,7 @@ export interface Task {
   status: "draft" | "active" | "done" | "canceled";
   steps: Step[];
   resources: Resource[];
+  parentTaskId?: string;   // Parent task (set on subtasks)
   threadId?: string;       // Dedicated thread, created after task
   createdAt: string;       // ISO timestamp
   updatedAt: string;       // ISO timestamp
@@ -30,6 +31,7 @@ export interface CreateTaskInput {
   description: string;
   owner?: string;          // Defaults to creating agent
   status?: "draft" | "active"; // Defaults to "active"
+  parentTaskId?: string;   // Parent task ID (for subtasks)
 }
 
 export interface UpdateTaskInput {
