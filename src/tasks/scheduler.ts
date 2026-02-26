@@ -2,10 +2,11 @@ import path from "path";
 import cron from "node-cron";
 import { Config } from "#core/config.js";
 import { createThread } from "#core/threads.js";
-import { getTask, loadTasks, updateTask } from "./storage.js";
+import { getTask, loadTasks, updateTask, findParentTask } from "./storage.js";
 import { TASK_WORK_PROMPT } from "./prompts.js";
 import { runAgent } from "#core/index.js";
 import { log } from "#daemon/logger.js";
+import { taskBus } from "./events.js";
 
 // Track in-flight task invocations to avoid double-invoking
 const inFlightTasks = new Set<string>();
@@ -48,6 +49,30 @@ export function runTaskNow(workspaceDir: string, taskId: string): string | null 
 
 export function startTaskScheduler() {
   const workspaceDir = Config.workspaceDir;
+
+  // Subscribe to task events for immediate wake-ups
+  taskBus.on("task:started", ({ taskId }) => {
+    const result = runTaskNow(workspaceDir, taskId);
+    if (result) {
+      log.info("tasks", `task:started #${taskId}: ${result}`);
+    } else {
+      log.info("tasks", `task:started: triggered task #${taskId}`);
+    }
+  });
+
+  taskBus.on("task:completed", ({ taskId }) => {
+    // Wake the parent task if this was a subtask
+    const task = getTask(workspaceDir, taskId);
+    const parentId = task?.parentTaskId ?? findParentTask(workspaceDir, taskId)?.taskId;
+    if (parentId) {
+      const result = runTaskNow(workspaceDir, parentId);
+      if (result) {
+        log.info("tasks", `task:completed #${taskId} → parent #${parentId}: ${result}`);
+      } else {
+        log.info("tasks", `task:completed #${taskId}: woke parent #${parentId}`);
+      }
+    }
+  });
 
   async function tick() {
     log.info("tasks", "scheduler tick");

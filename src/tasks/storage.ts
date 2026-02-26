@@ -104,6 +104,7 @@ export function createTask(options: CreateTaskOptions): Task {
     status: input.status ?? "active",
     steps: [],
     resources: [],
+    ...(input.parentTaskId ? { parentTaskId: input.parentTaskId } : {}),
     createdAt: now,
     updatedAt: now,
   };
@@ -270,6 +271,25 @@ export function removeResource(
   saveTasksData(workspaceDir, data);
 
   return task;
+}
+
+/**
+ * Find the parent task of a subtask by scanning active tasks' steps.
+ * Fallback for pre-existing tasks without parentTaskId.
+ */
+export function findParentTask(
+  workspaceDir: string,
+  subtaskId: string,
+): { taskId: string; owner: string } | undefined {
+  const tasks = loadTasks(workspaceDir);
+  for (const task of tasks) {
+    for (const step of task.steps) {
+      if (step.taskId === subtaskId) {
+        return { taskId: task.id, owner: task.owner };
+      }
+    }
+  }
+  return undefined;
 }
 
 export function linkSubtask(

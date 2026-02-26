@@ -59,21 +59,16 @@ If you need to notify the user about something important (questions, updates, co
 
 function buildTaskContext(task: Task): string {
   const stepsText = task.steps.length > 0
-    ? task.steps.map((s, i) => {
-        const marker = s.done ? "✓" : (i === task.steps.findIndex(st => !st.done) ? "→" : "○");
+    ? "\nSteps:\n" + task.steps.map((s, i) => {
+        const marker = s.done ? "✓" : "○";
         const subtask = s.taskId ? ` (#${s.taskId})` : "";
-        return `${i + 1}. ${marker} ${s.title}${subtask}`;
+        return `  ${i + 1}. ${marker} ${s.title}${subtask}`;
       }).join("\n")
-    : "(no steps defined)";
+    : "";
 
   return `<Task>
-You are working on task #${task.id}. Focus solely on progressing this task. Do not work on anything else.
-
-Title: ${task.title}
-Description: ${task.description}
-Status: ${task.status}
-Owner: ${task.owner}
-Steps:
-${stepsText}
+You are working on task #${task.id}: ${task.title}
+Use get_task("${task.id}") to review full details and description.
+Focus solely on progressing this task. Do not work on anything else.${stepsText}
 </Task>`;
 }
