@@ -38,7 +38,7 @@ function buildOptions(level: TrustLevel): Record<string, unknown> {
       return {
         permissionMode: "dontAsk",
         disallowedTools: ["Bash", "Task", "TaskOutput"],
-        allowedTools: STANDARD_ALLOWED_TOOLS,
+        allowedTools: [...STANDARD_ALLOWED_TOOLS],
       };
     case "unrestricted":
       return {
