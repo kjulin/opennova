@@ -57,7 +57,6 @@ nova secrets set|get|list|delete       Manage secrets
 nova usage [--today|--week|--month]    Show usage by agent
 nova usage weekly|monthly              Show usage over time
 nova status                            Show workspace and configuration status
-nova tailscale setup                   Set up Tailscale HTTPS for Mini App
 nova transcription setup|status        Set up local voice transcription
 nova backup                            Back up workspace
 nova restore                           Restore workspace from backup

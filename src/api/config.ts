@@ -3,7 +3,6 @@ import { Hono } from "hono";
 import fs from "fs";
 import path from "path";
 import os from "os";
-import { execFileSync } from "child_process";
 import { detectAuth } from "#daemon/auth.js";
 import { listSecretNames, setSecret, addSecretName } from "#core/secrets.js";
 import { safeParseJsonFile } from "#core/schemas.js";
@@ -55,45 +54,6 @@ function writeTelegram(workspaceDir: string, data: TelegramJson): void {
   );
 }
 
-interface TailscaleInfo {
-  installed: boolean;
-  connected: boolean;
-  hostname: string | null;
-  certsReady: boolean;
-}
-
-function checkTailscale(): TailscaleInfo {
-  const certDir = path.join(os.homedir(), ".nova", "certs");
-
-  try {
-    const cmd = process.platform === "win32" ? "where" : "which";
-    execFileSync(cmd, ["tailscale"], { stdio: "ignore" });
-  } catch {
-    return { installed: false, connected: false, hostname: null, certsReady: false };
-  }
-
-  let hostname: string | null = null;
-  try {
-    const out = execFileSync("tailscale", ["status", "--json"], { encoding: "utf-8" });
-    const status = JSON.parse(out) as { Self?: { DNSName?: string } };
-    const dns = status.Self?.DNSName;
-    if (dns) {
-      hostname = dns.replace(/\.$/, "");
-    }
-  } catch {
-    return { installed: true, connected: false, hostname: null, certsReady: false };
-  }
-
-  if (!hostname) {
-    return { installed: true, connected: false, hostname: null, certsReady: false };
-  }
-
-  const certsReady = fs.existsSync(certDir) &&
-    fs.readdirSync(certDir).some((f) => f.endsWith(".crt"));
-
-  return { installed: true, connected: true, hostname, certsReady };
-}
-
 export function createConfigRouter(workspaceDir: string): Hono {
   const app = new Hono();
 
@@ -103,7 +63,6 @@ export function createConfigRouter(workspaceDir: string): Hono {
     const auth = detectAuth();
     const telegram = readTelegram(workspaceDir);
     const secrets = listSecretNames(workspaceDir);
-    const ts = checkTailscale();
     const openaiConfigured = secrets.includes("openai-api-key");
 
     // Telegram section
@@ -114,17 +73,6 @@ export function createConfigRouter(workspaceDir: string): Hono {
       if (telegram.chatId) telegramSection.chatId = telegram.chatId;
       if (telegram.chatName) telegramSection.chatName = telegram.chatName;
       if (telegram.activeAgentId) telegramSection.activeAgentId = telegram.activeAgentId;
-    }
-
-    // Tailscale section
-    const tailscaleSection: Record<string, unknown> = {
-      installed: ts.installed,
-      connected: ts.connected,
-      hostname: ts.hostname,
-      certsReady: ts.certsReady,
-    };
-    if (ts.certsReady && ts.hostname) {
-      tailscaleSection.url = `https://${ts.hostname}:3838`;
     }
 
     // Daemon version from package.json
@@ -139,7 +87,6 @@ export function createConfigRouter(workspaceDir: string): Hono {
       workspace: { path: displayPath(workspaceDir) },
       auth: { method: auth.method, ...(auth.detail ? { detail: auth.detail } : {}) },
       telegram: telegramSection,
-      tailscale: tailscaleSection,
       audio: {
         transcription: {
           modelAvailable: (() => {
@@ -187,33 +134,6 @@ export function createConfigRouter(workspaceDir: string): Hono {
 
     writeSettings(workspaceDir, { autoStart });
     return c.json({ ok: true, autoStart });
-  });
-
-  // POST /tailscale — generate certs
-  app.post("/tailscale", (c) => {
-    const ts = checkTailscale();
-
-    if (!ts.installed) {
-      return c.json({ error: "tailscale is not installed" }, 400);
-    }
-    if (!ts.connected || !ts.hostname) {
-      return c.json({ error: "tailscale is not connected" }, 400);
-    }
-
-    const certDir = path.join(os.homedir(), ".nova", "certs");
-    fs.mkdirSync(certDir, { recursive: true });
-
-    try {
-      execFileSync("tailscale", [
-        "cert",
-        "--cert-file", path.join(certDir, `${ts.hostname}.crt`),
-        "--key-file", path.join(certDir, `${ts.hostname}.key`),
-      ], { encoding: "utf-8" });
-    } catch (err) {
-      return c.json({ error: `cert generation failed: ${(err as Error).message}` }, 500);
-    }
-
-    return c.json({ ok: true, hostname: ts.hostname });
   });
 
   // POST /audio/tts — update TTS settings (OpenAI key)

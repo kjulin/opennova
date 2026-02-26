@@ -1,8 +1,6 @@
-import https from "https";
 import http from "http";
 import fs from "fs";
 import path from "path";
-import os from "os";
 import { Hono, type Context } from "hono";
 import { serve } from "@hono/node-server";
 import { log } from "./logger.js";
@@ -269,58 +267,8 @@ function createApp(workspaceDir: string): Hono {
   return app;
 }
 
-function readCerts(): { certName: string; cert: Buffer; key: Buffer } | null {
-  const certDir = path.join(os.homedir(), ".nova", "certs");
-
-  if (!fs.existsSync(certDir)) {
-    return null;
-  }
-
-  const certFiles = fs.readdirSync(certDir).filter((f) => f.endsWith(".crt"));
-
-  if (certFiles.length === 0) {
-    return null;
-  }
-
-  const certName = certFiles[0]!.replace(".crt", "");
-  const certPath = path.join(certDir, `${certName}.crt`);
-  const keyPath = path.join(certDir, `${certName}.key`);
-
-  if (!fs.existsSync(keyPath)) {
-    log.warn("https", `key file not found for cert: ${certName}`);
-    return null;
-  }
-
-  return {
-    certName,
-    cert: fs.readFileSync(certPath),
-    key: fs.readFileSync(keyPath),
-  };
-}
-
 export function startServer(workspaceDir: string): DaemonServer {
   const app = createApp(workspaceDir);
-  const certs = readCerts();
-
-  if (certs) {
-    const server = serve({
-      fetch: app.fetch,
-      port: PORT,
-      hostname: "0.0.0.0",
-      createServer: https.createServer,
-      serverOptions: { cert: certs.cert, key: certs.key },
-    });
-
-    log.info("https", `server listening on https://${certs.certName}:${PORT}`);
-
-    return {
-      port: PORT,
-      hostname: certs.certName,
-      shutdown: () => {
-        server.close();
-      },
-    };
-  }
 
   const server = serve({
     fetch: app.fetch,
@@ -329,40 +277,11 @@ export function startServer(workspaceDir: string): DaemonServer {
     createServer: http.createServer,
   });
 
-  log.info("https", `server listening on http://localhost:${PORT}`);
+  log.info("https", `server listening on http://0.0.0.0:${PORT}`);
 
   return {
     port: PORT,
     hostname: "localhost",
-    shutdown: () => {
-      server.close();
-    },
-  };
-}
-
-export function restartAsHttps(current: DaemonServer, workspaceDir: string): DaemonServer {
-  current.shutdown();
-
-  const app = createApp(workspaceDir);
-  const certs = readCerts();
-
-  if (!certs) {
-    throw new Error("Cannot restart as HTTPS: no certs found in ~/.nova/certs/");
-  }
-
-  const server = serve({
-    fetch: app.fetch,
-    port: PORT,
-    hostname: "0.0.0.0",
-    createServer: https.createServer,
-    serverOptions: { cert: certs.cert, key: certs.key },
-  });
-
-  log.info("https", `server restarted as https://${certs.certName}:${PORT}`);
-
-  return {
-    port: PORT,
-    hostname: certs.certName,
     shutdown: () => {
       server.close();
     },

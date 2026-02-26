@@ -86,13 +86,6 @@ export interface ConfigResponse {
     chatName?: string;
     activeAgentId?: string;
   };
-  tailscale: {
-    installed: boolean;
-    connected: boolean;
-    hostname: string | null;
-    certsReady: boolean;
-    url?: string;
-  };
   audio: {
     transcription: {
       modelAvailable: boolean;

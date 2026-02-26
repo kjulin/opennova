@@ -227,19 +227,11 @@ export async function run() {
 
   // 5. Show Admin UI URL
   if (healthy) {
-    let tsIp: string | undefined;
-    try {
-      tsIp = execFileSync("tailscale", ["ip", "-4"], { encoding: "utf-8" }).trim();
-    } catch { /* Tailscale not available */ }
-
-    const lines: string[] = ["Nova is running!", ""];
-    if (tsIp) {
-      lines.push(`Admin UI (local):      http://localhost:${port}/web/console/`);
-      lines.push(`Admin UI (Tailscale):  http://${tsIp}:${port}/web/console/`);
-    } else {
-      lines.push(`Admin UI:  http://localhost:${port}/web/console/`);
-    }
-    lines.push("", "Or pair Telegram via CLI:", "  nova telegram pair");
+    const lines: string[] = [
+      "Nova is running!", "",
+      `Admin UI:  http://localhost:${port}/web/console/`,
+      "", "Or pair Telegram via CLI:", "  nova telegram pair",
+    ];
 
     console.log("\n" + box(lines));
   }

@@ -1,6 +1,5 @@
 import fs from "fs";
 import path from "path";
-import https from "https";
 import { resolveWorkspace } from "../workspace.js";
 
 export interface PidInfo {
@@ -28,20 +27,9 @@ export function isRunning(pid: number): boolean {
 }
 
 export function probeHealth(port: number): Promise<boolean> {
-  return new Promise((resolve) => {
-    // Try HTTP first (default now)
-    fetch(`http://127.0.0.1:${port}/api/health`, { signal: AbortSignal.timeout(2000) })
-      .then((res) => resolve(res.ok))
-      .catch(() => {
-        // HTTP failed, try HTTPS (legacy/Tailscale)
-        const req = https.get(
-          { hostname: "127.0.0.1", port, path: "/api/health", rejectUnauthorized: false, timeout: 2000 },
-          (res) => resolve(res.statusCode === 200),
-        );
-        req.on("error", () => resolve(false));
-        req.on("timeout", () => { req.destroy(); resolve(false); });
-      });
-  });
+  return fetch(`http://127.0.0.1:${port}/api/health`, { signal: AbortSignal.timeout(2000) })
+    .then((res) => res.ok)
+    .catch(() => false);
 }
 
 export async function waitForHealth(port: number, maxMs = 30000): Promise<boolean> {

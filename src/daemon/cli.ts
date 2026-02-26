@@ -90,11 +90,6 @@ switch (command) {
     await run();
     break;
   }
-  case "tailscale": {
-    const { run } = await import("./commands/tailscale.js");
-    await run();
-    break;
-  }
   case "telegram": {
     const subcommand = process.argv[3];
     if (subcommand === "pair") {
@@ -164,7 +159,6 @@ switch (command) {
     console.log("  usage [--today|--week|--month] Show current period usage by agent");
     console.log("  usage weekly                  Show week-by-week usage");
     console.log("  usage monthly                 Show month-by-month usage");
-    console.log("  tailscale setup               Set up Tailscale HTTPS for Mini App");
     console.log("  transcription setup [model]   Set up local voice transcription");
     console.log("  transcription status          Show transcription status");
     console.log("  transcription models          List available Whisper models");
