@@ -131,6 +131,118 @@ export function startTelegram() {
   const config = maybeConfig;
 
   const bot = new Bot(config.token);
+
+  // --- Supergroup pairing helpers (must run BEFORE chatGuard) ---
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  async function handleSupergroupMessage(ctx: any) {
+    const chatIdStr = String(ctx.chat.id);
+
+    // Already paired to this group
+    if (config.supergroup?.chatId === chatIdStr) {
+      // Handle /disconnect in General topic
+      if (ctx.message?.text === "/disconnect" && !ctx.message.message_thread_id) {
+        config.supergroup = undefined;
+        saveTelegramConfig(config);
+        await ctx.reply("Disconnected. Task topics will stay visible but I'll stop updating them.");
+        log.info("telegram", `supergroup disconnected: ${chatIdStr}`);
+      }
+      return;
+    }
+
+    // In ignored list → ignore
+    if (config.ignoredGroups?.includes(chatIdStr)) return;
+
+    // Already paired to a different group → silently ignore
+    if (config.supergroup?.chatId) return;
+
+    // Pre-validation checks
+    if (ctx.chat.type !== "supergroup") {
+      await ctx.reply("Task board requires a supergroup.");
+      return;
+    }
+
+    if (!(ctx.chat as any).is_forum) {
+      await ctx.reply("Enable Topics in this group's settings to use it as a task board.");
+      return;
+    }
+
+    // Check bot permissions
+    try {
+      const me = await bot.api.getMe();
+      const member = await bot.api.getChatMember(ctx.chat.id, me.id);
+      if (member.status !== "administrator" || !(member as any).can_manage_topics) {
+        await ctx.reply("I need the 'Manage Topics' admin permission to create task topics.");
+        return;
+      }
+    } catch (err) {
+      log.warn("telegram", `failed to check bot permissions in ${chatIdStr}:`, (err as Error).message);
+      await ctx.reply("I need the 'Manage Topics' admin permission to create task topics.");
+      return;
+    }
+
+    // All checks pass — show pairing prompt
+    const keyboard = new InlineKeyboard()
+      .text("Yes, connect", `supergroup:connect:${chatIdStr}`)
+      .text("No thanks", `supergroup:ignore:${chatIdStr}`);
+
+    await ctx.reply(
+      "Use this group as your task board?\nTask topics will be created here automatically.",
+      { reply_markup: keyboard },
+    );
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  async function handleSupergroupCallback(ctx: any) {
+    const data = ctx.callbackQuery.data!;
+
+    if (data.startsWith("supergroup:connect:")) {
+      const groupChatId = data.slice("supergroup:connect:".length);
+      config.supergroup = { chatId: groupChatId, topicMappings: [] };
+      saveTelegramConfig(config);
+      await ctx.editMessageText("Connected ✓ — task topics will appear here.");
+      await ctx.answerCallbackQuery();
+      log.info("telegram", `supergroup paired: ${groupChatId}`);
+      return;
+    }
+
+    if (data.startsWith("supergroup:ignore:")) {
+      const groupChatId = data.slice("supergroup:ignore:".length);
+      if (!config.ignoredGroups) config.ignoredGroups = [];
+      if (!config.ignoredGroups.includes(groupChatId)) {
+        config.ignoredGroups.push(groupChatId);
+      }
+      saveTelegramConfig(config);
+      await ctx.editMessageText("Got it — I'll stay quiet here.");
+      await ctx.answerCallbackQuery();
+      log.info("telegram", `supergroup ignored: ${groupChatId}`);
+      return;
+    }
+  }
+
+  // Handle supergroup pairing — must run BEFORE chatGuard
+  bot.use(async (ctx, next) => {
+    const chat = ctx.chat;
+    if (!chat) return next();
+
+    const chatIdStr = String(chat.id);
+
+    // Only intercept non-private-chat messages
+    if (chatIdStr === config.chatId) return next();
+
+    // Handle supergroup pairing callback queries
+    if (ctx.callbackQuery?.data?.startsWith("supergroup:")) {
+      await handleSupergroupCallback(ctx);
+      return;
+    }
+
+    // Only handle actual messages (not other update types)
+    if (!ctx.message) return next();
+
+    await handleSupergroupMessage(ctx);
+    // Don't call next() — don't let chatGuard see these
+  });
+
   bot.use(chatGuard(config.chatId));
   log.info("telegram", "channel started");
 
@@ -333,7 +445,11 @@ export function startTelegram() {
     if (text === "/tasks") {
       const tasks = loadTasks(Config.workspaceDir);
       if (tasks.length === 0) {
-        await ctx.reply("No active tasks.");
+        let msg = "No active tasks.";
+        if (!config.supergroup) {
+          msg += "\n\n_Tip: Create a Telegram group with topics and add me as admin — I'll set it up as your task board._";
+        }
+        await ctx.reply(msg, { parse_mode: "Markdown" });
         return;
       }
       // Separate parent tasks from subtasks
@@ -357,7 +473,11 @@ export function startTelegram() {
           }
         }
       }
-      await ctx.reply("*Tasks:*", { parse_mode: "Markdown", reply_markup: keyboard });
+      let tasksHeader = "*Tasks:*";
+      if (!config.supergroup) {
+        tasksHeader += "\n\n_Tip: Create a Telegram group with topics and add me as admin — I'll set it up as your task board._";
+      }
+      await ctx.reply(tasksHeader, { parse_mode: "Markdown", reply_markup: keyboard });
       return;
     }
 
