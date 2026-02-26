@@ -1,5 +1,6 @@
 import crypto from "crypto";
 import { createMiddleware } from "hono/factory";
+import { validateWebAppData } from "@grammyjs/validator";
 import { getApiToken } from "../workspace.js";
 
 // --- Types ---
@@ -28,16 +29,8 @@ function verifyBearer(authHeader: string | undefined, apiToken: string): boolean
 // --- Telegram initData Auth ---
 
 /**
- * Validate Telegram Web App initData per:
- * https://core.telegram.org/bots/webapps#validating-data-received-via-the-mini-app
- *
- * 1. Parse the query string
- * 2. Remove the `hash` parameter
- * 3. Sort remaining params alphabetically
- * 4. Build data_check_string: "key=value\nkey=value\n..."
- * 5. Compute HMAC-SHA-256 of "WebAppData" using bot token as key → secret_key
- * 6. Compute HMAC-SHA-256 of data_check_string using secret_key
- * 7. Compare to hash
+ * Validate Telegram Web App initData using @grammyjs/validator.
+ * After HMAC validation, also check that the chat_id matches the paired chat.
  */
 function verifyTelegramInitData(
   initData: string,
@@ -46,45 +39,13 @@ function verifyTelegramInitData(
 ): boolean {
   try {
     const params = new URLSearchParams(initData);
-    const hash = params.get("hash");
-    if (!hash) return false;
 
-    // Build data check string (sorted, without hash)
-    params.delete("hash");
-    const entries = Array.from(params.entries()).sort(([a], [b]) => a.localeCompare(b));
-    const dataCheckString = entries.map(([k, v]) => `${k}=${v}`).join("\n");
+    // HMAC-SHA-256 validation via grammy validator
+    if (!validateWebAppData(botToken, params)) return false;
 
-    // HMAC chain: secret_key = HMAC-SHA256("WebAppData", botToken)
-    const secretKey = crypto
-      .createHmac("sha256", "WebAppData")
-      .update(botToken)
-      .digest();
-
-    // computed_hash = HMAC-SHA256(data_check_string, secret_key)
-    const computedHash = crypto
-      .createHmac("sha256", secretKey)
-      .update(dataCheckString)
-      .digest("hex");
-
-    // Constant-time comparison of hex strings
-    const a = Buffer.from(computedHash);
-    const b = Buffer.from(hash);
-    if (a.length !== b.length) return false;
-    if (!crypto.timingSafeEqual(a, b)) return false;
-
-    // Extract chat_id from the user field and verify it matches
-    const userStr = params.get("user");
-    if (!userStr) return false;
-    JSON.parse(userStr) as { id?: number };
-    // Note: initData contains the user who opened the Mini App.
-    // The chat_instance or chat_id in the params may also be present.
-    // For our purposes we check: the chat_id param if present, otherwise
-    // we trust the validated initData (HMAC-verified).
+    // Verify chat_id matches paired chat (if present in initData)
     const chatId = params.get("chat_instance") || params.get("chat_id");
-    // If chat_id is in the params, verify it matches
     if (chatId && chatId !== expectedChatId) return false;
-    // If no chat_id in params, we still accept if initData is HMAC-valid
-    // (the Mini App was opened from the correct bot)
 
     return true;
   } catch {
