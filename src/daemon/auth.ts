@@ -38,6 +38,37 @@ export function getStoredApiKey(workspaceDir: string): string | undefined {
 }
 
 /**
+ * Read a stored API token from the workspace env.json file.
+ */
+export function getStoredApiToken(workspaceDir: string): string | undefined {
+  const envPath = path.join(workspaceDir, "env.json");
+  if (!fs.existsSync(envPath)) return undefined;
+  try {
+    const data = JSON.parse(fs.readFileSync(envPath, "utf-8"));
+    return data.apiToken || undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * Store an API token in the workspace env.json file.
+ */
+export function storeApiToken(workspaceDir: string, token: string): void {
+  const envPath = path.join(workspaceDir, "env.json");
+  let data: Record<string, unknown> = {};
+  if (fs.existsSync(envPath)) {
+    try {
+      data = JSON.parse(fs.readFileSync(envPath, "utf-8"));
+    } catch {
+      // ignore parse errors, overwrite
+    }
+  }
+  data.apiToken = token;
+  fs.writeFileSync(envPath, JSON.stringify(data, null, 2) + "\n", { mode: 0o600 });
+}
+
+/**
  * Store an API key in the workspace env.json file.
  */
 export function storeApiKey(workspaceDir: string, apiKey: string): void {

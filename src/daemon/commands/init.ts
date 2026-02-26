@@ -1,9 +1,10 @@
 import fs from "fs";
 import path from "path";
 import os from "os";
+import crypto from "crypto";
 import readline from "readline/promises";
 import { execFileSync } from "child_process";
-import { detectAuth } from "../auth.js";
+import { detectAuth, getStoredApiToken, storeApiToken } from "../auth.js";
 import { Config } from "#core/config.js";
 import { downloadEmbeddingModel, isModelAvailable } from "#core/episodic/index.js";
 import { waitForHealth } from "./utils.js";
@@ -187,6 +188,13 @@ export async function run() {
     }
   }
 
+  // Generate API token if one doesn't already exist
+  let apiToken = getStoredApiToken(workspace);
+  if (!apiToken) {
+    apiToken = crypto.randomBytes(32).toString("base64url");
+    storeApiToken(workspace, apiToken);
+  }
+
   // 4. Install & start daemon
   console.log("\nSetting up daemon...");
 
@@ -215,19 +223,18 @@ export async function run() {
 
   // 5. Show Admin UI URL
   if (healthy) {
-    let tsIp: string | undefined;
-    try {
-      tsIp = execFileSync("tailscale", ["ip", "-4"], { encoding: "utf-8" }).trim();
-    } catch { /* Tailscale not available */ }
-
-    const lines: string[] = ["Nova is running!", ""];
-    if (tsIp) {
-      lines.push(`Admin UI (local):      http://localhost:${port}/web/console/`);
-      lines.push(`Admin UI (Tailscale):  http://${tsIp}:${port}/web/console/`);
-    } else {
-      lines.push(`Admin UI:  http://localhost:${port}/web/console/`);
-    }
-    lines.push("", "Or pair Telegram via CLI:", "  nova telegram pair");
+    const lines: string[] = [
+      "Nova is running!",
+      "",
+      `Admin UI:  http://localhost:${port}/web/console/`,
+      "",
+      `API Token: ${apiToken}`,
+      "Save this — you'll need it for API access.",
+      "Retrieve later: nova config get api-token",
+      "",
+      "Or pair Telegram via CLI:",
+      "  nova telegram pair",
+    ];
 
     console.log("\n" + box(lines));
   }

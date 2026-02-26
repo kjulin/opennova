@@ -1,5 +1,6 @@
 import fs from "fs";
 import { resolveWorkspace, getConfigValue, setConfigValue, listConfig, SENSITIVE_KEYS } from "../workspace.js";
+import { getStoredApiToken } from "../auth.js";
 
 export function run() {
   const subcommand = process.argv[3];
@@ -28,6 +29,15 @@ export function run() {
       if (!key) {
         console.error("Usage: nova config get <key>");
         process.exit(1);
+      }
+      if (key === "api-token") {
+        const token = getStoredApiToken(workspaceDir);
+        if (!token) {
+          console.error("No API token found. Run 'nova init' to generate one.");
+          process.exit(1);
+        }
+        console.log(token);
+        break;
       }
       const value = getConfigValue(workspaceDir, key);
       if (value === undefined) {

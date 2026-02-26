@@ -107,3 +107,15 @@ function maskSecret(value: string): string {
   if (value.length <= 8) return "****";
   return value.slice(0, 4) + "****" + value.slice(-4);
 }
+
+export function getNovaUrl(workspaceDir: string): string | null {
+  if (process.env.NOVA_URL) return process.env.NOVA_URL.replace(/\/$/, "");
+  const url = getConfigValue(workspaceDir, "settings.url");
+  if (typeof url === "string" && url) return url.replace(/\/$/, "");
+  return null;
+}
+
+export function getLocalUrl(): string {
+  const port = parseInt(process.env.NOVA_PORT || "3838", 10);
+  return `http://localhost:${port}`;
+}
