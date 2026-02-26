@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { createAgentRunner } from "#core/thread-runner.js";
+import { createAgentRunner } from "#core/agent-runner.js";
 import type { Engine, EngineResult } from "#core/engine/index.js";
 
 // Mock all dependencies
@@ -14,7 +14,7 @@ vi.mock("#core/logger.js", () => ({
 
 vi.mock("#core/threads.js", () => ({
   threadPath: vi.fn((agentDir: string, threadId: string) => `${agentDir}/threads/${threadId}.jsonl`),
-  loadManifest: vi.fn(() => ({ channel: "test", sessionId: "sess-123" })),
+  loadManifest: vi.fn(() => ({ sessionId: "sess-123" })),
   saveManifest: vi.fn(),
   loadMessages: vi.fn(() => []),
   appendMessage: vi.fn(),
@@ -24,7 +24,7 @@ vi.mock("#core/threads.js", () => ({
 
 vi.mock("#core/agents/index.js", () => ({
   loadAgents: vi.fn(() => new Map([
-    ["test-agent", { name: "Test Agent", role: "Test role", trust: "controlled", capabilities: ["memory"] }],
+    ["test-agent", { name: "Test Agent", role: "Test role", trust: "controlled", model: "sonnet", capabilities: ["memory"] }],
   ])),
   buildSystemPrompt: vi.fn(() => "System prompt"),
   getAgentCwd: vi.fn(() => "/test/cwd"),
@@ -41,9 +41,13 @@ vi.mock("#core/usage.js", () => ({
   createUsageMcpServer: vi.fn(() => ({})),
 }));
 
-vi.mock("#core/claude.js", () => ({
-  generateThreadTitle: vi.fn(() => Promise.resolve({ title: null })),
-}));
+vi.mock("#core/engine/index.js", async (importOriginal) => {
+  const original = await importOriginal<typeof import("#core/engine/index.js")>();
+  return {
+    ...original,
+    generateThreadTitle: vi.fn(() => Promise.resolve({ title: null })),
+  };
+});
 
 import { appendMessage, saveManifest } from "#core/threads.js";
 import { appendUsage } from "#core/usage.js";

@@ -151,8 +151,8 @@ describe("Spec Evals: Skills", () => {
     })
 
     // "Agents do not create, edit, or delete skills. Skills are a user-managed resource." — skills.md
-    test("Thread runner does not import skills module", () => {
-      const content = readFileSync(join(ROOT, "src/core/thread-runner.ts"), "utf-8")
+    test("Agent runner does not import skills module", () => {
+      const content = readFileSync(join(ROOT, "src/core/agent-runner.ts"), "utf-8")
       expect(content).not.toMatch(/from\s+["'].*skills/)
     })
 

@@ -69,7 +69,7 @@ export function createAgentRunner(engine: Engine = claudeEngine): AgentRunner {
       const agent = agents.get(agentId);
       if (!agent) throw new Error(`Agent not found: ${agentId}`);
 
-      log.info("thread-runner", `starting thread ${threadId} for agent ${agentId}`);
+      log.info("agent-runner", `starting thread ${threadId} for agent ${agentId}`);
 
       appendMessage(filePath, {
         role: "user",
@@ -164,7 +164,7 @@ export function createAgentRunner(engine: Engine = claudeEngine): AgentRunner {
         );
       } catch (err) {
         if (abortController?.signal.aborted) {
-          log.info("thread-runner", `thread ${threadId} for agent ${agentId} stopped by user`);
+          log.info("agent-runner", `thread ${threadId} for agent ${agentId} stopped by user`);
           appendMessage(filePath, {
             role: "assistant",
             text: "(stopped by user)",
@@ -174,7 +174,7 @@ export function createAgentRunner(engine: Engine = claudeEngine): AgentRunner {
           saveManifest(filePath, manifest);
           return { text: "" };
         }
-        log.error("thread-runner", `thread ${threadId} for agent ${agentId} failed:`, err);
+        log.error("agent-runner", `thread ${threadId} for agent ${agentId} failed:`, err);
         const errorMsg = (err as Error).message ?? "unknown error";
         appendMessage(filePath, {
           role: "assistant",
@@ -214,7 +214,7 @@ export function createAgentRunner(engine: Engine = claudeEngine): AgentRunner {
 
       callbacks?.onResponse?.(agentId, threadId, responseText);
 
-      log.info("thread-runner", `thread ${threadId} for agent ${agentId} completed (${responseText.length} chars)`);
+      log.info("agent-runner", `thread ${threadId} for agent ${agentId} completed (${responseText.length} chars)`);
 
       // Fire-and-forget: embed the user message and assistant response
       if (!isModelAvailable()) {
@@ -274,7 +274,7 @@ export function createAgentRunner(engine: Engine = claudeEngine): AgentRunner {
             if (title) {
               manifest.title = title;
               saveManifest(filePath, manifest);
-              log.info("thread-runner", `titled thread ${threadId}: "${title}"`);
+              log.info("agent-runner", `titled thread ${threadId}: "${title}"`);
             }
             if (titleUsage) {
               appendUsage({
@@ -285,7 +285,7 @@ export function createAgentRunner(engine: Engine = claudeEngine): AgentRunner {
               });
             }
           }).catch((err) => {
-            log.warn("thread-runner", `title generation failed for ${threadId}:`, (err as Error).message);
+            log.warn("agent-runner", `title generation failed for ${threadId}:`, (err as Error).message);
           });
         }
       }
