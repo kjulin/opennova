@@ -2,6 +2,7 @@ import fs from "fs";
 import path from "path";
 import os from "os";
 import { log } from "./logger.js";
+import { getSecret } from "#core/secrets.js";
 
 const KNOWN_FILES = ["telegram", "settings"] as const;
 
@@ -106,4 +107,36 @@ export function listConfig(workspaceDir: string): Record<string, string> {
 function maskSecret(value: string): string {
   if (value.length <= 8) return "****";
   return value.slice(0, 4) + "****" + value.slice(-4);
+}
+
+/**
+ * Resolve the API token.
+ * Priority: NOVA_API_TOKEN env var → OS keyring → null
+ */
+export function getApiToken(): string | null {
+  const envToken = process.env.NOVA_API_TOKEN;
+  if (envToken) return envToken;
+  try {
+    return getSecret("nova-api-token");
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Resolve the public Nova URL.
+ * Priority: NOVA_URL env var → settings.json url field → http://localhost:${PORT} fallback
+ */
+export function getNovaUrl(): string {
+  // 1. Env var override
+  const envUrl = process.env.NOVA_URL;
+  if (envUrl) return envUrl.replace(/\/+$/, ""); // strip trailing slash
+
+  // 2. settings.json
+  const url = getConfigValue(resolveWorkspace(), "settings.url");
+  if (typeof url === "string" && url) return url.replace(/\/+$/, "");
+
+  // 3. Local fallback
+  const port = process.env.NOVA_PORT || "3838";
+  return `http://localhost:${port}`;
 }

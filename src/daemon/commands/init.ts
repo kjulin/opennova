@@ -1,11 +1,13 @@
 import fs from "fs";
 import path from "path";
 import os from "os";
+import crypto from "crypto";
 import readline from "readline/promises";
 import { execFileSync } from "child_process";
 import { detectAuth } from "../auth.js";
 import { Config } from "#core/config.js";
 import { downloadEmbeddingModel, isModelAvailable } from "#core/episodic/index.js";
+import { setSecret, getSecret } from "#core/secrets.js";
 import { waitForHealth } from "./utils.js";
 
 const platform = process.platform;
@@ -168,6 +170,16 @@ export async function run() {
 
   // Ensure logs directory exists
   fs.mkdirSync(path.join(workspace, "logs"), { recursive: true });
+
+  // Generate API token (skip if already exists, e.g. re-init)
+  try {
+    getSecret("nova-api-token");
+  } catch {
+    const token = crypto.randomBytes(32).toString('base64url');
+    setSecret("nova-api-token", token);
+    console.log(`\n  API Token: ${token}`);
+    console.log("  Save this token — you'll need it for API access.\n");
+  }
 
   // Download embeddings model if needed
   Config.workspaceDir = workspace;

@@ -12,9 +12,10 @@ import {
   type AgentBotConfig,
 } from "#core/index.js";
 import { listNotes, getPinnedNotes } from "#notes/index.js";
-import { relativeTime, getWebAppHost, HTTPS_PORT } from "./telegram.js";
+import { relativeTime } from "./telegram.js";
 import { splitMessage, chatGuard } from "./telegram-utils.js";
 import { log } from "../logger.js";
+import { getNovaUrl } from "../workspace.js";
 
 function resolveThreadId(config: AgentBotConfig, agentDir: string): string {
   if (config.activeThreadId) {
@@ -98,12 +99,12 @@ export function startAgentTelegram(
   });
 
   function buildReplyKeyboard(): Keyboard | null {
-    const host = getWebAppHost();
-    if (!host) return null;
+    const novaUrl = getNovaUrl();
+    if (!novaUrl || novaUrl.startsWith("http://localhost")) return null;
     const keyboard = new Keyboard();
-    keyboard.webApp("Tasks", `https://${host}:${HTTPS_PORT}/web/tasklist/`).row();
+    keyboard.webApp("Tasks", `${novaUrl}/web/tasklist/`).row();
     for (const note of getPinnedNotes(agentDir)) {
-      keyboard.webApp(note.title, `https://${host}:${HTTPS_PORT}/web/tasklist/#/note/${agentId}/${note.slug}`).row();
+      keyboard.webApp(note.title, `${novaUrl}/web/tasklist/#/note/${agentId}/${note.slug}`).row();
     }
     return keyboard.resized().persistent();
   }
@@ -154,13 +155,13 @@ export function startAgentTelegram(
         }
       },
       onShareNote(_agentId: string, _threadId: string, title: string, slug: string, message: string | undefined) {
-        const host = getWebAppHost();
-        if (!host) return;
+        const novaUrl = getNovaUrl();
+        if (!novaUrl || novaUrl.startsWith("http://localhost")) return;
 
         const text = message ?? `\uD83D\uDCDD ${title}`;
         const keyboard = new InlineKeyboard().webApp(
           "Open note",
-          `https://${host}:${HTTPS_PORT}/web/tasklist/#/note/${agentId}/${slug}`,
+          `${novaUrl}/web/tasklist/#/note/${agentId}/${slug}`,
         );
         bot.api.sendMessage(chatId, text, { reply_markup: keyboard }).catch((err) => {
           log.error("telegram-agent", `agent ${agentId}: failed to deliver note:`, err);
@@ -232,12 +233,12 @@ export function startAgentTelegram(
     }
 
     if (text === "/admin") {
-      const host = getWebAppHost();
-      if (!host) {
-        await ctx.reply("Admin console requires HTTPS. Run `nova tailscale setup` first.");
+      const novaUrl = getNovaUrl();
+      if (!novaUrl || novaUrl.startsWith("http://localhost")) {
+        await ctx.reply("Set your Nova URL: `nova config set settings.url https://your-domain.com`");
         return;
       }
-      const url = `https://${host}:${HTTPS_PORT}/web/console/`;
+      const url = `${novaUrl}/web/console/`;
       const keyboard = new InlineKeyboard();
       keyboard.url("Open Console", url).row();
       await ctx.reply(`*Admin Console*\n\nManage your agents, skills, triggers, and secrets.`, {
@@ -248,9 +249,9 @@ export function startAgentTelegram(
     }
 
     if (text === "/notes") {
-      const host = getWebAppHost();
-      if (!host) {
-        await ctx.reply("Notes requires HTTPS. Run `nova tailscale setup` first.");
+      const novaUrl = getNovaUrl();
+      if (!novaUrl || novaUrl.startsWith("http://localhost")) {
+        await ctx.reply("Set your Nova URL: `nova config set settings.url https://your-domain.com`");
         return;
       }
       const notes = listNotes(agentDir);
@@ -262,7 +263,7 @@ export function startAgentTelegram(
       for (const note of notes) {
         keyboard.webApp(
           note.title,
-          `https://${host}:${HTTPS_PORT}/web/tasklist/#/note/${agentId}/${note.slug}`,
+          `${novaUrl}/web/tasklist/#/note/${agentId}/${note.slug}`,
         ).row();
       }
       await ctx.reply("*Notes:*", { parse_mode: "Markdown", reply_markup: keyboard });
