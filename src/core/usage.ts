@@ -83,6 +83,16 @@ export interface UsageRecord {
     costUsd: number;
   }>;
 
+  // Invocation context
+  source?: "chat" | "trigger" | "task" | "system" | "subagent";
+  taskId?: string;
+  triggerId?: string;
+
+  // Engine-collected detail
+  toolStats?: Record<string, { calls: number; inputChars: number; resultChars: number }>;
+  stopReason?: "success" | "error" | "max_turns" | "aborted";
+  permissionDenials?: number;
+
   // Composition metadata
   systemPromptChars?: number;
   mcpServerCount?: number;

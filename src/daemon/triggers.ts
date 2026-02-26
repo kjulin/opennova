@@ -69,7 +69,7 @@ export function startTriggerScheduler() {
 
             runAgent(agentDir, threadId, trigger.prompt, undefined, {
               triggers: createTriggerMcpServer(agentDir),
-            }, undefined, undefined, { background: true })
+            }, undefined, undefined, { background: true, source: "trigger", triggerId: trigger.id })
               .then(() => {
                 log.info("trigger", `completed for agent ${agentId} thread ${threadId}`);
               })

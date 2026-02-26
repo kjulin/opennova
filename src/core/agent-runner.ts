@@ -25,6 +25,8 @@ export interface RunAgentOverrides {
   model?: Model | undefined;
   maxTurns?: number | undefined;
   background?: boolean | undefined;  // Running without a live user session
+  source?: "chat" | "trigger" | "task" | "system" | "subagent" | undefined;
+  triggerId?: string | undefined;
 }
 
 export interface AgentRunnerCallbacks extends EngineCallbacks {
@@ -94,7 +96,7 @@ export function createAgentRunner(engine: Engine = claudeEngine): AgentRunner {
           undefined,
           depth,
           abortController,
-          overrides,
+          { ...overrides, source: "subagent" },
         );
       };
 
@@ -189,11 +191,15 @@ export function createAgentRunner(engine: Engine = claudeEngine): AgentRunner {
 
       // Record usage metrics
       if (result.usage) {
+        const taskId = manifest.taskId as string | undefined;
         appendUsage({
           timestamp: new Date().toISOString(),
           agentId,
           threadId,
           ...result.usage,
+          ...(overrides?.source ? { source: overrides.source } : {}),
+          ...(taskId ? { taskId } : {}),
+          ...(overrides?.triggerId ? { triggerId: overrides.triggerId } : {}),
           systemPromptChars: systemPrompt?.length,
           mcpServerCount,
           capabilityCount: agent.capabilities?.length ?? 0,
@@ -282,6 +288,7 @@ export function createAgentRunner(engine: Engine = claudeEngine): AgentRunner {
                 agentId: "_system",
                 threadId,
                 ...titleUsage,
+                source: "system",
               });
             }
           }).catch((err) => {

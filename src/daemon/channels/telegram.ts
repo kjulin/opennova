@@ -504,6 +504,7 @@ export function startTelegram() {
       { triggers: createTriggerMcpServer(agentDir) },
       undefined,
       abortController,
+      { source: "chat" },
     ).catch((err) => {
       if (!abortController.signal.aborted) {
         log.error("telegram", `claude error for ${agent.id}:`, (err as Error).message);
@@ -624,6 +625,7 @@ Please read it and respond to what I said.`;
         { triggers: createTriggerMcpServer(agentDir) },
         undefined,
         abortController,
+        { source: "chat" },
       ).catch((err) => {
         if (!abortController.signal.aborted) {
           log.error("telegram", `voice message error for ${agent.id}:`, (err as Error).message);
@@ -714,6 +716,7 @@ You can read, process, or move this file as needed.`;
         { triggers: createTriggerMcpServer(agentDir) },
         undefined,
         abortController,
+        { source: "chat" },
       ).catch((err) => {
         if (!abortController.signal.aborted) {
           log.error("telegram", `file handling error for ${agent.id}:`, (err as Error).message);
@@ -897,7 +900,7 @@ You can read, process, or move this file as needed.`;
     runAgent(agentDir, threadId, "The user just switched to you. Greet them briefly, then in 1-2 sentences help them reorient — recap where you left off, any open questions or pending tasks. If there's no prior context, just say hi and what you can help with. Keep it short.",
       deliveryCallbacks(),
       { triggers: createTriggerMcpServer(agentDir) },
-      undefined, undefined, { model: "haiku", maxTurns: 1 },
+      undefined, undefined, { model: "haiku", maxTurns: 1, source: "chat" },
     ).catch((err) => {
       log.error("telegram", `greeting failed for ${agentId}:`, (err as Error).message);
     }).finally(() => {

@@ -354,6 +354,153 @@ function runMonthly() {
   console.log();
 }
 
+function formatChars(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(0)}k`;
+  return n.toString();
+}
+
+function formatTime(iso: string): string {
+  const d = new Date(iso);
+  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+}
+
+function runDetail(args: string[]) {
+  const agentFilter = args.includes("--agent") ? args[args.indexOf("--agent") + 1] : undefined;
+  const sourceFilter = args.includes("--source") ? args[args.indexOf("--source") + 1] : undefined;
+  const limitArg = args.includes("--limit") ? parseInt(args[args.indexOf("--limit") + 1] ?? "20", 10) : 20;
+  const costly = args.includes("--costly");
+
+  let records = loadUsageRecords();
+  if (agentFilter) records = records.filter((r) => r.agentId === agentFilter);
+  if (sourceFilter) records = records.filter((r) => r.source === sourceFilter);
+
+  if (costly) {
+    records.sort((a, b) => (b.costUsd ?? 0) - (a.costUsd ?? 0));
+  }
+
+  const rows = records.slice(-limitArg).reverse();
+
+  console.log();
+  console.log("OpenNova Usage - Detail");
+  console.log();
+
+  if (rows.length === 0) {
+    console.log("No records found.");
+    console.log();
+    return;
+  }
+
+  const cols = { time: 5, agent: 11, source: 7, model: 8, turns: 5, tools: 5, input: 6, output: 6, cost: 7, dur: 6 };
+  cols.agent = Math.max(cols.agent, ...rows.map((r) => r.agentId.length));
+
+  const header = [
+    "Time".padEnd(cols.time),
+    "Agent".padEnd(cols.agent),
+    "Source".padEnd(cols.source),
+    "Model".padEnd(cols.model),
+    "Turns".padStart(cols.turns),
+    "Tools".padStart(cols.tools),
+    "Input".padStart(cols.input),
+    "Output".padStart(cols.output),
+    "Cost".padStart(cols.cost),
+    "Time".padStart(cols.dur),
+  ].join("  ");
+  const sep = "-".repeat(header.length);
+
+  console.log(header);
+  console.log(sep);
+
+  for (const r of rows) {
+    const toolCallCount = r.toolStats
+      ? Object.values(r.toolStats).reduce((s, t) => s + t.calls, 0)
+      : 0;
+    const modelShort = (r.model ?? "-").replace(/^claude-/, "").slice(0, cols.model);
+    const annotation = r.stopReason === "max_turns" || r.stopReason === "error"
+      ? `  <- ${r.stopReason}`
+      : "";
+
+    console.log([
+      formatTime(r.timestamp).padEnd(cols.time),
+      r.agentId.padEnd(cols.agent),
+      (r.source ?? "-").padEnd(cols.source),
+      modelShort.padEnd(cols.model),
+      r.turns.toString().padStart(cols.turns),
+      toolCallCount.toString().padStart(cols.tools),
+      formatTokens(r.inputTokens).padStart(cols.input),
+      formatTokens(r.outputTokens).padStart(cols.output),
+      formatCost(r.costUsd ?? 0).padStart(cols.cost),
+      formatDuration(r.durationMs).padStart(cols.dur),
+    ].join("  ") + annotation);
+  }
+
+  console.log();
+}
+
+function runTools(args: string[]) {
+  const useMonth = args.includes("--month");
+  const { start, label } = useMonth
+    ? getCalendarPeriod("month")
+    : getCalendarPeriod("week");
+
+  const records = loadUsageRecords(start);
+
+  console.log();
+  console.log(`OpenNova Usage - Tools (${label})`);
+  console.log();
+
+  // Aggregate toolStats across all records
+  const agg: Record<string, { calls: number; inputChars: number; resultChars: number }> = {};
+  for (const r of records) {
+    if (!r.toolStats) continue;
+    for (const [name, stats] of Object.entries(r.toolStats)) {
+      if (!agg[name]) agg[name] = { calls: 0, inputChars: 0, resultChars: 0 };
+      agg[name].calls += stats.calls;
+      agg[name].inputChars += stats.inputChars;
+      agg[name].resultChars += stats.resultChars;
+    }
+  }
+
+  const tools = Object.entries(agg)
+    .map(([name, stats]) => ({ name, ...stats }))
+    .sort((a, b) => b.calls - a.calls);
+
+  if (tools.length === 0) {
+    console.log("No tool usage recorded.");
+    console.log();
+    return;
+  }
+
+  const nameCol = Math.max(18, ...tools.map((t) => t.name.length));
+  const cols = { calls: 5, inChars: 12, outChars: 12, inTok: 12, outTok: 12 };
+
+  const header = [
+    "Tool".padEnd(nameCol),
+    "Calls".padStart(cols.calls),
+    "In (chars)".padStart(cols.inChars),
+    "Out (chars)".padStart(cols.outChars),
+    "~In Tokens".padStart(cols.inTok),
+    "~Out Tokens".padStart(cols.outTok),
+  ].join("  ");
+  const sep = "-".repeat(header.length);
+
+  console.log(header);
+  console.log(sep);
+
+  for (const t of tools) {
+    console.log([
+      t.name.padEnd(nameCol),
+      t.calls.toString().padStart(cols.calls),
+      formatChars(t.resultChars).padStart(cols.inChars),
+      formatChars(t.inputChars).padStart(cols.outChars),
+      formatChars(Math.round(t.resultChars / 4)).padStart(cols.inTok),
+      formatChars(Math.round(t.inputChars / 4)).padStart(cols.outTok),
+    ].join("  "));
+  }
+
+  console.log();
+}
+
 export function run() {
   const args = process.argv.slice(3);
   const subcommand = args[0];
@@ -364,6 +511,16 @@ export function run() {
     process.exit(1);
   }
   Config.workspaceDir = workspaceDir;
+
+  if (subcommand === "detail") {
+    runDetail(args.slice(1));
+    return;
+  }
+
+  if (subcommand === "tools") {
+    runTools(args.slice(1));
+    return;
+  }
 
   if (subcommand === "weekly") {
     runWeekly();
@@ -384,6 +541,6 @@ export function run() {
   runCurrentPeriod(period);
 
   const otherPeriods = (["today", "week", "month"] as const).filter((p) => p !== period);
-  console.log(`Tip: nova usage --${otherPeriods[0]} | --${otherPeriods[1]} | weekly | monthly`);
+  console.log(`Tip: nova usage --${otherPeriods[0]} | --${otherPeriods[1]} | weekly | monthly | detail | tools`);
   console.log();
 }

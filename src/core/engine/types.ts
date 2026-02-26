@@ -28,6 +28,13 @@ export interface EngineResult {
     durationApiMs: number;
     turns: number;
     model: string;
+    toolStats?: Record<string, {
+      calls: number;
+      inputChars: number;
+      resultChars: number;
+    }>;
+    stopReason?: "success" | "error" | "max_turns" | "aborted";
+    permissionDenials?: number;
     modelUsage?: Record<string, {
       inputTokens: number;
       outputTokens: number;
