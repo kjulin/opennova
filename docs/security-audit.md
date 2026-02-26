@@ -40,7 +40,7 @@ The `agent-writer` subagent was removed entirely.
 
 **Severity: MEDIUM** — Fixed
 
-`telegram.json` contains the Telegram bot token but was written with default file permissions (0o644) in both `init.ts` and `telegram.ts`. By contrast, `env.json` (API keys) correctly used `mode: 0o600`.
+`telegram.json` contains the Telegram bot token but was written with default file permissions (0o644) in both `init.ts` and `telegram.ts`.
 
 **Fix:** Both write sites now use `{ mode: 0o600 }`.
 

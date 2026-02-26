@@ -102,7 +102,7 @@ export function createConfigRouter(workspaceDir: string): Hono {
   // GET / — full config state
   app.get("/", (c) => {
     const settings = readSettings(workspaceDir);
-    const auth = detectAuth(workspaceDir);
+    const auth = detectAuth();
     const telegram = readTelegram(workspaceDir);
     const secrets = listSecretNames(workspaceDir);
     const ts = checkTailscale();

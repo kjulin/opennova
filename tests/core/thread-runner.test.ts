@@ -129,7 +129,6 @@ describe("AgentRunner", () => {
     expect(onResponse).toHaveBeenCalledWith(
       "test-agent",
       "thread-1",
-      "test",
       "Response from engine"
     );
   });
@@ -245,7 +244,6 @@ describe("AgentRunner", () => {
     expect(onError).toHaveBeenCalledWith(
       "test-agent",
       "thread-1",
-      "test",
       "Engine failed"
     );
   });

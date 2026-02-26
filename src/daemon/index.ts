@@ -17,7 +17,7 @@ export function start() {
   log.info("daemon", `node: ${process.version}, platform: ${process.platform}`);
 
   // Detect authentication (daemon starts regardless of auth state)
-  const auth = detectAuth(Config.workspaceDir);
+  const auth = detectAuth();
   if (auth.method === "none") {
     log.warn("daemon", "no authentication found — agents will not work until auth is configured");
   } else {
