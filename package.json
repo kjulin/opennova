@@ -59,7 +59,6 @@
     "@grammyjs/validator": "^1.0.1",
     "@hono/node-server": "^1.19.9",
     "@napi-rs/keyring": "^1.2.0",
-    "@supabase/supabase-js": "^2.98.0",
     "cron-parser": "^5.5.0",
     "grammy": "^1.39.3",
     "hono": "^4.11.9",

@@ -1,11 +1,10 @@
-import crypto from "crypto";
 import fs from "fs";
 import path from "path";
 import os from "os";
 import { log } from "./logger.js";
 const KNOWN_FILES = ["telegram", "settings"] as const;
 
-export const SENSITIVE_KEYS = new Set(["telegram.token", "settings.cloudBearer"]);
+export const SENSITIVE_KEYS = new Set(["telegram.token"]);
 
 export function resolveWorkspace(): string {
   const ws = process.env.NOVA_WORKSPACE;
@@ -108,7 +107,7 @@ function maskSecret(value: string): string {
   return value.slice(0, 4) + "****" + value.slice(-4);
 }
 
-export type ConsoleAccess = "local" | "network" | "cloud";
+export type ConsoleAccess = "local" | "network";
 
 /**
  * Get the console access mode from settings.
@@ -116,7 +115,7 @@ export type ConsoleAccess = "local" | "network" | "cloud";
  */
 export function getConsoleAccess(): ConsoleAccess {
   const value = getConfigValue(resolveWorkspace(), "settings.consoleAccess");
-  if (value === "network" || value === "cloud") return value;
+  if (value === "network") return value;
   return "local";
 }
 
@@ -128,18 +127,4 @@ export function getPublicUrl(): string | null {
   const url = getConfigValue(resolveWorkspace(), "settings.url");
   if (typeof url === "string" && url) return url.replace(/\/+$/, "");
   return null;
-}
-
-/**
- * Get or generate a persistent workspace ID (UUID v4).
- * Created once during init, persists across daemon restarts.
- */
-export function getWorkspaceId(workspaceDir?: string): string {
-  const dir = workspaceDir ?? resolveWorkspace();
-  const existing = getConfigValue(dir, "settings.workspaceId");
-  if (typeof existing === "string" && existing) return existing;
-
-  const id = crypto.randomUUID();
-  setConfigValue(dir, "settings.workspaceId", id);
-  return id;
 }

@@ -1,18 +1,17 @@
 import type { Agent, AgentsResponse, Skill, SkillsResponse, Trigger, TriggersResponse, SecretsResponse, ConfigResponse, UsageResponse } from "@/types";
 export type { UsageResponse } from "@/types";
-import { apiFetch } from "@/lib/transport";
 
 const API_BASE = "/api/console";
 const CONFIG_API = "/api/config";
 
 export async function fetchAgents(): Promise<AgentsResponse> {
-  const res = await apiFetch(`${API_BASE}/agents`);
+  const res = await fetch(`${API_BASE}/agents`);
   if (!res.ok) throw new Error("Failed to fetch agents");
   return res.json();
 }
 
 export async function fetchAgent(id: string): Promise<Agent> {
-  const res = await apiFetch(`${API_BASE}/agents/${id}`);
+  const res = await fetch(`${API_BASE}/agents/${id}`);
   if (!res.ok) throw new Error("Agent not found");
   return res.json();
 }
@@ -21,7 +20,7 @@ export async function patchAgent(
   id: string,
   fields: Partial<Agent>,
 ): Promise<Agent> {
-  const res = await apiFetch(`${API_BASE}/agents/${id}`, {
+  const res = await fetch(`${API_BASE}/agents/${id}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(fields),
@@ -31,24 +30,24 @@ export async function patchAgent(
 }
 
 export async function deleteAgent(id: string): Promise<void> {
-  const res = await apiFetch(`${API_BASE}/agents/${id}`, { method: "DELETE" });
+  const res = await fetch(`${API_BASE}/agents/${id}`, { method: "DELETE" });
   if (!res.ok) throw new Error("Failed to delete agent");
 }
 
 export async function fetchSkills(): Promise<SkillsResponse> {
-  const res = await apiFetch(`${API_BASE}/skills`);
+  const res = await fetch(`${API_BASE}/skills`);
   if (!res.ok) throw new Error("Failed to fetch skills");
   return res.json();
 }
 
 export async function fetchSkill(name: string): Promise<Skill> {
-  const res = await apiFetch(`${API_BASE}/skills/${name}`);
+  const res = await fetch(`${API_BASE}/skills/${name}`);
   if (!res.ok) throw new Error("Skill not found");
   return res.json();
 }
 
 export async function createSkill(data: { name: string; description?: string; content: string }): Promise<Skill> {
-  const res = await apiFetch(`${API_BASE}/skills`, {
+  const res = await fetch(`${API_BASE}/skills`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
@@ -61,7 +60,7 @@ export async function createSkill(data: { name: string; description?: string; co
 }
 
 export async function updateSkill(name: string, data: { description?: string; content?: string }): Promise<Skill> {
-  const res = await apiFetch(`${API_BASE}/skills/${name}`, {
+  const res = await fetch(`${API_BASE}/skills/${name}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
@@ -71,12 +70,12 @@ export async function updateSkill(name: string, data: { description?: string; co
 }
 
 export async function deleteSkill(name: string): Promise<void> {
-  const res = await apiFetch(`${API_BASE}/skills/${name}`, { method: "DELETE" });
+  const res = await fetch(`${API_BASE}/skills/${name}`, { method: "DELETE" });
   if (!res.ok) throw new Error("Failed to delete skill");
 }
 
 export async function assignSkill(name: string, agents: string[]): Promise<{ assignedTo: string[] }> {
-  const res = await apiFetch(`${API_BASE}/skills/${name}/assign`, {
+  const res = await fetch(`${API_BASE}/skills/${name}/assign`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ agents }),
@@ -86,7 +85,7 @@ export async function assignSkill(name: string, agents: string[]): Promise<{ ass
 }
 
 export async function unassignSkill(name: string, agents: string[]): Promise<{ assignedTo: string[] }> {
-  const res = await apiFetch(`${API_BASE}/skills/${name}/unassign`, {
+  const res = await fetch(`${API_BASE}/skills/${name}/unassign`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ agents }),
@@ -98,13 +97,13 @@ export async function unassignSkill(name: string, agents: string[]): Promise<{ a
 // Triggers
 
 export async function fetchTriggers(): Promise<TriggersResponse> {
-  const res = await apiFetch(`${API_BASE}/triggers`);
+  const res = await fetch(`${API_BASE}/triggers`);
   if (!res.ok) throw new Error("Failed to fetch triggers");
   return res.json();
 }
 
 export async function createTrigger(agentId: string, data: { cron: string; tz?: string; prompt: string }): Promise<Trigger> {
-  const res = await apiFetch(`${API_BASE}/triggers/agent/${agentId}`, {
+  const res = await fetch(`${API_BASE}/triggers/agent/${agentId}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
@@ -117,7 +116,7 @@ export async function createTrigger(agentId: string, data: { cron: string; tz?: 
 }
 
 export async function patchTrigger(triggerId: string, data: Partial<{ cron: string; tz: string; prompt: string }>): Promise<Trigger> {
-  const res = await apiFetch(`${API_BASE}/triggers/${triggerId}`, {
+  const res = await fetch(`${API_BASE}/triggers/${triggerId}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
@@ -127,20 +126,20 @@ export async function patchTrigger(triggerId: string, data: Partial<{ cron: stri
 }
 
 export async function deleteTrigger(triggerId: string): Promise<void> {
-  const res = await apiFetch(`${API_BASE}/triggers/${triggerId}`, { method: "DELETE" });
+  const res = await fetch(`${API_BASE}/triggers/${triggerId}`, { method: "DELETE" });
   if (!res.ok) throw new Error("Failed to delete trigger");
 }
 
 // Secrets
 
 export async function fetchSecrets(): Promise<SecretsResponse> {
-  const res = await apiFetch(`${API_BASE}/secrets`);
+  const res = await fetch(`${API_BASE}/secrets`);
   if (!res.ok) throw new Error("Failed to fetch secrets");
   return res.json();
 }
 
 export async function createSecret(name: string, value: string): Promise<void> {
-  const res = await apiFetch(`${API_BASE}/secrets`, {
+  const res = await fetch(`${API_BASE}/secrets`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ name, value }),
@@ -149,7 +148,7 @@ export async function createSecret(name: string, value: string): Promise<void> {
 }
 
 export async function updateSecret(name: string, value: string): Promise<void> {
-  const res = await apiFetch(`${API_BASE}/secrets/${name}`, {
+  const res = await fetch(`${API_BASE}/secrets/${name}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ value }),
@@ -158,20 +157,20 @@ export async function updateSecret(name: string, value: string): Promise<void> {
 }
 
 export async function deleteSecret(name: string): Promise<void> {
-  const res = await apiFetch(`${API_BASE}/secrets/${name}`, { method: "DELETE" });
+  const res = await fetch(`${API_BASE}/secrets/${name}`, { method: "DELETE" });
   if (!res.ok) throw new Error("Failed to delete secret");
 }
 
 // Config
 
 export async function fetchConfig(): Promise<ConfigResponse> {
-  const res = await apiFetch(`${CONFIG_API}`);
+  const res = await fetch(`${CONFIG_API}`);
   if (!res.ok) throw new Error("Failed to fetch config");
   return res.json();
 }
 
 export async function updateDaemon(autoStart: boolean): Promise<{ ok: true; autoStart: boolean }> {
-  const res = await apiFetch(`${CONFIG_API}/daemon`, {
+  const res = await fetch(`${CONFIG_API}/daemon`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ autoStart }),
@@ -181,7 +180,7 @@ export async function updateDaemon(autoStart: boolean): Promise<{ ok: true; auto
 }
 
 export async function updateTtsKey(openaiKey: string): Promise<{ ok: true }> {
-  const res = await apiFetch(`${CONFIG_API}/audio/tts`, {
+  const res = await fetch(`${CONFIG_API}/audio/tts`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ openaiKey }),
@@ -193,13 +192,13 @@ export async function updateTtsKey(openaiKey: string): Promise<{ ok: true }> {
 // Usage
 
 export async function fetchUsage(view: "weekly" | "monthly"): Promise<UsageResponse> {
-  const res = await apiFetch(`${API_BASE}/usage?view=${view}`);
+  const res = await fetch(`${API_BASE}/usage?view=${view}`);
   if (!res.ok) throw new Error("Failed to fetch usage");
   return res.json();
 }
 
 export async function deleteWorkspace(confirm: string): Promise<{ ok: true }> {
-  const res = await apiFetch(`${CONFIG_API}/workspace`, {
+  const res = await fetch(`${CONFIG_API}/workspace`, {
     method: "DELETE",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ confirm }),

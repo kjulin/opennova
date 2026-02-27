@@ -80,7 +80,7 @@ function createStaticHandler(baseDir: string, basePath: string) {
   };
 }
 
-export function createApp(workspaceDir: string): Hono {
+function createApp(workspaceDir: string): Hono {
   // Serve webapp from package dist
   const webappDir = path.resolve(import.meta.dirname, "..", "webapp");
   log.info("https", `webapp dir: ${webappDir}`);
@@ -255,14 +255,8 @@ export function createApp(workspaceDir: string): Hono {
   return app;
 }
 
-export function startServer(workspaceDir: string): DaemonServer | null {
+export function startServer(workspaceDir: string): DaemonServer {
   const mode = getConsoleAccess();
-
-  if (mode === "cloud") {
-    log.info("https", "console access is 'cloud' — HTTP server not started");
-    return null;
-  }
-
   const hostname = mode === "network" ? "0.0.0.0" : "127.0.0.1";
   const app = createApp(workspaceDir);
 

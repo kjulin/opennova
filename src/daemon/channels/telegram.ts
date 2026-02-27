@@ -23,8 +23,7 @@ import { TELEGRAM_HELP_MESSAGE } from "./telegram-help.js";
 import { splitMessage, chatGuard, toTelegramMarkdown } from "./telegram-utils.js";
 import { taskgroupMiddleware } from "./telegram-taskgroup.js";
 import { log } from "../logger.js";
-import { getPublicUrl, getConsoleAccess, getWorkspaceId } from "../workspace.js";
-import { generatePairingCode } from "../cloud-pairing.js";
+import { getPublicUrl } from "../workspace.js";
 
 function loadTelegramConfig(): TelegramConfig | null {
   const filePath = path.join(Config.workspaceDir, "telegram.json");
@@ -376,19 +375,6 @@ export function startTelegram() {
 
     // Handle /admin command
     if (text === "/admin") {
-      if (getConsoleAccess() === "cloud") {
-        const workspaceId = getWorkspaceId();
-        const { code } = generatePairingCode();
-        const url = `https://my.outernova.cloud/pair#workspace=${workspaceId}&code=${code}`;
-        const keyboard = new InlineKeyboard();
-        keyboard.url("Open Console", url).row();
-        await ctx.reply(`*Admin Console*\n\nPairing link valid for 5 minutes.`, {
-          parse_mode: "Markdown",
-          reply_markup: keyboard,
-        });
-        return;
-      }
-
       const publicUrl = getPublicUrl();
       if (!publicUrl) {
         await ctx.reply("Set your Nova URL: `nova config set settings.url https://your-domain.com`");
