@@ -64,12 +64,11 @@ function appendHistory(workspaceDir: string, task: Task): void {
 }
 
 /**
- * Check if an owner value is valid: either "user" or an existing agent
- * (a directory under agents/ with an agent.json file).
+ * Check if an owner value is valid: either "user" or an existing agent.
  */
 export function isValidOwner(workspaceDir: string, owner: string): boolean {
   if (owner === "user") return true;
-  const configPath = path.join(workspaceDir, "agents", owner, "agent.json");
+  const configPath = path.join(workspaceDir, "agent-store", `${owner}.json`);
   return fs.existsSync(configPath);
 }
 

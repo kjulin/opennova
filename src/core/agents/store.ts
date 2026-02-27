@@ -5,6 +5,7 @@ import {
   validateAgentId,
   readAgentJson,
   writeAgentJson,
+  deleteAgentJson,
   loadAgentConfig,
   loadAllAgents,
 } from "./io.js";
@@ -43,6 +44,9 @@ export class FilesystemAgentStore implements AgentStore {
   }
 
   delete(id: string): void {
+    // Remove config from agent-store/
+    deleteAgentJson(id);
+    // Remove runtime directory (threads, triggers, skills, etc.)
     const dir = agentDir(id);
     if (fs.existsSync(dir)) {
       fs.rmSync(dir, { recursive: true });

@@ -318,10 +318,10 @@ describe("tasks storage", () => {
     });
 
     it("returns true for an existing agent", () => {
-      const agentDir = path.join(testDir, "agents", "content-writer");
-      fs.mkdirSync(agentDir, { recursive: true });
+      const storeDir = path.join(testDir, "agent-store");
+      fs.mkdirSync(storeDir, { recursive: true });
       fs.writeFileSync(
-        path.join(agentDir, "agent.json"),
+        path.join(storeDir, "content-writer.json"),
         JSON.stringify({ name: "Content Writer" }),
       );
 
@@ -330,13 +330,6 @@ describe("tasks storage", () => {
 
     it("returns false for a non-existent agent", () => {
       expect(isValidOwner(testDir, "does-not-exist")).toBe(false);
-    });
-
-    it("returns false for a directory without agent.json", () => {
-      const agentDir = path.join(testDir, "agents", "incomplete-agent");
-      fs.mkdirSync(agentDir, { recursive: true });
-
-      expect(isValidOwner(testDir, "incomplete-agent")).toBe(false);
     });
   });
 });

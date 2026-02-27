@@ -55,15 +55,10 @@ export function run() {
   console.log(`Telegram:   ${telegramStatus}`);
 
   // Agents
-  const agentsDir = path.join(workspaceDir, "agents");
+  const agentStoreDir = path.join(workspaceDir, "agent-store");
   let agentCount = 0;
-  if (fs.existsSync(agentsDir)) {
-    const agentDirs = fs.readdirSync(agentsDir, { withFileTypes: true }).filter((d) => d.isDirectory());
-    for (const dir of agentDirs) {
-      if (fs.existsSync(path.join(agentsDir, dir.name, "agent.json"))) {
-        agentCount++;
-      }
-    }
+  if (fs.existsSync(agentStoreDir)) {
+    agentCount = fs.readdirSync(agentStoreDir).filter((f) => f.endsWith(".json")).length;
   }
   console.log(`Agents:     ${agentCount}`);
 }
