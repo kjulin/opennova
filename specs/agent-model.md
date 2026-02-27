@@ -18,6 +18,7 @@ AgentConfig {
   responsibilities?: Responsibility[]  // what: specific duties with lifecycle
   directories?: string[]  // filesystem access boundaries
   capabilities?: string[] // explicit list of MCP servers this agent gets
+  skills?: string[]       // skill names from workspace library (see Skills spec)
   trust: TrustLevel       // sandbox | controlled | unrestricted (required)
   model?: Model           // default model override
   subagents?: Record<string, SubagentConfig> // Claude SDK inline subagents
@@ -85,6 +86,12 @@ The agent's own directory (`{workspaceDir}/agents/{id}`) is always the working d
 The complete, explicit list of MCP servers the agent gets. Every capability in this array resolves to an MCP server through the capability registry. No implicit capabilities — what you see in config is what the agent gets.
 
 See the Capabilities spec for the registry, resolution, and run-time injections.
+
+### skills
+
+Skill names from the workspace library assigned to this agent. Each name maps to a directory in `{workspace}/skills/`. At invocation time, the runtime materializes these into `.claude/skills/` symlinks for SDK discovery.
+
+Skills are managed through the console UI or CLI (`nova skills link/unlink`). Agents do not modify their own skills. See the Skills spec for the full model.
 
 ### trust
 

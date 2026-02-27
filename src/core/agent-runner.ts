@@ -19,6 +19,7 @@ import {
   withThreadLock,
 } from "./threads.js";
 import { log } from "./logger.js";
+import { materializeSkills } from "./skills.js";
 import type { FileType } from "./media/mcp.js";
 
 export interface RunAgentOverrides {
@@ -140,6 +141,9 @@ export function createAgentRunner(engine: Engine = claudeEngine): AgentRunner {
           askAgentDepth: askAgentDepth ?? 0,
           runAgentFn: runAgentForAskAgent,
         };
+
+        // Reconcile .claude/skills/ to match agent.json skills
+        materializeSkills(Config.workspaceDir, agentId, agent.skills ?? []);
 
         const mcpServers = {
           ...resolveCapabilities(agent.capabilities, resolverContext),

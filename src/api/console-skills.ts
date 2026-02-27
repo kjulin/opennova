@@ -1,5 +1,6 @@
 import { Hono } from "hono"
 import { activateSkill, deactivateSkill, deleteSkillFromLibrary } from "#core/skills.js"
+import { loadAllAgents } from "#core/agents/index.js"
 import fs from "fs"
 import path from "path"
 
@@ -35,21 +36,12 @@ function buildFrontmatter(meta: Frontmatter, body: string): string {
   return `---\n${lines.join("\n")}\n---\n${body}`
 }
 
-function getAssignedAgents(workspaceDir: string, skillName: string): string[] {
-  const agentsDir = path.join(workspaceDir, "agents")
-  const sharedSkillDir = path.join(workspaceDir, "skills", skillName)
-  if (!fs.existsSync(agentsDir)) return []
+function getAssignedAgents(_workspaceDir: string, skillName: string): string[] {
+  const agents = loadAllAgents()
   const assigned: string[] = []
-  for (const entry of fs.readdirSync(agentsDir, { withFileTypes: true })) {
-    if (!entry.isDirectory()) continue
-    const linkPath = path.join(agentsDir, entry.name, ".claude", "skills", skillName)
-    if (fs.existsSync(linkPath)) {
-      try {
-        const stat = fs.lstatSync(linkPath)
-        if (stat.isSymbolicLink()) {
-          assigned.push(entry.name)
-        }
-      } catch {}
+  for (const [id, agent] of agents) {
+    if (agent.skills?.includes(skillName)) {
+      assigned.push(id)
     }
   }
   return assigned

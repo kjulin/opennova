@@ -2,9 +2,9 @@
 
 ## Core Idea
 
-A skill is a reusable instruction document that extends an agent's behavior. Skills are defined once in the workspace library and activated per-agent. They are consumed by the Claude Agent SDK — OpenNova manages the filesystem layout, the SDK handles discovery and injection.
+A skill is a reusable instruction document that extends an agent's behavior. Skills are defined once in the workspace library and assigned per-agent via `agent.json`. They are consumed by the Claude Agent SDK — OpenNova manages storage, assignment, and materialization. The SDK handles discovery and injection.
 
-OpenNova does not parse, interpret, or inject skill content into the system prompt. It manages the storage and the activation model. The SDK does the rest.
+OpenNova does not parse, interpret, or inject skill content into the system prompt. It manages the storage and the assignment model. The SDK does the rest.
 
 ## Skill Library
 
@@ -39,68 +39,120 @@ Instructions for when and how to use this skill...
 
 Skill names follow the same rules as agent IDs: lowercase alphanumeric with hyphens (`/^[a-z0-9][a-z0-9-]*$/`).
 
-## Activation Model
+## Assignment Model
 
-A skill in the library is inert until activated for an agent. Activation creates a symlink from the agent's `.claude/skills/` directory to the skill in the library:
+Skill assignments are stored in `agent.json`:
 
+```json
+{
+  "name": "Phoenix Architect",
+  "skills": ["nightly-review", "spec-eval"]
+}
 ```
-{agentDir}/.claude/skills/{skill-name} → {workspace}/skills/{skill-name}
-```
 
-Deactivation removes the symlink.
+The `skills` field is:
+- **Optional** (defaults to empty array)
+- **Array of skill names** (strings matching directories in `skills/`)
+- **Validated at write time** (skill must exist in library when added)
 
-The agent's `.claude/skills/` directory contains only symlinks to the workspace library — never source files.
+`agent.json` is the source of truth for which skills an agent has. The `.claude/skills/` directory is a derived cache — it is materialized at runtime and can be deleted and regenerated.
 
-### Activation Semantics
+### Runtime Materialization
 
-- A skill can be activated for one agent, multiple agents, or all agents.
-- Activation is idempotent — activating an already-active skill is a no-op.
-- Deactivating a skill that isn't active is a no-op.
-- Deleting a skill from the library removes the skill directory and all symlinks pointing to it across all agents.
+When an agent is invoked, the runtime materializes its skills into `.claude/skills/` for SDK discovery. This is a full reconcile — the directory is made to exactly match the `skills` array in `agent.json`.
+
+**Local implementation:**
+1. Read `agent.json`, get `skills: []`
+2. Remove any entries in `.claude/skills/` not in the config
+3. For each skill name in config:
+   - Verify `skills/{name}` exists in library (fail if missing)
+   - Create symlink `agents/{id}/.claude/skills/{name}` → `skills/{name}`
+4. Run agent (SDK discovers skills via directory scan)
+
+**Materialization decisions:**
+- **When:** On agent invocation (lazy)
+- **Caching:** Keep symlinks persistent (they're cheap)
+- **Missing skills:** Fail agent invocation (forces user to fix config)
 
 ## SDK Integration
 
-The Claude Agent SDK discovers skills through the `.claude/` directory convention. OpenNova enables this with a single configuration:
+The Claude Agent SDK discovers skills through the `.claude/` directory convention. OpenNova enables this with:
 
 ```
 settingSources: ["project"]
 ```
 
-This tells the SDK to scan the agent's working directory (`{agentDir}`) for `.claude/skills/` and `.claude/agents/`. The SDK reads `SKILL.md` files, parses frontmatter, and injects skills into the agent's available capabilities.
+This tells the SDK to scan the agent's working directory (`{agentDir}`) for `.claude/skills/`. The SDK reads `SKILL.md` files, parses frontmatter, and injects skills into the agent's available capabilities.
 
-OpenNova's role is strictly filesystem management:
+OpenNova's role is strictly:
 1. Store skill content in the workspace library
-2. Create symlinks on activation, remove on deactivation
-3. Remove all symlinks when a skill is deleted
+2. Persist assignments in `agent.json`
+3. Materialize symlinks at invocation time for SDK discovery
 
 OpenNova never reads skill content at runtime, never injects skills into the system prompt, and never interprets what a skill does.
 
 ## Operations
 
-Three operations maintain the symlink state. There is no background sync or startup reconciliation — if a symlink is stale, the operation that should have cleaned it up has a bug.
+### Link (Activate)
 
-### Activate
+Adds a skill to an agent's `skills` array in `agent.json` and creates the symlink.
 
-Creates a symlink from `{agentDir}/.claude/skills/{name}` to `{workspace}/skills/{name}`. Idempotent — if the symlink already exists and points to the correct target, no-op.
+```
+Input: agentId, skillName
+Actions:
+  1. Validate skill exists in library
+  2. Add skillName to agent.json skills[] (if not present)
+  3. Create symlink for SDK discovery
+```
 
-### Deactivate
+Idempotent — linking an already-linked skill is a no-op.
 
-Removes the symlink from `{agentDir}/.claude/skills/{name}`. Idempotent — if no symlink exists, no-op.
+### Unlink (Deactivate)
+
+Removes a skill from an agent's `skills` array in `agent.json` and removes the symlink.
+
+```
+Input: agentId, skillName
+Actions:
+  1. Remove skillName from agent.json skills[]
+  2. Remove symlink
+```
+
+Idempotent — unlinking a skill that isn't linked is a no-op.
 
 ### Delete Skill
 
-Removes the skill directory from the library. Scans all agents and removes any symlinks pointing to the deleted skill. This is the only operation that touches multiple agents' `.claude/skills/` directories.
+Removes the skill from the library and cleans up all references.
+
+```
+Input: skillName
+Actions:
+  1. Delete skills/{name}/
+  2. For each agent with skillName in agent.json:
+     - Remove from skills[] array
+     - Write agent.json
+     - Remove symlink
+```
+
+### List Agent Skills
+
+```
+Input: agentId
+Output: skills[] from agent.json
+```
+
+No filesystem scanning. The configuration is the source of truth.
 
 ## Management Surfaces
 
 ### Console UI
 
-CRUD operations on the skill library plus activation management:
-- List all skills (with activation state per agent)
+CRUD operations on the skill library plus assignment management:
+- List all skills (with assignment state per agent)
 - Create skill (name, description, content)
 - Edit skill (description, content)
-- Delete skill (removes from library, cleans up symlinks)
-- Activate/deactivate skill for specific agents
+- Delete skill (removes from library, cleans up all agent references)
+- Assign/unassign skill for specific agents
 
 ### CLI
 
@@ -108,23 +160,25 @@ CRUD operations on the skill library plus activation management:
 nova skills list [--agent <id>]
 nova skills link <name> --agent <id|all>
 nova skills unlink <name> --agent <id|all>
+nova skills delete <name>
 ```
 
-`link` activates a skill for an agent (or all agents). `unlink` deactivates.
+`link` assigns a skill to an agent (or all agents). `unlink` removes the assignment.
 
 ## Constraints
 
 - The workspace skill library (`{workspace}/skills/`) is the single source of truth for skill content.
-- Agent `.claude/skills/` directories contain only symlinks — never source files.
+- `agent.json` is the single source of truth for skill assignments.
+- Agent `.claude/skills/` directories are a derived cache — materialized at invocation, deletable and regenerable.
 - Agents do not create, edit, or delete skills. Skills are a user-managed resource.
 - OpenNova does not parse or inject skill content. The SDK handles discovery and injection.
 - Skill names are unique within the workspace.
-- No background sync or startup reconciliation. Symlink state is maintained by explicit operations only.
 
 ## What Lives Here
 
 - Skill storage model (workspace library, directory format, SKILL.md)
-- Activation model (symlinks, operations)
+- Assignment model (agent.json skills field, operations)
+- Runtime materialization (lazy, full reconcile)
 - SDK integration point (`settingSources`)
 - Management surfaces (console, CLI)
 
@@ -133,4 +187,3 @@ nova skills unlink <name> --agent <id|all>
 - SDK subagents (`.claude/agents/` — separate concept, separate spec)
 - Skill content authoring guidelines (user concern, not system architecture)
 - System prompt assembly (System Prompt spec — skills are not part of the system prompt)
-- Agent config (Agent Model spec — skills are not listed in agent.json)
