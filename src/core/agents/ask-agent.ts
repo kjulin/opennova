@@ -6,7 +6,8 @@ import {
   type McpSdkServerConfigWithInstance,
 } from "@anthropic-ai/claude-agent-sdk";
 import { Config } from "../config.js";
-import { loadAgents, type AgentConfig } from "./agents.js";
+import type { AgentConfig } from "./agents.js";
+import { agentStore } from "./singleton.js";
 import { createThread } from "../threads.js";
 import { log } from "../logger.js";
 
@@ -40,7 +41,7 @@ export function createAgentsMcpServer(
         "List the agents you can delegate tasks to, with their descriptions.",
         {},
         async () => {
-          const agents = loadAgents();
+          const agents = agentStore.list();
           const entries: { id: string; name: string; description: string; responsibilities: string[] }[] = [];
           for (const a of agents.values()) {
             if (a.id === caller.id) continue;
@@ -71,7 +72,7 @@ export function createAgentsMcpServer(
             return err(`Delegation depth limit reached (max ${MAX_DEPTH}). Cannot delegate further.`);
           }
 
-          const agents = loadAgents();
+          const agents = agentStore.list();
           const target = agents.get(args.agent);
           if (!target) {
             return err(`Agent not found: ${args.agent}`);

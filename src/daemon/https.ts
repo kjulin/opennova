@@ -5,7 +5,7 @@ import { Hono, type Context } from "hono";
 import { serve } from "@hono/node-server";
 import { log } from "./logger.js";
 import { getConsoleAccess } from "./workspace.js";
-import { loadAgents } from "#core/agents/index.js";
+import { agentStore } from "#core/agents/index.js";
 import {
   loadTasks,
   getTask,
@@ -115,7 +115,7 @@ function createApp(workspaceDir: string): Hono {
   // Tasks API
   app.get("/api/tasks", (c) => {
     const tasks = loadTasks(workspaceDir);
-    const agents = loadAgents();
+    const agents = agentStore.list();
     const agentList = Array.from(agents.values()).map((a) => ({
       id: a.id,
       name: a.name,
@@ -209,7 +209,7 @@ function createApp(workspaceDir: string): Hono {
   });
 
   app.get("/api/agents", (c) => {
-    const agents = loadAgents();
+    const agents = agentStore.list();
     const agentList = Array.from(agents.values()).map((a) => ({
       id: a.id,
       name: a.name,

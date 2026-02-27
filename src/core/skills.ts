@@ -1,6 +1,6 @@
 import fs from "fs";
 import path from "path";
-import { readAgentJson, writeAgentJson } from "./agents/io.js";
+import { agentStore } from "./agents/singleton.js";
 
 /**
  * Activate a skill for an agent.
@@ -14,12 +14,11 @@ export function activateSkill(workspaceDir: string, skillName: string, agentId: 
   }
 
   // Update agent.json (source of truth)
-  const agentJson = readAgentJson(agentId);
+  const agentJson = agentStore.get(agentId);
   if (agentJson) {
     const skills = agentJson.skills ?? [];
     if (!skills.includes(skillName)) {
-      agentJson.skills = [...skills, skillName];
-      writeAgentJson(agentId, agentJson);
+      agentStore.update(agentId, { skills: [...skills, skillName] });
     }
   }
 
@@ -45,10 +44,9 @@ export function activateSkill(workspaceDir: string, skillName: string, agentId: 
  */
 export function deactivateSkill(workspaceDir: string, skillName: string, agentId: string): void {
   // Update agent.json (source of truth)
-  const agentJson = readAgentJson(agentId);
+  const agentJson = agentStore.get(agentId);
   if (agentJson && agentJson.skills) {
-    agentJson.skills = agentJson.skills.filter((s) => s !== skillName);
-    writeAgentJson(agentId, agentJson);
+    agentStore.update(agentId, { skills: agentJson.skills.filter((s) => s !== skillName) });
   }
 
   // Remove symlink
@@ -71,21 +69,17 @@ export function deleteSkillFromLibrary(workspaceDir: string, skillName: string):
   }
 
   // Clean up across all agents: agent.json + symlinks
-  const agentsDir = path.join(workspaceDir, "agents");
-  if (!fs.existsSync(agentsDir)) return;
+  const agentsDirPath = path.join(workspaceDir, "agents");
+  if (!fs.existsSync(agentsDirPath)) return;
 
-  for (const entry of fs.readdirSync(agentsDir, { withFileTypes: true })) {
-    if (!entry.isDirectory()) continue;
-
+  for (const [id, agent] of agentStore.list()) {
     // Remove from agent.json
-    const agentJson = readAgentJson(entry.name);
-    if (agentJson && agentJson.skills?.includes(skillName)) {
-      agentJson.skills = agentJson.skills.filter((s) => s !== skillName);
-      writeAgentJson(entry.name, agentJson);
+    if (agent.skills?.includes(skillName)) {
+      agentStore.update(id, { skills: agent.skills.filter((s) => s !== skillName) });
     }
 
     // Remove symlink
-    const linkPath = path.join(agentsDir, entry.name, ".claude", "skills", skillName);
+    const linkPath = path.join(agentsDirPath, id, ".claude", "skills", skillName);
     if (isSymlink(linkPath)) {
       fs.unlinkSync(linkPath);
     } else if (fs.existsSync(linkPath)) {

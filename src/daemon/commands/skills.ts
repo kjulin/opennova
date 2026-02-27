@@ -6,7 +6,7 @@ import {
   deactivateSkill,
   deleteSkillFromLibrary,
 } from "#core/skills.js";
-import { readAgentJson, loadAllAgents } from "#core/agents/index.js";
+import { agentStore } from "#core/agents/index.js";
 import { Config } from "#core/config.js";
 
 function parseArgs(): { agent: string | undefined } {
@@ -26,7 +26,7 @@ async function list(workspaceDir: string) {
   const { agent } = parseArgs();
 
   if (agent) {
-    const agentJson = readAgentJson(agent);
+    const agentJson = agentStore.get(agent);
     if (!agentJson) {
       console.error(`Agent not found: ${agent}`);
       process.exit(1);
@@ -57,7 +57,7 @@ async function list(workspaceDir: string) {
   }
 
   console.log("\nAgent skills:");
-  const agents = loadAllAgents();
+  const agents = agentStore.list();
   if (agents.size === 0) {
     console.log("  (no agents)");
     return;
@@ -96,13 +96,13 @@ async function link(workspaceDir: string) {
   }
 
   if (agent === "all") {
-    const agents = loadAllAgents();
+    const agents = agentStore.list();
     for (const [id] of agents) {
       activateSkill(workspaceDir, name, id);
     }
     console.log(`Activated ${name} for all agents`);
   } else {
-    const agentJson = readAgentJson(agent);
+    const agentJson = agentStore.get(agent);
     if (!agentJson) {
       console.error(`Agent not found: ${agent}`);
       process.exit(1);
@@ -127,13 +127,13 @@ async function unlink(workspaceDir: string) {
   }
 
   if (agent === "all") {
-    const agents = loadAllAgents();
+    const agents = agentStore.list();
     for (const [id] of agents) {
       deactivateSkill(workspaceDir, name, id);
     }
     console.log(`Deactivated ${name} for all agents`);
   } else {
-    const agentJson = readAgentJson(agent);
+    const agentJson = agentStore.get(agent);
     if (!agentJson) {
       console.error(`Agent not found: ${agent}`);
       process.exit(1);

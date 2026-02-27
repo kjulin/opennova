@@ -1,12 +1,12 @@
 import { Hono } from "hono"
 import { z } from "zod/v4"
-import { loadAgents, readAgentJson, writeAgentJson, agentDir } from "#core/agents/index.js"
+import { agentStore } from "#core/agents/index.js"
 import { KNOWN_CAPABILITIES } from "#core/capabilities.js"
 import {
   AgentJsonSchema,
   VALID_AGENT_ID,
   TrustLevel,
-  type AgentJson,
+  type AgentJsonInput,
 } from "#core/schemas.js"
 import fs from "fs"
 import path from "path"
@@ -24,7 +24,7 @@ function loadAgentDetail(workspaceDir: string, id: string, agent: { name: string
   }
 
   // Load skills from agent.json (source of truth)
-  const agentJson = readAgentJson(id)
+  const agentJson = agentStore.get(id)
   const skills: string[] = agentJson?.skills ?? []
 
   return {
@@ -55,7 +55,7 @@ export function createConsoleAgentsRouter(workspaceDir: string): Hono {
 
   // List all agents
   app.get("/", (c) => {
-    const agentsMap = loadAgents()
+    const agentsMap = agentStore.list()
     const agents = Array.from(agentsMap.values()).map((agent) =>
       loadAgentDetail(workspaceDir, agent.id, {
         ...agent,
@@ -68,7 +68,7 @@ export function createConsoleAgentsRouter(workspaceDir: string): Hono {
   // Get single agent
   app.get("/:id", (c) => {
     const id = c.req.param("id")
-    const agentsMap = loadAgents()
+    const agentsMap = agentStore.list()
     const agent = agentsMap.get(id)
     if (!agent) {
       return c.json({ error: "Agent not found" }, 404)
@@ -102,20 +102,19 @@ export function createConsoleAgentsRouter(workspaceDir: string): Hono {
       }
     }
 
-    const agentsMap = loadAgents()
-    if (agentsMap.has(id)) {
-      return c.json({ error: "Agent already exists" }, 409)
-    }
-
-    const agentJson: AgentJson = { name: agentData.name, identity: agentData.identity, trust: agentData.trust, model: "sonnet" }
+    const agentJson: AgentJsonInput = { name: agentData.name, identity: agentData.identity, trust: agentData.trust, model: "sonnet" }
     if (agentData.description) agentJson.description = agentData.description
     if (agentData.instructions) agentJson.instructions = agentData.instructions
     if (agentData.directories && agentData.directories.length > 0) agentJson.directories = agentData.directories
     if (agentData.capabilities && agentData.capabilities.length > 0) agentJson.capabilities = agentData.capabilities
 
-    writeAgentJson(id, agentJson)
+    try {
+      agentStore.create(id, agentJson)
+    } catch {
+      return c.json({ error: "Agent already exists" }, 409)
+    }
 
-    const created = loadAgents().get(id)
+    const created = agentStore.get(id)
     if (!created) {
       return c.json({ error: "Failed to create agent" }, 500)
     }
@@ -129,8 +128,7 @@ export function createConsoleAgentsRouter(workspaceDir: string): Hono {
   app.patch("/:id", async (c) => {
     const id = c.req.param("id")
 
-    const existing = readAgentJson(id)
-    if (!existing) {
+    if (!agentStore.get(id)) {
       return c.json({ error: "Agent not found" }, 404)
     }
 
@@ -150,16 +148,16 @@ export function createConsoleAgentsRouter(workspaceDir: string): Hono {
       }
     }
 
-    const config: Record<string, unknown> = { ...existing }
+    const partial: Record<string, unknown> = {}
     for (const field of allowedFields) {
       if (field in body) {
-        config[field] = body[field]
+        partial[field] = body[field]
       }
     }
 
-    writeAgentJson(id, config as AgentJson)
+    agentStore.update(id, partial as Partial<AgentJsonInput>)
 
-    const updated = loadAgents().get(id)
+    const updated = agentStore.get(id)
     if (!updated) {
       return c.json({ error: "Agent not found" }, 404)
     }
@@ -173,12 +171,11 @@ export function createConsoleAgentsRouter(workspaceDir: string): Hono {
   app.delete("/:id", (c) => {
     const id = c.req.param("id")
 
-    const dir = agentDir(id)
-    if (!fs.existsSync(dir)) {
+    if (!agentStore.get(id)) {
       return c.json({ error: "Agent not found" }, 404)
     }
 
-    fs.rmSync(dir, { recursive: true })
+    agentStore.delete(id)
     return c.json({ ok: true })
   })
 

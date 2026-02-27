@@ -22,10 +22,14 @@ vi.mock("#core/threads.js", () => ({
   withThreadLock: vi.fn((_threadId: string, fn: () => unknown) => fn()),
 }));
 
+const testAgent = { id: "test-agent", name: "Test Agent", role: "Test role", trust: "controlled", model: "sonnet", capabilities: ["memory"] };
+
 vi.mock("#core/agents/index.js", () => ({
-  loadAgents: vi.fn(() => new Map([
-    ["test-agent", { name: "Test Agent", role: "Test role", trust: "controlled", model: "sonnet", capabilities: ["memory"] }],
-  ])),
+  agentStore: {
+    get: vi.fn((id: string) => id === "test-agent" ? testAgent : null),
+    list: vi.fn(() => new Map([["test-agent", testAgent]])),
+  },
+  loadAgents: vi.fn(() => new Map([["test-agent", testAgent]])),
   buildSystemPrompt: vi.fn(() => "System prompt"),
   getAgentCwd: vi.fn(() => "/test/cwd"),
   getAgentDirectories: vi.fn(() => []),

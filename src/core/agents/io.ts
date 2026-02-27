@@ -6,6 +6,7 @@ import {
   VALID_AGENT_ID,
   AgentJsonSchema,
   type AgentJson,
+  type AgentJsonInput,
   type AgentConfig,
 } from "../schemas.js";
 
@@ -28,7 +29,8 @@ export function validateAgentId(id: string): string | null {
 }
 
 /**
- * Read and validate an agent's agent.json. Returns null if missing or invalid.
+ * Read and validate an agent's agent.json.
+ * Injects the id from the directory name (backfills into the parsed result).
  */
 export function readAgentJson(id: string): AgentJson | null {
   const configPath = path.join(agentDir(id), "agent.json");
@@ -40,6 +42,7 @@ export function readAgentJson(id: string): AgentJson | null {
       log.error("agents", `invalid agent.json for "${id}": ${result.error.message}`);
       return null;
     }
+    result.data.id = id;
     return result.data;
   } catch {
     return null;
@@ -48,22 +51,23 @@ export function readAgentJson(id: string): AgentJson | null {
 
 /**
  * Validate and write an agent's agent.json.
+ * Always persists the id field.
  */
-export function writeAgentJson(id: string, data: AgentJson): void {
+export function writeAgentJson(id: string, data: AgentJsonInput): void {
   const dir = agentDir(id);
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-  // Validate before writing
-  AgentJsonSchema.parse(data);
-  fs.writeFileSync(path.join(dir, "agent.json"), JSON.stringify(data, null, 2) + "\n");
+  const toWrite = { ...data, id };
+  AgentJsonSchema.parse(toWrite);
+  fs.writeFileSync(path.join(dir, "agent.json"), JSON.stringify(toWrite, null, 2) + "\n");
 }
 
 /**
- * Read an agent and return a full AgentConfig (with id and defaulted trust).
+ * Read an agent and return a full AgentConfig (with id guaranteed).
  */
 export function loadAgentConfig(id: string): AgentConfig | null {
   const json = readAgentJson(id);
   if (!json) return null;
-  return { ...json, id, trust: json.trust ?? "sandbox" };
+  return json as AgentConfig;
 }
 
 /**

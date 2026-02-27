@@ -108,13 +108,14 @@ export const ResponsibilitySchema = z.object({
 export type Responsibility = z.infer<typeof ResponsibilitySchema>;
 
 export const AgentJsonSchema = z.object({
+  id: z.string().optional(),
   name: z.string().min(1, "name is required"),
   description: z.string().max(MAX_DESCRIPTION_LENGTH).optional(),
   identity: z.string().max(MAX_IDENTITY_LENGTH).optional(),
   instructions: z.string().max(MAX_INSTRUCTIONS_LENGTH).optional(),
   responsibilities: z.array(ResponsibilitySchema).optional(),
   directories: z.array(z.string()).optional(),
-  trust: TrustLevel.optional(),
+  trust: TrustLevel.default("sandbox"),
   subagents: z.record(z.string(), z.object({
     description: z.string(),
     prompt: z.string(),
@@ -129,7 +130,8 @@ export const AgentJsonSchema = z.object({
 }).passthrough();
 
 export type AgentJson = z.infer<typeof AgentJsonSchema>;
-export type AgentConfig = AgentJson & { id: string; trust: TrustLevel };
+export type AgentJsonInput = z.input<typeof AgentJsonSchema>;
+export type AgentConfig = AgentJson & { id: string };
 
 /**
  * Safely parse JSON from a file, returning null on failure.

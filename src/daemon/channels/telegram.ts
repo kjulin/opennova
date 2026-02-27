@@ -4,7 +4,7 @@ import os from "os";
 import { Bot, InlineKeyboard, InputFile, Keyboard } from "grammy";
 import {
   Config,
-  loadAgents,
+  agentStore,
   listThreads,
   createThread,
   getThreadManifest,
@@ -276,7 +276,7 @@ export function startTelegram() {
   bot.on("message:text", async (ctx) => {
     const chatId = ctx.chat.id;
     const text = ctx.message.text;
-    const agents = loadAgents();
+    const agents = agentStore.list();
 
     // Handle /help command
     if (text === "/help" || text === "/start") {
@@ -518,7 +518,7 @@ export function startTelegram() {
   bot.on("message:voice", async (ctx) => {
     const chatId = ctx.chat.id;
 
-    const agents = loadAgents();
+    const agents = agentStore.list();
     const agentId = config.activeAgentId;
     const agent = agents.get(agentId);
     if (!agent) {
@@ -655,7 +655,7 @@ Please read it and respond to what I said.`;
     const chatId = ctx.chat.id;
     if (!config) return;
 
-    const agents = loadAgents();
+    const agents = agentStore.list();
     const agentId = config.activeAgentId;
     const agent = agents.get(agentId);
     if (!agent) {
@@ -765,7 +765,7 @@ You can read, process, or move this file as needed.`;
       const data = JSON.parse(ctx.message.web_app_data.data);
 
       if (data.action === "chat" && data.agentId && data.threadId) {
-        const agents = loadAgents();
+        const agents = agentStore.list();
         const agent = agents.get(data.agentId);
 
         if (!agent) {
@@ -787,7 +787,7 @@ You can read, process, or move this file as needed.`;
       }
 
       if (data.action === "deliver_file" && data.agentId && data.threadId && data.filePath) {
-        const agents = loadAgents();
+        const agents = agentStore.list();
         const agent = agents.get(data.agentId);
 
         if (!agent) {
@@ -873,7 +873,7 @@ You can read, process, or move this file as needed.`;
     if (!data.startsWith("agent:")) return;
 
     const agentId = data.slice("agent:".length);
-    const agents = loadAgents();
+    const agents = agentStore.list();
     if (!agents.has(agentId)) {
       await ctx.answerCallbackQuery({ text: "Agent not found" });
       return;

@@ -39,7 +39,7 @@ const CAPABILITY_REGISTRY: Record<string, CapabilityResolver> = {
   history: (ctx) => createHistoryMcpServer(ctx.agentDir, ctx.agentId, ctx.threadId),
   tasks: (ctx) => createTasksMcpServer(ctx.agentId, ctx.workspaceDir),
   notes: (ctx) => createNotesMcpServer(ctx.agentDir, ctx.callbacks.onShareNote, ctx.callbacks.onPinChange),
-  self: (ctx) => createSelfManagementMcpServer(ctx.agentDir),
+  self: (ctx) => createSelfManagementMcpServer(ctx.agentId),
   media: (ctx) => createMediaMcpServer(ctx.agentDir, ctx.directories, ctx.callbacks.onFileSend ?? (() => {})),
   secrets: (ctx) => createSecretsMcpServer(ctx.workspaceDir),
   agents: (ctx) => {
