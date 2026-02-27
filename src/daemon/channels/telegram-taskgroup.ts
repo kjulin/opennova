@@ -239,11 +239,11 @@ async function handleGeneralTopicMessage(
     onToolUseSummary(summary: string) {
       updateStatus(summary);
     },
-    onResponse(_agentId: string, _threadId: string, text: string) {
+    async onResponse(_agentId: string, _threadId: string, text: string) {
       const formatted = toTelegramMarkdown(text);
       const chunks = splitMessage(formatted);
       for (const chunk of chunks) {
-        bot.api.sendMessage(chatId, chunk, {
+        await bot.api.sendMessage(chatId, chunk, {
           parse_mode: "Markdown",
         }).catch(() => {
           bot.api.sendMessage(chatId, chunk).catch((err) => {
@@ -327,11 +327,11 @@ async function handleTopicReply(
   bot.api.sendChatAction(chatId, "typing", { message_thread_id: topicId }).catch(() => {});
 
   const topicCallbacks = {
-    onResponse(_agentId: string, _threadId: string, text: string) {
+    async onResponse(_agentId: string, _threadId: string, text: string) {
       const formatted = toTelegramMarkdown(text);
       const chunks = splitMessage(formatted);
       for (const chunk of chunks) {
-        bot.api.sendMessage(chatId, chunk, {
+        await bot.api.sendMessage(chatId, chunk, {
           message_thread_id: topicId,
           parse_mode: "Markdown",
         }).catch(() => {

@@ -113,14 +113,14 @@ export function startAgentTelegram(
   function deliveryCallbacks() {
     const chatId = Number(botConfig.chatId);
     return {
-      onResponse(_agentId: string, threadId: string, text: string) {
+      async onResponse(_agentId: string, threadId: string, text: string) {
         // Track the thread that last sent a message so user replies go there
         botConfig.activeThreadId = threadId;
         saveConfig();
 
         const chunks = splitMessage(text);
         for (const chunk of chunks) {
-          bot.api.sendMessage(chatId, chunk, { parse_mode: "Markdown" }).catch(() => {
+          await bot.api.sendMessage(chatId, chunk, { parse_mode: "Markdown" }).catch(() => {
             return bot.api.sendMessage(chatId, chunk).catch((err) => {
               log.error("telegram-agent", `agent ${agentId}: failed to deliver response:`, err);
             });
