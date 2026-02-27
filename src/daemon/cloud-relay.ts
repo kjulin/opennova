@@ -1,7 +1,8 @@
 import crypto from "crypto";
 import { createClient, type RealtimeChannel, type SupabaseClient } from "@supabase/supabase-js";
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from "#core/supabase.js";
-import { getConsoleAccess, getWorkspaceId, getConfigValue, resolveWorkspace } from "./workspace.js";
+import { getConsoleAccess, getWorkspaceId, getConfigValue, setConfigValue, resolveWorkspace } from "./workspace.js";
+import { validatePairingCode } from "./cloud-pairing.js";
 import { createApp } from "./https.js";
 import { log } from "./logger.js";
 import type { Hono } from "hono";
@@ -77,6 +78,29 @@ async function handleRequest(app: Hono, channel: RealtimeChannel, payload: { pay
   }
 }
 
+function handlePair(workspaceDir: string, channel: RealtimeChannel, payload: { payload: { code: string } }) {
+  const { code } = payload.payload;
+
+  if (!validatePairingCode(code)) {
+    channel.send({
+      type: "broadcast",
+      event: "pair_response",
+      payload: { error: "invalid or expired code" },
+    });
+    return;
+  }
+
+  const bearer = crypto.randomBytes(32).toString("hex");
+  setConfigValue(workspaceDir, "settings.cloudBearer", bearer);
+  log.info("cloud-relay", "new cloud session paired");
+
+  channel.send({
+    type: "broadcast",
+    event: "pair_response",
+    payload: { bearer },
+  });
+}
+
 export function startCloudRelay(workspaceDir: string): CloudRelay | null {
   if (getConsoleAccess() !== "cloud") return null;
 
@@ -93,6 +117,9 @@ export function startCloudRelay(workspaceDir: string): CloudRelay | null {
   channel
     .on("broadcast", { event: "request" }, (payload) => {
       handleRequest(app, channel, payload as unknown as { payload: RelayRequest });
+    })
+    .on("broadcast", { event: "pair" }, (payload) => {
+      handlePair(workspaceDir, channel, payload as unknown as { payload: { code: string } });
     })
     .subscribe((status) => {
       if (status === "SUBSCRIBED") {
