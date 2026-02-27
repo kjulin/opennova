@@ -102,21 +102,19 @@ describe("Spec Evals: Skills", () => {
   })
 
   describe("Invariant", () => {
-    // "The agent's .claude/skills/ directory contains only symlinks to the workspace library — never source files." — skills.md
-    test("activateSkill skips non-symlink entries (never overwrites source files)", () => {
+    // "Agent .claude/skills/ directories are a derived cache — materialized at invocation, deletable and regenerable." — skills.md
+    test("activateSkill replaces non-symlink entries (full reconcile)", () => {
       const content = readFileSync(join(ROOT, "src/core/skills.ts"), "utf-8")
-      // When an entry exists and is NOT a symlink, it should be skipped
       expect(content).toMatch(/isSymbolicLink/)
-      // The code says: "Not a symlink (agent's own skill), don't touch" then returns
-      expect(content).toMatch(/Not a symlink/)
+      // Non-symlink entries are removed and replaced with symlinks
+      expect(content).toMatch(/rmSync/)
     })
 
-    // "Activation is idempotent — activating an already-active skill is a no-op." — skills.md
+    // "Activation is idempotent — linking an already-linked skill is a no-op." — skills.md
     test("activateSkill is idempotent (skips correct existing symlinks)", () => {
       const content = readFileSync(join(ROOT, "src/core/skills.ts"), "utf-8")
       // Should check if symlink already points to correct target and skip
       expect(content).toMatch(/readlinkSync/)
-      expect(content).toMatch(/Already correct/)
     })
 
     // "Deactivating a skill that isn't active is a no-op." — skills.md
@@ -150,10 +148,10 @@ describe("Spec Evals: Skills", () => {
       expect(content).not.toMatch(/skills/)
     })
 
-    // "Agents do not create, edit, or delete skills. Skills are a user-managed resource." — skills.md
-    test("Agent runner does not import skills module", () => {
+    // "When an agent is invoked, the runtime materializes its skills into .claude/skills/ for SDK discovery." — skills.md
+    test("Agent runner materializes skills before invocation", () => {
       const content = readFileSync(join(ROOT, "src/core/agent-runner.ts"), "utf-8")
-      expect(content).not.toMatch(/from\s+["'].*skills/)
+      expect(content).toMatch(/materializeSkills/)
     })
 
     // "Skill names are unique within the workspace." — skills.md

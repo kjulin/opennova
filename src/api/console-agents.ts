@@ -23,16 +23,9 @@ function loadAgentDetail(workspaceDir: string, id: string, agent: { name: string
     } catch {}
   }
 
-  // Load skills (directory names)
-  let skills: string[] = []
-  const skillsDir = path.join(dir, ".claude", "skills")
-  if (fs.existsSync(skillsDir)) {
-    try {
-      skills = fs.readdirSync(skillsDir, { withFileTypes: true })
-        .filter((d) => d.isDirectory())
-        .map((d) => d.name)
-    } catch {}
-  }
+  // Load skills from agent.json (source of truth)
+  const agentJson = readAgentJson(id)
+  const skills: string[] = agentJson?.skills ?? []
 
   return {
     id,
