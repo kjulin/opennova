@@ -107,6 +107,18 @@ function maskSecret(value: string): string {
   return value.slice(0, 4) + "****" + value.slice(-4);
 }
 
+export type ConsoleAccess = "local" | "network" | "cloud";
+
+/**
+ * Get the console access mode from settings.
+ * Defaults to "local" if not set.
+ */
+export function getConsoleAccess(): ConsoleAccess {
+  const value = getConfigValue(resolveWorkspace(), "settings.consoleAccess");
+  if (value === "network" || value === "cloud") return value;
+  return "local";
+}
+
 /**
  * Get the public URL for this Nova instance (used for Telegram Web App links).
  * Returns null if no public URL is configured.
