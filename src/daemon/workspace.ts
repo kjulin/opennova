@@ -2,8 +2,6 @@ import fs from "fs";
 import path from "path";
 import os from "os";
 import { log } from "./logger.js";
-import { getSecret } from "#core/secrets.js";
-
 const KNOWN_FILES = ["telegram", "settings"] as const;
 
 export const SENSITIVE_KEYS = new Set(["telegram.token"]);
@@ -110,33 +108,11 @@ function maskSecret(value: string): string {
 }
 
 /**
- * Resolve the API token.
- * Priority: NOVA_API_TOKEN env var → OS keyring → null
+ * Get the public URL for this Nova instance (used for Telegram Web App links).
+ * Returns null if no public URL is configured.
  */
-export function getApiToken(): string | null {
-  const envToken = process.env.NOVA_API_TOKEN;
-  if (envToken) return envToken;
-  try {
-    return getSecret("nova-api-token");
-  } catch {
-    return null;
-  }
-}
-
-/**
- * Resolve the public Nova URL.
- * Priority: NOVA_URL env var → settings.json url field → http://localhost:${PORT} fallback
- */
-export function getNovaUrl(): string {
-  // 1. Env var override
-  const envUrl = process.env.NOVA_URL;
-  if (envUrl) return envUrl.replace(/\/+$/, ""); // strip trailing slash
-
-  // 2. settings.json
+export function getPublicUrl(): string | null {
   const url = getConfigValue(resolveWorkspace(), "settings.url");
   if (typeof url === "string" && url) return url.replace(/\/+$/, "");
-
-  // 3. Local fallback
-  const port = process.env.NOVA_PORT || "3838";
-  return `http://localhost:${port}`;
+  return null;
 }

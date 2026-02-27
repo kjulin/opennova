@@ -29,23 +29,6 @@ export async function run() {
         console.error("Usage: nova config get <key>");
         process.exit(1);
       }
-      if (key === "api-token") {
-        // Resolution: NOVA_API_TOKEN env → keyring → fail
-        const envToken = process.env.NOVA_API_TOKEN;
-        if (envToken) {
-          console.log(envToken);
-          return;
-        }
-        try {
-          const { getSecret } = await import("#core/secrets.js");
-          const token = getSecret("nova-api-token");
-          console.log(token);
-        } catch {
-          console.error("No API token found. Run 'nova init' to generate one.");
-          process.exit(1);
-        }
-        return;
-      }
       const value = getConfigValue(workspaceDir, key);
       if (value === undefined) {
         console.error(`Key not found: ${key}`);
