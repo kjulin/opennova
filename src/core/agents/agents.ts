@@ -2,13 +2,13 @@ import fs from "fs";
 import os from "os";
 import path from "path";
 import { Config } from "../config.js";
-import { loadAllAgents } from "./io.js";
+import { agentStore } from "./singleton.js";
 import type { AgentConfig } from "../schemas.js";
 
 export type { AgentJson, AgentConfig } from "../schemas.js";
 
 export function loadAgents(): Map<string, AgentConfig> {
-  return loadAllAgents();
+  return agentStore.list();
 }
 
 function resolveDirectory(rawPath: string): string {

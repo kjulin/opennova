@@ -63,10 +63,8 @@ export {
   agentsDir,
   agentDir,
   validateAgentId,
-  readAgentJson,
-  writeAgentJson,
-  loadAgentConfig,
-  loadAllAgents,
+  agentStore,
+  type AgentStore,
   type AgentConfig,
   type AgentJson,
 } from "./agents/index.js";

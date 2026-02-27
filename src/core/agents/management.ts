@@ -1,6 +1,7 @@
 import crypto from "crypto";
 import fs from "fs";
 import path from "path";
+import type { AgentJson } from "../schemas.js";
 import { z } from "zod/v4";
 import { CronExpressionParser } from "cron-parser";
 import {
@@ -14,12 +15,8 @@ import {
   ResponsibilitySchema,
 } from "../schemas.js";
 import { MODELS } from "../models.js";
-import {
-  agentDir,
-  agentsDir,
-  readAgentJson,
-  writeAgentJson,
-} from "./io.js";
+import { agentDir } from "./io.js";
+import { agentStore } from "./singleton.js";
 
 
 function generateTriggerId(): string {
@@ -43,14 +40,9 @@ export function createAgentManagementMcpServer(): McpSdkServerConfigWithInstance
         "List all agents with their configuration",
         {},
         async () => {
-          const dir = agentsDir();
-          if (!fs.existsSync(dir)) return ok("[]");
-
           const agents: { id: string; config: unknown }[] = [];
-          for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-            if (!entry.isDirectory()) continue;
-            const config = readAgentJson(entry.name);
-            if (config) agents.push({ id: entry.name, config });
+          for (const [id, config] of agentStore.list()) {
+            agents.push({ id, config });
           }
           return ok(JSON.stringify(agents, null, 2));
         },
@@ -63,7 +55,7 @@ export function createAgentManagementMcpServer(): McpSdkServerConfigWithInstance
           id: z.string().describe("Agent identifier (directory name)"),
         },
         async (args) => {
-          const config = readAgentJson(args.id);
+          const config = agentStore.getJson(args.id);
           if (!config) return err(`Agent not found: ${args.id}`);
           return ok(JSON.stringify({ id: args.id, config }, null, 2));
         },
@@ -83,23 +75,20 @@ export function createAgentManagementMcpServer(): McpSdkServerConfigWithInstance
           model: z.enum(MODELS).optional().describe("Model to use. Defaults to 'sonnet'."),
         },
         async (args) => {
-          if (!VALID_AGENT_ID.test(args.id)) {
-            return err(`Invalid agent ID: "${args.id}". Use lowercase letters, numbers, and hyphens.`);
+          try {
+            agentStore.create(args.id, {
+              name: args.name,
+              identity: args.identity,
+              model: args.model ?? "sonnet",
+              ...(args.description && { description: args.description }),
+              ...(args.instructions && { instructions: args.instructions }),
+              ...(args.directories && args.directories.length > 0 && { directories: args.directories }),
+              ...(args.capabilities && args.capabilities.length > 0 && { capabilities: args.capabilities }),
+            });
+            return ok(`Created agent "${args.id}"`);
+          } catch (e) {
+            return err((e as Error).message);
           }
-          if (readAgentJson(args.id)) {
-            return err(`Agent "${args.id}" already exists. Use update_agent to modify it.`);
-          }
-
-          writeAgentJson(args.id, {
-            name: args.name,
-            identity: args.identity,
-            model: args.model ?? "sonnet",
-            ...(args.description && { description: args.description }),
-            ...(args.instructions && { instructions: args.instructions }),
-            ...(args.directories && args.directories.length > 0 && { directories: args.directories }),
-            ...(args.capabilities && args.capabilities.length > 0 && { capabilities: args.capabilities }),
-          });
-          return ok(`Created agent "${args.id}"`);
         },
       ),
 
@@ -115,17 +104,19 @@ export function createAgentManagementMcpServer(): McpSdkServerConfigWithInstance
           directories: z.array(z.string()).optional().describe("New list of directories (replaces existing list)"),
         },
         async (args) => {
-          const config = readAgentJson(args.id);
-          if (!config) return err(`Agent not found: ${args.id}`);
+          const partial: Partial<AgentJson> = {};
+          if (args.name !== undefined) partial.name = args.name;
+          if (args.description !== undefined) partial.description = args.description;
+          if (args.identity !== undefined) partial.identity = args.identity;
+          if (args.instructions !== undefined) partial.instructions = args.instructions;
+          if (args.directories !== undefined) partial.directories = args.directories;
 
-          if (args.name !== undefined) config.name = args.name;
-          if (args.description !== undefined) config.description = args.description;
-          if (args.identity !== undefined) config.identity = args.identity;
-          if (args.instructions !== undefined) config.instructions = args.instructions;
-          if (args.directories !== undefined) config.directories = args.directories;
-
-          writeAgentJson(args.id, config);
-          return ok(`Updated agent "${args.id}"`);
+          try {
+            agentStore.update(args.id, partial);
+            return ok(`Updated agent "${args.id}"`);
+          } catch (e) {
+            return err((e as Error).message);
+          }
         },
       ),
 
@@ -136,10 +127,8 @@ export function createAgentManagementMcpServer(): McpSdkServerConfigWithInstance
           id: z.string().describe("Agent identifier to delete"),
         },
         async (args) => {
-          const dir = agentDir(args.id);
-          if (!fs.existsSync(dir)) return err(`Agent not found: ${args.id}`);
-
-          fs.rmSync(dir, { recursive: true });
+          if (!agentStore.get(args.id)) return err(`Agent not found: ${args.id}`);
+          agentStore.delete(args.id);
           return ok(`Deleted agent "${args.id}" and all its data`);
         },
       ),
@@ -164,11 +153,9 @@ export function createAgentManagementMcpServer(): McpSdkServerConfigWithInstance
 
           // Update display name in config if requested
           if (args.newName) {
-            const config = readAgentJson(args.id);
-            if (config) {
-              config.name = args.newName;
-              writeAgentJson(args.id, config);
-            }
+            try {
+              agentStore.update(args.id, { name: args.newName });
+            } catch { /* ignore if agent not found — rename handles it */ }
           }
 
           // Rename directory if ID changed
@@ -209,8 +196,8 @@ export function createAgentManagementMcpServer(): McpSdkServerConfigWithInstance
           triggers: z.string().describe("Full triggers.json content as a JSON string"),
         },
         async (args) => {
+          if (!agentStore.get(args.id)) return err(`Agent not found: ${args.id}`);
           const dir = agentDir(args.id);
-          if (!fs.existsSync(dir)) return err(`Agent not found: ${args.id}`);
 
           let parsed: unknown;
           try {
@@ -262,7 +249,7 @@ export function createAgentManagementMcpServer(): McpSdkServerConfigWithInstance
 }
 
 export function createSelfManagementMcpServer(
-  selfAgentDir: string,
+  agentId: string,
 ): McpSdkServerConfigWithInstance {
   return createSdkMcpServer({
     name: "self",
@@ -277,14 +264,8 @@ export function createSelfManagementMcpServer(
             .describe("Your new instructions — how you operate"),
         },
         async (args) => {
-          const configPath = path.join(selfAgentDir, "agent.json");
-          if (!fs.existsSync(configPath)) {
-            return err("Agent configuration not found");
-          }
           try {
-            const config = JSON.parse(fs.readFileSync(configPath, "utf-8"));
-            config.instructions = args.content;
-            fs.writeFileSync(configPath, JSON.stringify(config, null, 2) + "\n");
+            agentStore.update(agentId, { instructions: args.content });
             return ok(`Updated instructions (${args.content.length} chars)`);
           } catch (e) {
             return err(`Failed to update: ${(e as Error).message}`);
@@ -297,16 +278,9 @@ export function createSelfManagementMcpServer(
         "Read your current instructions before updating.",
         {},
         async () => {
-          const configPath = path.join(selfAgentDir, "agent.json");
-          if (!fs.existsSync(configPath)) {
-            return err("Agent configuration not found");
-          }
-          try {
-            const config = JSON.parse(fs.readFileSync(configPath, "utf-8"));
-            return ok(config.instructions ?? "(no instructions set)");
-          } catch (e) {
-            return err(`Failed to read: ${(e as Error).message}`);
-          }
+          const config = agentStore.getJson(agentId);
+          if (!config) return err("Agent configuration not found");
+          return ok(config.instructions ?? "(no instructions set)");
         },
       ),
 
@@ -315,16 +289,11 @@ export function createSelfManagementMcpServer(
         "List your current responsibilities — what you are responsible for doing.",
         {},
         async () => {
-          const configPath = path.join(selfAgentDir, "agent.json");
-          if (!fs.existsSync(configPath)) return err("Agent configuration not found");
-          try {
-            const config = JSON.parse(fs.readFileSync(configPath, "utf-8"));
-            const responsibilities = config.responsibilities ?? [];
-            if (responsibilities.length === 0) return ok("No responsibilities defined.");
-            return ok(JSON.stringify(responsibilities, null, 2));
-          } catch (e) {
-            return err(`Failed to read: ${(e as Error).message}`);
-          }
+          const config = agentStore.getJson(agentId);
+          if (!config) return err("Agent configuration not found");
+          const responsibilities = config.responsibilities ?? [];
+          if (responsibilities.length === 0) return ok("No responsibilities defined.");
+          return ok(JSON.stringify(responsibilities, null, 2));
         },
       ),
 
@@ -336,17 +305,15 @@ export function createSelfManagementMcpServer(
           content: z.string().min(1).describe("Instruction text — goals, behavior, context for this responsibility"),
         },
         async (args) => {
-          const configPath = path.join(selfAgentDir, "agent.json");
-          if (!fs.existsSync(configPath)) return err("Agent configuration not found");
+          const config = agentStore.getJson(agentId);
+          if (!config) return err("Agent configuration not found");
+          const responsibilities = config.responsibilities ?? [];
+          if (responsibilities.some((r: { title: string }) => r.title === args.title)) {
+            return err(`Responsibility "${args.title}" already exists. Use update_responsibility to modify it.`);
+          }
+          responsibilities.push({ title: args.title, content: args.content });
           try {
-            const config = JSON.parse(fs.readFileSync(configPath, "utf-8"));
-            const responsibilities = config.responsibilities ?? [];
-            if (responsibilities.some((r: { title: string }) => r.title === args.title)) {
-              return err(`Responsibility "${args.title}" already exists. Use update_responsibility to modify it.`);
-            }
-            responsibilities.push({ title: args.title, content: args.content });
-            config.responsibilities = responsibilities;
-            fs.writeFileSync(configPath, JSON.stringify(config, null, 2) + "\n");
+            agentStore.update(agentId, { responsibilities });
             return ok(`Added responsibility "${args.title}"`);
           } catch (e) {
             return err(`Failed to add: ${(e as Error).message}`);
@@ -362,16 +329,14 @@ export function createSelfManagementMcpServer(
           content: z.string().min(1).describe("New instruction text for this responsibility"),
         },
         async (args) => {
-          const configPath = path.join(selfAgentDir, "agent.json");
-          if (!fs.existsSync(configPath)) return err("Agent configuration not found");
+          const config = agentStore.getJson(agentId);
+          if (!config) return err("Agent configuration not found");
+          const responsibilities = config.responsibilities ?? [];
+          const idx = responsibilities.findIndex((r: { title: string }) => r.title === args.title);
+          if (idx === -1) return err(`Responsibility "${args.title}" not found.`);
+          responsibilities[idx]!.content = args.content;
           try {
-            const config = JSON.parse(fs.readFileSync(configPath, "utf-8"));
-            const responsibilities = config.responsibilities ?? [];
-            const idx = responsibilities.findIndex((r: { title: string }) => r.title === args.title);
-            if (idx === -1) return err(`Responsibility "${args.title}" not found.`);
-            responsibilities[idx].content = args.content;
-            config.responsibilities = responsibilities;
-            fs.writeFileSync(configPath, JSON.stringify(config, null, 2) + "\n");
+            agentStore.update(agentId, { responsibilities });
             return ok(`Updated responsibility "${args.title}"`);
           } catch (e) {
             return err(`Failed to update: ${(e as Error).message}`);
@@ -386,16 +351,14 @@ export function createSelfManagementMcpServer(
           title: z.string().min(1).describe("Title of the responsibility to remove"),
         },
         async (args) => {
-          const configPath = path.join(selfAgentDir, "agent.json");
-          if (!fs.existsSync(configPath)) return err("Agent configuration not found");
+          const config = agentStore.getJson(agentId);
+          if (!config) return err("Agent configuration not found");
+          const responsibilities = config.responsibilities ?? [];
+          const idx = responsibilities.findIndex((r: { title: string }) => r.title === args.title);
+          if (idx === -1) return err(`Responsibility "${args.title}" not found.`);
+          responsibilities.splice(idx, 1);
           try {
-            const config = JSON.parse(fs.readFileSync(configPath, "utf-8"));
-            const responsibilities = config.responsibilities ?? [];
-            const idx = responsibilities.findIndex((r: { title: string }) => r.title === args.title);
-            if (idx === -1) return err(`Responsibility "${args.title}" not found.`);
-            responsibilities.splice(idx, 1);
-            config.responsibilities = responsibilities.length > 0 ? responsibilities : undefined;
-            fs.writeFileSync(configPath, JSON.stringify(config, null, 2) + "\n");
+            agentStore.update(agentId, { responsibilities: responsibilities.length > 0 ? responsibilities : undefined });
             return ok(`Removed responsibility "${args.title}"`);
           } catch (e) {
             return err(`Failed to remove: ${(e as Error).message}`);

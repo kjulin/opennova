@@ -3,7 +3,7 @@ import path from "path";
 import { Bot, InlineKeyboard, InputFile, Keyboard } from "grammy";
 import {
   Config,
-  loadAgents,
+  agentStore,
   listThreads,
   createThread,
   getThreadManifest,
@@ -73,7 +73,7 @@ export function startAgentTelegram(
     return null;
   }
 
-  const agents = loadAgents();
+  const agents = agentStore.list();
   const agent = agents.get(agentId);
   if (!agent) {
     log.warn("telegram-agent", `agent ${agentId}: skipped (agent not found)`);

@@ -1,5 +1,5 @@
 import { Hono } from "hono"
-import { loadAgents } from "#core/agents/index.js"
+import { agentStore } from "#core/agents/index.js"
 import { CronExpressionParser } from "cron-parser"
 import crypto from "crypto"
 import fs from "fs"
@@ -27,7 +27,7 @@ export function createConsoleTriggersRouter(workspaceDir: string): Hono {
 
   // List all triggers (cross-agent)
   app.get("/", (c) => {
-    const agentsMap = loadAgents()
+    const agentsMap = agentStore.list()
     const allTriggers: unknown[] = []
 
     for (const [agentId, agent] of agentsMap) {
@@ -45,7 +45,7 @@ export function createConsoleTriggersRouter(workspaceDir: string): Hono {
   // List triggers for one agent
   app.get("/agent/:agentId", (c) => {
     const agentId = c.req.param("agentId")
-    const agentsMap = loadAgents()
+    const agentsMap = agentStore.list()
     const agent = agentsMap.get(agentId)
     if (!agent) {
       return c.json({ error: "Agent not found" }, 404)
@@ -64,7 +64,7 @@ export function createConsoleTriggersRouter(workspaceDir: string): Hono {
   // Create trigger for an agent
   app.post("/agent/:agentId", async (c) => {
     const agentId = c.req.param("agentId")
-    const agentsMap = loadAgents()
+    const agentsMap = agentStore.list()
     const agent = agentsMap.get(agentId)
     if (!agent) {
       return c.json({ error: "Agent not found" }, 404)
@@ -102,7 +102,7 @@ export function createConsoleTriggersRouter(workspaceDir: string): Hono {
   // Update trigger by triggerId
   app.patch("/:triggerId", async (c) => {
     const triggerId = c.req.param("triggerId")
-    const agentsMap = loadAgents()
+    const agentsMap = agentStore.list()
     const body = await c.req.json()
 
     for (const [agentId, agent] of agentsMap) {
@@ -137,7 +137,7 @@ export function createConsoleTriggersRouter(workspaceDir: string): Hono {
   // Delete trigger by triggerId
   app.delete("/:triggerId", (c) => {
     const triggerId = c.req.param("triggerId")
-    const agentsMap = loadAgents()
+    const agentsMap = agentStore.list()
 
     for (const [agentId] of agentsMap) {
       const triggers = loadTriggers(workspaceDir, agentId)

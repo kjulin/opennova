@@ -1,6 +1,6 @@
 import { Hono } from "hono"
 import { activateSkill, deactivateSkill, deleteSkillFromLibrary } from "#core/skills.js"
-import { loadAllAgents } from "#core/agents/index.js"
+import { agentStore } from "#core/agents/index.js"
 import fs from "fs"
 import path from "path"
 
@@ -37,7 +37,7 @@ function buildFrontmatter(meta: Frontmatter, body: string): string {
 }
 
 function getAssignedAgents(_workspaceDir: string, skillName: string): string[] {
-  const agents = loadAllAgents()
+  const agents = agentStore.list()
   const assigned: string[] = []
   for (const [id, agent] of agents) {
     if (agent.skills?.includes(skillName)) {

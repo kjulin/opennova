@@ -13,7 +13,7 @@ import type { Context, NextFunction } from "grammy";
 import fs from "fs";
 import {
   Config,
-  loadAgents,
+  agentStore,
   runAgent,
   getThreadManifest,
   createThread,
@@ -160,7 +160,7 @@ async function handleGeneralTopicMessage(
 
   // /new — create fresh thread
   if (text === "/new") {
-    const agents = loadAgents();
+    const agents = agentStore.list();
     const agent = agents.get("nova");
     if (!agent) {
       await ctx.reply("Nova agent not available.");
@@ -174,7 +174,7 @@ async function handleGeneralTopicMessage(
   }
 
   // Route to nova agent
-  const agents = loadAgents();
+  const agents = agentStore.list();
   const agent = agents.get("nova");
   if (!agent) {
     await ctx.reply("Nova agent not available.");
@@ -310,7 +310,7 @@ async function handleTopicReply(
     return;
   }
 
-  const agents = loadAgents();
+  const agents = agentStore.list();
   const agent = agents.get(task.owner);
   if (!agent) {
     await ctx.reply(`Agent "${task.owner}" not found.`, { message_thread_id: topicId });

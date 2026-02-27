@@ -2,7 +2,7 @@ import path from "path";
 import type { McpServerConfig } from "@anthropic-ai/claude-agent-sdk";
 import type { Model } from "./models.js";
 import { claudeEngine, generateThreadTitle, type Engine, type EngineCallbacks, type EngineEvent, type EngineOptions } from "./engine/index.js";
-import { loadAgents, getAgentCwd, getAgentDirectories } from "./agents/index.js";
+import { getAgentCwd, getAgentDirectories, agentStore } from "./agents/index.js";
 import { Config } from "./config.js";
 import { buildSystemPrompt } from "./prompts/index.js";
 import { resolveCapabilities, resolveInjections, type ResolverContext } from "./capabilities.js";
@@ -68,8 +68,7 @@ export function createAgentRunner(engine: Engine = claudeEngine): AgentRunner {
       const manifest = loadManifest(filePath);
 
       const agentId = path.basename(agentDir);
-      const agents = loadAgents();
-      const agent = agents.get(agentId);
+      const agent = agentStore.get(agentId);
       if (!agent) throw new Error(`Agent not found: ${agentId}`);
 
       log.info("agent-runner", `starting thread ${threadId} for agent ${agentId}`);

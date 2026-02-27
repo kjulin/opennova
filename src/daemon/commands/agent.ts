@@ -3,13 +3,13 @@ import path from "path";
 import readline from "readline/promises";
 import { resolveWorkspace } from "../workspace.js";
 import { TrustLevel, TelegramConfigSchema, safeParseJsonFile } from "#core/index.js";
+import { agentStore } from "#core/agents/index.js";
 import { askRequired, pairTelegramChat } from "../telegram-pairing.js";
 
 const VALID_LEVELS = TrustLevel.options;
 
 export async function run() {
   const workspaceDir = resolveWorkspace();
-  const agentsDir = path.join(workspaceDir, "agents");
 
   if (!fs.existsSync(workspaceDir)) {
     console.error(`No workspace found at ${workspaceDir}. Run 'nova init' first.`);
@@ -20,28 +20,20 @@ export async function run() {
 
   // nova agent — list all agents
   if (!agentId) {
-    if (!fs.existsSync(agentsDir)) {
+    const agents = agentStore.list();
+    if (agents.size === 0) {
       console.log("No agents found.");
       return;
     }
-    const dirs = fs.readdirSync(agentsDir, { withFileTypes: true }).filter((d) => d.isDirectory());
-    for (const dir of dirs) {
-      const configPath = path.join(agentsDir, dir.name, "agent.json");
-      if (!fs.existsSync(configPath)) continue;
-      try {
-        const config = JSON.parse(fs.readFileSync(configPath, "utf-8"));
-        console.log(`${dir.name}  ${config.name || dir.name} [${config.trust}]`);
-      } catch {
-        console.log(dir.name);
-      }
+    for (const [id, agent] of agents) {
+      console.log(`${id}  ${agent.name} [${agent.trust}]`);
     }
     return;
   }
 
   // Verify agent exists
-  const agentDir = path.join(agentsDir, agentId);
-  const configPath = path.join(agentDir, "agent.json");
-  if (!fs.existsSync(configPath)) {
+  const agent = agentStore.get(agentId);
+  if (!agent) {
     console.error(`Agent not found: ${agentId}`);
     process.exit(1);
   }
@@ -50,17 +42,16 @@ export async function run() {
 
   // nova agent <id> — show agent details
   if (!subcommand) {
-    const config = JSON.parse(fs.readFileSync(configPath, "utf-8"));
-    console.log(`Name:       ${config.name || agentId}`);
+    console.log(`Name:       ${agent.name}`);
     console.log(`ID:         ${agentId}`);
-    if (config.description) console.log(`Desc:       ${config.description}`);
-    console.log(`Trust:      ${config.trust}`);
-    if (config.cwd) console.log(`Directory:  ${config.cwd}`);
-    if (config.directories && config.directories.length > 0) {
-      console.log(`Extra dirs: ${config.directories.join(", ")}`);
+    if (agent.description) console.log(`Desc:       ${agent.description}`);
+    console.log(`Trust:      ${agent.trust}`);
+    if ((agent as Record<string, unknown>).cwd) console.log(`Directory:  ${(agent as Record<string, unknown>).cwd}`);
+    if (agent.directories && agent.directories.length > 0) {
+      console.log(`Extra dirs: ${agent.directories.join(", ")}`);
     }
-    if (config.subagents) {
-      console.log(`Subagents:  ${Object.keys(config.subagents).join(", ")}`);
+    if (agent.subagents) {
+      console.log(`Subagents:  ${Object.keys(agent.subagents).join(", ")}`);
     }
     // Check for dedicated Telegram bot
     const telegramConfigPath = path.join(workspaceDir, "telegram.json");
@@ -73,6 +64,7 @@ export async function run() {
         }
       }
     }
+    const agentDir = path.join(workspaceDir, "agents", agentId);
     const threadsDir = path.join(agentDir, "threads");
     if (fs.existsSync(threadsDir)) {
       const count = fs.readdirSync(threadsDir).filter((f) => f.endsWith(".jsonl")).length;
@@ -96,9 +88,7 @@ export async function run() {
       process.exit(1);
     }
 
-    const config = JSON.parse(fs.readFileSync(configPath, "utf-8"));
-    config.trust = level;
-    fs.writeFileSync(configPath, JSON.stringify(config, null, 2) + "\n");
+    agentStore.update(agentId, { trust: level as typeof VALID_LEVELS[number] });
     console.log(`Set ${agentId} trust to ${level}`);
     return;
   }
@@ -135,8 +125,7 @@ export async function run() {
     }
 
     // Setup flow
-    const agentConfig = JSON.parse(fs.readFileSync(configPath, "utf-8"));
-    const agentName = agentConfig.name || agentId;
+    const agentName = agent.name;
 
     console.log(`\n-- Telegram Bot Setup for ${agentName} --`);
     console.log("You'll need a bot token from @BotFather in Telegram.");
