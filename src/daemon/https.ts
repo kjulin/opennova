@@ -236,9 +236,9 @@ export function createApp(workspaceDir: string): Hono {
 
   // Console app
   const consoleDir = path.resolve(import.meta.dirname, "..", "console");
-  const consoleStaticHandler = createStaticHandler(consoleDir, "/web/console");
-  app.get("/web/console", (c) => c.redirect("/web/console/"));
-  app.get("/web/console/*", (c) => {
+  // Console SPA at root (catch-all — must be last)
+  const consoleStaticHandler = createStaticHandler(consoleDir, "");
+  app.get("/*", (c) => {
     const result = consoleStaticHandler(c);
     // SPA fallback: if static file not found, serve index.html for client-side routing
     if (result instanceof Response && result.status === 404) {

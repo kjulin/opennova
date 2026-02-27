@@ -23,7 +23,6 @@
     "build": "tsc && npm run build:webapp && npm run build:console",
     "build:webapp": "cd web/tasks && npm install --ignore-scripts && npm run build && rm -rf ../../dist/webapp && mkdir -p ../../dist/webapp && cp -r dist/* ../../dist/webapp/",
     "build:console": "cd web/console && npm install --ignore-scripts && npm run build && rm -rf ../../dist/console && mkdir -p ../../dist/console && cp -r dist/* ../../dist/console/",
-    "build:cloud": "cd web/console && npm install --ignore-scripts && BUILD_TARGET=cloud npm run build",
     "start": "node dist/daemon/index.js",
     "test": "vitest run",
     "test:watch": "vitest",

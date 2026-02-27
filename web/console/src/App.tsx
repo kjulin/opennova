@@ -11,8 +11,6 @@ import { UsagePage } from "@/pages/UsagePage";
 import { PairPage } from "@/pages/PairPage";
 import { isCloudMode, getCloudSession } from "@/lib/transport";
 
-const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
-
 function CloudGuard({ children }: { children: React.ReactNode }) {
   if (isCloudMode() && !getCloudSession()) {
     return (
@@ -31,11 +29,11 @@ function CloudGuard({ children }: { children: React.ReactNode }) {
 
 const router = createBrowserRouter([
   {
-    path: `${BASE}/pair`,
+    path: "/pair",
     element: <PairPage />,
   },
   {
-    path: BASE || "/",
+    path: "/",
     element: (
       <CloudGuard>
         <AppShell />

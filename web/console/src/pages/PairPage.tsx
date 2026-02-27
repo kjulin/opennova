@@ -26,7 +26,7 @@ export function PairPage() {
         setCloudSession({ workspaceId, bearer });
         setState("success");
         setTimeout(() => {
-          navigate(import.meta.env.BASE_URL || "/");
+          navigate("/");
         }, 1000);
       })
       .catch((err) => {

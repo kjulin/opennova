@@ -3,11 +3,9 @@ import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import path from "path";
 
-const isCloudBuild = process.env.BUILD_TARGET === "cloud";
-
 export default defineConfig({
   plugins: [react(), tailwindcss()],
-  base: isCloudBuild ? "/" : "/web/console/",
+  base: "/",
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),

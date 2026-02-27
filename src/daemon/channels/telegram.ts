@@ -394,7 +394,7 @@ export function startTelegram() {
         await ctx.reply("Set your Nova URL: `nova config set settings.url https://your-domain.com`");
         return;
       }
-      const url = `${publicUrl}/web/console/`;
+      const url = `${publicUrl}/`;
       const keyboard = new InlineKeyboard();
       keyboard.url("Open Console", url).row();
       await ctx.reply(`*Admin Console*\n\nManage your agents, skills, triggers, and secrets.`, {

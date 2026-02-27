@@ -233,7 +233,7 @@ export async function run() {
   if (healthy) {
     const consoleUrl = accessMode === "cloud"
       ? "https://my.outernova.cloud"
-      : `http://localhost:${port}/web/console/`;
+      : `http://localhost:${port}/`;
     const lines: string[] = [
       "Nova is running!", "",
       `Console:  ${consoleUrl}`,
