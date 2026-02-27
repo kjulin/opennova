@@ -21,18 +21,25 @@ export function resolveBackupDir(): string {
 export function workspaceSummary(dir: string): { agents: number; threads: number } {
   let agents = 0;
   let threads = 0;
+
+  // Count agents from agent-store/
+  const storeDir = path.join(dir, "agent-store");
+  if (fs.existsSync(storeDir)) {
+    agents = fs.readdirSync(storeDir).filter((f) => f.endsWith(".json")).length;
+  }
+
+  // Count threads from agents/{id}/threads/
   const agentsDir = path.join(dir, "agents");
   if (fs.existsSync(agentsDir)) {
     for (const entry of fs.readdirSync(agentsDir, { withFileTypes: true })) {
       if (!entry.isDirectory()) continue;
-      if (!fs.existsSync(path.join(agentsDir, entry.name, "agent.json"))) continue;
-      agents++;
       const threadsDir = path.join(agentsDir, entry.name, "threads");
       if (fs.existsSync(threadsDir)) {
         threads += fs.readdirSync(threadsDir).filter((f) => f.endsWith(".jsonl")).length;
       }
     }
   }
+
   return { agents, threads };
 }
 
