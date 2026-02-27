@@ -34,13 +34,15 @@ export function start() {
     }
   }
 
-  // Start server (HTTP or HTTPS depending on cert availability)
+  // Start server (skipped in cloud mode)
   const server = startServer(Config.workspaceDir);
-  log.info("daemon", `server: ${server.hostname === "localhost" ? "http" : "https"}://${server.hostname}:${server.port}`);
+  if (server) {
+    log.info("daemon", `server: http://${server.hostname}:${server.port}`);
+  }
 
   // Write PID file
   const pidFile = path.join(Config.workspaceDir, "daemon.pid");
-  fs.writeFileSync(pidFile, JSON.stringify({ pid: process.pid, port: server.port }) + "\n");
+  fs.writeFileSync(pidFile, JSON.stringify({ pid: process.pid, port: server?.port ?? 0 }) + "\n");
 
   const triggerInterval = startTriggerScheduler();
   const taskScheduler = startTaskScheduler();
@@ -52,7 +54,7 @@ export function start() {
     clearInterval(triggerInterval);
     taskScheduler.stop();
     episodicBackfillScheduler.stop();
-    server.shutdown();
+    server?.shutdown();
     const channelShutdown = getCurrentShutdown();
     if (channelShutdown) channelShutdown();
     try { fs.unlinkSync(pidFile); } catch { /* ignore */ }

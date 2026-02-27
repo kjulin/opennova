@@ -4,6 +4,7 @@ import path from "path";
 import { Hono, type Context } from "hono";
 import { serve } from "@hono/node-server";
 import { log } from "./logger.js";
+import { getConsoleAccess } from "./workspace.js";
 import { loadAgents } from "#core/agents/index.js";
 import {
   loadTasks,
@@ -254,21 +255,29 @@ function createApp(workspaceDir: string): Hono {
   return app;
 }
 
-export function startServer(workspaceDir: string): DaemonServer {
+export function startServer(workspaceDir: string): DaemonServer | null {
+  const mode = getConsoleAccess();
+
+  if (mode === "cloud") {
+    log.info("https", "console access is 'cloud' — HTTP server not started");
+    return null;
+  }
+
+  const hostname = mode === "network" ? "0.0.0.0" : "127.0.0.1";
   const app = createApp(workspaceDir);
 
   const server = serve({
     fetch: app.fetch,
     port: PORT,
-    hostname: "0.0.0.0",
+    hostname,
     createServer: http.createServer,
   });
 
-  log.info("https", `server listening on http://0.0.0.0:${PORT}`);
+  log.info("https", `server listening on http://${hostname}:${PORT} (${mode} mode)`);
 
   return {
     port: PORT,
-    hostname: "localhost",
+    hostname,
     shutdown: () => {
       server.close();
     },

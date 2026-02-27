@@ -6,6 +6,7 @@ import { execFileSync } from "child_process";
 import { detectAuth } from "../auth.js";
 import { Config } from "#core/config.js";
 import { downloadEmbeddingModel, isModelAvailable } from "#core/episodic/index.js";
+import { setConfigValue } from "../workspace.js";
 import { waitForHealth } from "./utils.js";
 
 const platform = process.platform;
@@ -168,6 +169,18 @@ export async function run() {
 
   // Ensure logs directory exists
   fs.mkdirSync(path.join(workspace, "logs"), { recursive: true });
+
+  // 4. Console access mode
+  const rl2 = readline.createInterface({ input: process.stdin, output: process.stdout });
+  console.log("Console access mode:");
+  console.log("  1) Local — localhost only (default)");
+  console.log("  2) Network — accessible from LAN");
+  console.log("  3) Cloud — relay via Supabase");
+  const accessAnswer = (await rl2.question("Choose [1]: ")).trim();
+  rl2.close();
+
+  const accessMode = accessAnswer === "2" ? "network" : accessAnswer === "3" ? "cloud" : "local";
+  setConfigValue(workspace, "settings.consoleAccess", accessMode);
 
   // Download embeddings model if needed
   Config.workspaceDir = workspace;
