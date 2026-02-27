@@ -1,5 +1,4 @@
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
-import { AuthGate } from "@/components/AuthGate";
 import { AppShell } from "@/components/AppShell";
 import { AgentsPage } from "@/pages/AgentsPage";
 import { AgentDetailPage } from "@/pages/AgentDetailPage";
@@ -29,8 +28,6 @@ const router = createBrowserRouter([
 
 export default function App() {
   return (
-    <AuthGate>
-      <RouterProvider router={router} />
-    </AuthGate>
+    <RouterProvider router={router} />
   );
 }
