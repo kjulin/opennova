@@ -1,7 +1,7 @@
 import crypto from "crypto";
 import fs from "fs";
 import path from "path";
-import type { AgentJson } from "../schemas.js";
+import type { AgentJsonInput } from "../schemas.js";
 import { z } from "zod/v4";
 import { CronExpressionParser } from "cron-parser";
 import {
@@ -55,7 +55,7 @@ export function createAgentManagementMcpServer(): McpSdkServerConfigWithInstance
           id: z.string().describe("Agent identifier (directory name)"),
         },
         async (args) => {
-          const config = agentStore.getJson(args.id);
+          const config = agentStore.get(args.id);
           if (!config) return err(`Agent not found: ${args.id}`);
           return ok(JSON.stringify({ id: args.id, config }, null, 2));
         },
@@ -104,7 +104,7 @@ export function createAgentManagementMcpServer(): McpSdkServerConfigWithInstance
           directories: z.array(z.string()).optional().describe("New list of directories (replaces existing list)"),
         },
         async (args) => {
-          const partial: Partial<AgentJson> = {};
+          const partial: Partial<AgentJsonInput> = {};
           if (args.name !== undefined) partial.name = args.name;
           if (args.description !== undefined) partial.description = args.description;
           if (args.identity !== undefined) partial.identity = args.identity;
@@ -278,7 +278,7 @@ export function createSelfManagementMcpServer(
         "Read your current instructions before updating.",
         {},
         async () => {
-          const config = agentStore.getJson(agentId);
+          const config = agentStore.get(agentId);
           if (!config) return err("Agent configuration not found");
           return ok(config.instructions ?? "(no instructions set)");
         },
@@ -289,7 +289,7 @@ export function createSelfManagementMcpServer(
         "List your current responsibilities — what you are responsible for doing.",
         {},
         async () => {
-          const config = agentStore.getJson(agentId);
+          const config = agentStore.get(agentId);
           if (!config) return err("Agent configuration not found");
           const responsibilities = config.responsibilities ?? [];
           if (responsibilities.length === 0) return ok("No responsibilities defined.");
@@ -305,7 +305,7 @@ export function createSelfManagementMcpServer(
           content: z.string().min(1).describe("Instruction text — goals, behavior, context for this responsibility"),
         },
         async (args) => {
-          const config = agentStore.getJson(agentId);
+          const config = agentStore.get(agentId);
           if (!config) return err("Agent configuration not found");
           const responsibilities = config.responsibilities ?? [];
           if (responsibilities.some((r: { title: string }) => r.title === args.title)) {
@@ -329,7 +329,7 @@ export function createSelfManagementMcpServer(
           content: z.string().min(1).describe("New instruction text for this responsibility"),
         },
         async (args) => {
-          const config = agentStore.getJson(agentId);
+          const config = agentStore.get(agentId);
           if (!config) return err("Agent configuration not found");
           const responsibilities = config.responsibilities ?? [];
           const idx = responsibilities.findIndex((r: { title: string }) => r.title === args.title);
@@ -351,7 +351,7 @@ export function createSelfManagementMcpServer(
           title: z.string().min(1).describe("Title of the responsibility to remove"),
         },
         async (args) => {
-          const config = agentStore.getJson(agentId);
+          const config = agentStore.get(agentId);
           if (!config) return err("Agent configuration not found");
           const responsibilities = config.responsibilities ?? [];
           const idx = responsibilities.findIndex((r: { title: string }) => r.title === args.title);

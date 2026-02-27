@@ -5,7 +5,7 @@ import { Config } from "../config.js";
 import { agentStore } from "./singleton.js";
 import type { AgentConfig } from "../schemas.js";
 
-export type { AgentJson, AgentConfig } from "../schemas.js";
+export type { AgentJson, AgentJsonInput, AgentConfig } from "../schemas.js";
 
 export function loadAgents(): Map<string, AgentConfig> {
   return agentStore.list();

@@ -1,5 +1,5 @@
 import fs from "fs";
-import type { AgentConfig, AgentJson } from "../schemas.js";
+import type { AgentConfig, AgentJsonInput } from "../schemas.js";
 import {
   agentDir,
   validateAgentId,
@@ -12,9 +12,8 @@ import {
 export interface AgentStore {
   list(): Map<string, AgentConfig>;
   get(id: string): AgentConfig | null;
-  getJson(id: string): AgentJson | null;
-  create(id: string, config: AgentJson): void;
-  update(id: string, partial: Partial<AgentJson>): void;
+  create(id: string, config: AgentJsonInput): void;
+  update(id: string, partial: Partial<AgentJsonInput>): void;
   delete(id: string): void;
 }
 
@@ -27,11 +26,7 @@ export class FilesystemAgentStore implements AgentStore {
     return loadAgentConfig(id);
   }
 
-  getJson(id: string): AgentJson | null {
-    return readAgentJson(id);
-  }
-
-  create(id: string, config: AgentJson): void {
+  create(id: string, config: AgentJsonInput): void {
     const error = validateAgentId(id);
     if (error) throw new Error(error);
     if (readAgentJson(id)) {
@@ -40,7 +35,7 @@ export class FilesystemAgentStore implements AgentStore {
     writeAgentJson(id, config);
   }
 
-  update(id: string, partial: Partial<AgentJson>): void {
+  update(id: string, partial: Partial<AgentJsonInput>): void {
     const existing = readAgentJson(id);
     if (!existing) throw new Error(`Agent not found: ${id}`);
     const merged = { ...existing, ...partial };

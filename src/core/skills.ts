@@ -14,7 +14,7 @@ export function activateSkill(workspaceDir: string, skillName: string, agentId: 
   }
 
   // Update agent.json (source of truth)
-  const agentJson = agentStore.getJson(agentId);
+  const agentJson = agentStore.get(agentId);
   if (agentJson) {
     const skills = agentJson.skills ?? [];
     if (!skills.includes(skillName)) {
@@ -44,7 +44,7 @@ export function activateSkill(workspaceDir: string, skillName: string, agentId: 
  */
 export function deactivateSkill(workspaceDir: string, skillName: string, agentId: string): void {
   // Update agent.json (source of truth)
-  const agentJson = agentStore.getJson(agentId);
+  const agentJson = agentStore.get(agentId);
   if (agentJson && agentJson.skills) {
     agentStore.update(agentId, { skills: agentJson.skills.filter((s) => s !== skillName) });
   }

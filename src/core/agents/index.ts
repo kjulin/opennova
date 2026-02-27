@@ -4,6 +4,7 @@ export {
   getAgentDirectories,
   type AgentConfig,
   type AgentJson,
+  type AgentJsonInput,
 } from "./agents.js";
 
 export {

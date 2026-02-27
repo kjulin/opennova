@@ -6,7 +6,7 @@ import {
   AgentJsonSchema,
   VALID_AGENT_ID,
   TrustLevel,
-  type AgentJson,
+  type AgentJsonInput,
 } from "#core/schemas.js"
 import fs from "fs"
 import path from "path"
@@ -24,7 +24,7 @@ function loadAgentDetail(workspaceDir: string, id: string, agent: { name: string
   }
 
   // Load skills from agent.json (source of truth)
-  const agentJson = agentStore.getJson(id)
+  const agentJson = agentStore.get(id)
   const skills: string[] = agentJson?.skills ?? []
 
   return {
@@ -102,7 +102,7 @@ export function createConsoleAgentsRouter(workspaceDir: string): Hono {
       }
     }
 
-    const agentJson: AgentJson = { name: agentData.name, identity: agentData.identity, trust: agentData.trust, model: "sonnet" }
+    const agentJson: AgentJsonInput = { name: agentData.name, identity: agentData.identity, trust: agentData.trust, model: "sonnet" }
     if (agentData.description) agentJson.description = agentData.description
     if (agentData.instructions) agentJson.instructions = agentData.instructions
     if (agentData.directories && agentData.directories.length > 0) agentJson.directories = agentData.directories
@@ -155,7 +155,7 @@ export function createConsoleAgentsRouter(workspaceDir: string): Hono {
       }
     }
 
-    agentStore.update(id, partial as Partial<AgentJson>)
+    agentStore.update(id, partial as Partial<AgentJsonInput>)
 
     const updated = agentStore.get(id)
     if (!updated) {

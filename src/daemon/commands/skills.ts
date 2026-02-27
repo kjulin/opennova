@@ -26,7 +26,7 @@ async function list(workspaceDir: string) {
   const { agent } = parseArgs();
 
   if (agent) {
-    const agentJson = agentStore.getJson(agent);
+    const agentJson = agentStore.get(agent);
     if (!agentJson) {
       console.error(`Agent not found: ${agent}`);
       process.exit(1);
@@ -102,7 +102,7 @@ async function link(workspaceDir: string) {
     }
     console.log(`Activated ${name} for all agents`);
   } else {
-    const agentJson = agentStore.getJson(agent);
+    const agentJson = agentStore.get(agent);
     if (!agentJson) {
       console.error(`Agent not found: ${agent}`);
       process.exit(1);
@@ -133,7 +133,7 @@ async function unlink(workspaceDir: string) {
     }
     console.log(`Deactivated ${name} for all agents`);
   } else {
-    const agentJson = agentStore.getJson(agent);
+    const agentJson = agentStore.get(agent);
     if (!agentJson) {
       console.error(`Agent not found: ${agent}`);
       process.exit(1);
