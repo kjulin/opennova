@@ -114,50 +114,6 @@ Implementations MAY validate:
 
 Validation failures MUST throw clear errors with the validation rule that failed.
 
-## Implementation Variants
-
-### FilesystemAgentStore
-
-**Storage:**
-- Agents stored as `{workspaceDir}/agents/{id}/agent.json`
-- ID derived from directory name
-- Skills materialized separately (not part of read/write)
-
-**Caching:**
-- No caching (reads from disk every time)
-- Rationale: filesystem is already fast, caching adds complexity
-
-**Skill validation:**
-- Does NOT validate skill existence on write (lazy validation at materialization)
-- Allows agents to reference skills that don't exist yet
-- Fails at runtime (agent invocation) if skill missing
-
-### InMemoryAgentStore
-
-**Storage:**
-- Agents stored in `Map<string, AgentConfig>`
-- Injected at construction for tests
-
-**Caching:**
-- N/A (everything in memory)
-
-**Skill validation:**
-- Does NOT validate skills (tests inject arbitrary configs)
-
-### DatabaseAgentStore
-
-**Storage:**
-- Agents stored in database rows (Supabase, Firebase, etc.)
-- Config serialized as JSON column
-- ID is primary key
-
-**Caching:**
-- Optional query cache (implementation-specific)
-- May use TTL or invalidation on write
-
-**Skill validation:**
-- Implementation-specific (may validate against skills table)
-
 ## What the Store Does NOT Do
 
 **Does NOT materialize skills:**
@@ -167,8 +123,7 @@ Validation failures MUST throw clear errors with the validation rule that failed
 
 **Does NOT manage threads:**
 - Agent config is separate from agent runtime data
-- Threads live in `agents/{id}/threads/` (filesystem) or separate table (database)
-- Deleting agent MAY delete threads (implementation choice)
+- Deleting agent MAY delete associated threads (implementation choice)
 
 **Does NOT validate directories:**
 - Directory paths are stored as strings
@@ -195,53 +150,11 @@ Implementations MAY NOT be safe for:
 - **Concurrent writes to same agent:** Two `update()` calls for same ID
 - **Read-modify-write without locking:** Caller must handle optimistic concurrency
 
-Filesystem implementation is NOT safe for concurrent writes to the same agent (last write wins). Database implementations may provide transactions.
-
-## Migration Path
-
-### Phase 1: Extract interface
-
-Define `AgentStore` interface in new file `src/core/agents/store.ts`.
-
-### Phase 2: Wrap existing code
-
-Implement `FilesystemAgentStore` as a wrapper around existing functions:
-- `list()` delegates to `loadAllAgents()`
-- `get()` delegates to `loadAgentConfig()`
-- `create()` delegates to `writeAgentJson()`
-- `update()` calls `loadAgentConfig()` + merge + `writeAgentJson()`
-- `delete()` calls `fs.rmSync()` on agent directory
-
-### Phase 3: Inject into consumers
-
-Update calling code to accept `AgentStore` instead of `workspaceDir`:
-- Skills: `activateSkill(store, skillName, agentId)`
-- Agent runner: `runAgent(store, agentId, ...)`
-- Daemon: `new FilesystemAgentStore(Config.workspaceDir)`
-
-### Phase 4: Test with InMemory
-
-Write tests using `InMemoryAgentStore`. Prove skills, triggers, channels work without filesystem.
-
-### Phase 5: Delete original code
-
-Once everything uses `AgentStore`, delete `agents/io.ts` and `agents/agents.ts`. Reimplement inside `FilesystemAgentStore`.
-
 ## Deletion Test
 
-**Can you delete the agent storage implementation and regenerate it?**
+Can you delete the agent storage implementation and regenerate it from this spec in < 2 hours?
 
-Yes, if:
-- Spec defines the contract clearly
-- Tests exercise the interface (not the implementation)
-- Calling code only depends on `AgentStore` interface
-
-**Test:**
-```bash
-rm src/core/agents/io.ts src/core/agents/agents.ts
-# Reimplement from spec
-npm test  # Should still pass
-```
+If yes, the boundary is real. If no, the contract is incomplete or the coupling is too tight.
 
 ## Open Questions
 
@@ -263,27 +176,19 @@ npm test  # Should still pass
 
 ### Should `delete()` remove agent runtime data?
 
-**Current:** Filesystem implementation deletes entire directory (including threads)
-
-**Alternative:** Only delete config, preserve threads
-
-**Decision:** Implementation-specific. Filesystem deletes all. Database may preserve for audit/recovery.
+**Decision:** Implementation-specific. Store MAY delete threads, embeddings, etc. Store MAY preserve for audit/recovery.
 
 ### Should store handle skill materialization?
 
-**Current:** No — `materializeSkills()` is separate
-
-**Alternative:** `get()` returns agent with skills already materialized
-
-**Decision:** Keep separate. Materialization is environment-specific (symlink vs copy). Store is pure data access.
+**Decision:** No. Materialization is separate from storage. Store persists config, runtime materializes skills before invocation.
 
 ## Success Criteria
 
 This boundary is successful if:
 
-1. **Cloud deployment is trivial:** Implement `DatabaseAgentStore`, swap in daemon startup, done
-2. **Tests don't touch filesystem:** All agent logic testable with `InMemoryAgentStore`
-3. **Implementation is replaceable:** Can delete and rewrite `FilesystemAgentStore` in < 2 hours
-4. **Calling code is simpler:** No path construction, no `readAgentJson/writeAgentJson` imports
+1. **Cloud deployment is trivial:** Implement new store, swap at startup, done
+2. **Tests don't need filesystem:** Agent logic testable with in-memory implementation
+3. **Implementation is replaceable:** Can delete and regenerate from spec in < 2 hours
+4. **Calling code is simpler:** No path construction, no storage-specific imports
 
 If adding `AgentStore` makes code MORE complex or HARDER to change, the abstraction has failed.
