@@ -6,7 +6,7 @@ import { execFileSync } from "child_process";
 import { detectAuth } from "../auth.js";
 import { Config } from "#core/config.js";
 import { downloadEmbeddingModel, isModelAvailable } from "#core/episodic/index.js";
-import { setConfigValue } from "../workspace.js";
+import { setConfigValue, getWorkspaceId } from "../workspace.js";
 import { waitForHealth } from "./utils.js";
 
 const platform = process.platform;
@@ -182,6 +182,9 @@ export async function run() {
   const accessMode = accessAnswer === "2" ? "network" : accessAnswer === "3" ? "cloud" : "local";
   setConfigValue(workspace, "settings.consoleAccess", accessMode);
 
+  // Generate workspace ID (persists across restarts, used for cloud relay channel)
+  getWorkspaceId(workspace);
+
   // Download embeddings model if needed
   Config.workspaceDir = workspace;
   if (!isModelAvailable()) {
@@ -228,9 +231,12 @@ export async function run() {
 
   // 5. Show Admin UI URL
   if (healthy) {
+    const consoleUrl = accessMode === "cloud"
+      ? "https://my.outernova.cloud"
+      : `http://localhost:${port}/web/console/`;
     const lines: string[] = [
       "Nova is running!", "",
-      `Admin UI:  http://localhost:${port}/web/console/`,
+      `Console:  ${consoleUrl}`,
       "", "Or pair Telegram via CLI:", "  nova telegram pair",
     ];
 

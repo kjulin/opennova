@@ -1,10 +1,11 @@
+import crypto from "crypto";
 import fs from "fs";
 import path from "path";
 import os from "os";
 import { log } from "./logger.js";
 const KNOWN_FILES = ["telegram", "settings"] as const;
 
-export const SENSITIVE_KEYS = new Set(["telegram.token"]);
+export const SENSITIVE_KEYS = new Set(["telegram.token", "settings.cloudBearer"]);
 
 export function resolveWorkspace(): string {
   const ws = process.env.NOVA_WORKSPACE;
@@ -127,4 +128,18 @@ export function getPublicUrl(): string | null {
   const url = getConfigValue(resolveWorkspace(), "settings.url");
   if (typeof url === "string" && url) return url.replace(/\/+$/, "");
   return null;
+}
+
+/**
+ * Get or generate a persistent workspace ID (UUID v4).
+ * Created once during init, persists across daemon restarts.
+ */
+export function getWorkspaceId(workspaceDir?: string): string {
+  const dir = workspaceDir ?? resolveWorkspace();
+  const existing = getConfigValue(dir, "settings.workspaceId");
+  if (typeof existing === "string" && existing) return existing;
+
+  const id = crypto.randomUUID();
+  setConfigValue(dir, "settings.workspaceId", id);
+  return id;
 }
