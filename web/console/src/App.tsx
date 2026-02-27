@@ -8,39 +8,13 @@ import { SecretsPage } from "@/pages/SecretsPage";
 import { ConfigPage } from "@/pages/ConfigPage";
 import { DashboardPage } from "@/pages/DashboardPage";
 import { UsagePage } from "@/pages/UsagePage";
-import { PairPage } from "@/pages/PairPage";
-import { isCloudMode, getCloudSession } from "@/lib/transport";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
-function CloudGuard({ children }: { children: React.ReactNode }) {
-  if (isCloudMode() && !getCloudSession()) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-background">
-        <div className="w-full max-w-sm rounded-lg border border-border bg-card p-8 text-center shadow-sm">
-          <div className="mb-4 text-2xl">Not connected</div>
-          <p className="text-muted-foreground">
-            Send /admin in Telegram to get a pairing link.
-          </p>
-        </div>
-      </div>
-    );
-  }
-  return <>{children}</>;
-}
-
 const router = createBrowserRouter([
   {
-    path: `${BASE}/pair`,
-    element: <PairPage />,
-  },
-  {
     path: BASE || "/",
-    element: (
-      <CloudGuard>
-        <AppShell />
-      </CloudGuard>
-    ),
+    element: <AppShell />,
     children: [
       { index: true, element: <DashboardPage /> },
       { path: "agents", element: <AgentsPage /> },
