@@ -4,6 +4,7 @@ import { init } from "./init.js";
 import { loadChannels, getCurrentShutdown } from "./channels.js";
 import { startTriggerScheduler } from "./triggers.js";
 import { startServer } from "./https.js";
+import { startCloudRelay } from "./cloud-relay.js";
 import { detectAuth } from "./auth.js";
 import { Config } from "#core/index.js";
 import { startTaskScheduler } from "#tasks/index.js";
@@ -40,6 +41,12 @@ export function start() {
     log.info("daemon", `server: http://${server.hostname}:${server.port}`);
   }
 
+  // Start cloud relay (only activates in cloud mode)
+  const relay = startCloudRelay(Config.workspaceDir);
+  if (relay) {
+    log.info("daemon", "cloud relay connected");
+  }
+
   // Write PID file
   const pidFile = path.join(Config.workspaceDir, "daemon.pid");
   fs.writeFileSync(pidFile, JSON.stringify({ pid: process.pid, port: server?.port ?? 0 }) + "\n");
@@ -55,6 +62,7 @@ export function start() {
     taskScheduler.stop();
     episodicBackfillScheduler.stop();
     server?.shutdown();
+    relay?.shutdown();
     const channelShutdown = getCurrentShutdown();
     if (channelShutdown) channelShutdown();
     try { fs.unlinkSync(pidFile); } catch { /* ignore */ }

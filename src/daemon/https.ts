@@ -80,7 +80,7 @@ function createStaticHandler(baseDir: string, basePath: string) {
   };
 }
 
-function createApp(workspaceDir: string): Hono {
+export function createApp(workspaceDir: string): Hono {
   // Serve webapp from package dist
   const webappDir = path.resolve(import.meta.dirname, "..", "webapp");
   log.info("https", `webapp dir: ${webappDir}`);
