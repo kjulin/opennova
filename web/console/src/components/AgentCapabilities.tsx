@@ -1,25 +1,14 @@
+import { useEffect, useState } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { useImmediateSave } from "@/hooks/use-auto-save";
-
-const AVAILABLE_CAPABILITIES = [
-  { id: "memory", label: "Memory", description: "Long-term memory across conversations" },
-  { id: "history", label: "History", description: "Episodic conversation history" },
-  { id: "tasks", label: "Tasks", description: "Task management" },
-  { id: "notes", label: "Notes", description: "Shared notes and pinned content" },
-  { id: "self", label: "Self", description: "Self-manage own instructions" },
-  { id: "media", label: "Media", description: "Send files and media" },
-  { id: "secrets", label: "Secrets", description: "Access workspace secrets" },
-  { id: "agents", label: "Agents", description: "Delegate tasks to other agents" },
-  { id: "agent-management", label: "Agent Management", description: "Create and manage agents" },
-  { id: "triggers", label: "Triggers", description: "Manage scheduled triggers" },
-  { id: "browser", label: "Browser", description: "Playwright browser automation" },
-];
+import { fetchCapabilities } from "@/api";
+import type { CapabilityDescriptor } from "@/types";
 
 interface AgentCapabilitiesProps {
   agentId: string;
-  capabilities: string[];
-  onCapabilitiesChange: (capabilities: string[]) => void;
+  capabilities: Record<string, { tools?: string[] }>;
+  onCapabilitiesChange: (capabilities: Record<string, { tools?: string[] }>) => void;
 }
 
 export function AgentCapabilities({
@@ -28,33 +17,116 @@ export function AgentCapabilities({
   onCapabilitiesChange,
 }: AgentCapabilitiesProps) {
   const { save } = useImmediateSave(agentId);
+  const [registry, setRegistry] = useState<CapabilityDescriptor[]>([]);
 
-  function handleToggle(capId: string, checked: boolean) {
-    const updated = checked
-      ? [...capabilities, capId]
-      : capabilities.filter((c) => c !== capId);
+  useEffect(() => {
+    fetchCapabilities()
+      .then((data) => setRegistry(data.capabilities))
+      .catch(() => {});
+  }, []);
+
+  function handleToggleCap(capKey: string, checked: boolean) {
+    let updated: Record<string, { tools?: string[] }>;
+    if (checked) {
+      updated = { ...capabilities, [capKey]: {} };
+    } else {
+      const { [capKey]: _, ...rest } = capabilities;
+      updated = rest;
+    }
     onCapabilitiesChange(updated);
-    // Convert string[] to Record<string, {}> for the API
-    const capsRecord: Record<string, Record<string, never>> = {};
-    for (const cap of updated) capsRecord[cap] = {};
-    save({ capabilities: capsRecord });
+    save({ capabilities: updated });
+  }
+
+  function handleToggleTool(capKey: string, toolName: string, checked: boolean) {
+    const descriptor = registry.find((d) => d.key === capKey);
+    if (!descriptor) return;
+
+    const current = capabilities[capKey];
+    if (!current) return;
+
+    const allToolNames = descriptor.tools.map((t) => t.name);
+    const currentTools = current.tools ?? allToolNames;
+
+    let newTools: string[];
+    if (checked) {
+      newTools = [...currentTools, toolName];
+    } else {
+      newTools = currentTools.filter((t) => t !== toolName);
+    }
+
+    // If all tools selected, clear the filter (equivalent to {})
+    const isAll = newTools.length >= allToolNames.length;
+    const updated = {
+      ...capabilities,
+      [capKey]: isAll ? {} : { tools: newTools },
+    };
+    onCapabilitiesChange(updated);
+    save({ capabilities: updated });
+  }
+
+  if (registry.length === 0) {
+    return <div className="text-sm text-muted-foreground">Loading capabilities...</div>;
   }
 
   return (
     <div className="space-y-3">
-      {AVAILABLE_CAPABILITIES.map((cap) => (
-        <div key={cap.id} className="flex items-center gap-3">
-          <Checkbox
-            id={`cap-${cap.id}`}
-            checked={capabilities.includes(cap.id)}
-            onCheckedChange={(checked) => handleToggle(cap.id, checked === true)}
-          />
-          <Label htmlFor={`cap-${cap.id}`} className="cursor-pointer">
-            {cap.label}
-          </Label>
-          <span className="text-xs text-muted-foreground">{cap.description}</span>
-        </div>
-      ))}
+      {registry.map((cap) => {
+        const isEnabled = cap.key in capabilities;
+        const config = capabilities[cap.key];
+        const activeTools = config?.tools;
+        const allToolNames = cap.tools.map((t) => t.name);
+        const hasTools = cap.tools.length > 0;
+        const showToolFilter = isEnabled && hasTools && cap.tools.length > 1;
+
+        return (
+          <div key={cap.key}>
+            <div className="flex items-center gap-3">
+              <Checkbox
+                id={`cap-${cap.key}`}
+                checked={cap.key in capabilities}
+                onCheckedChange={(checked) => handleToggleCap(cap.key, checked === true)}
+              />
+              <Label htmlFor={`cap-${cap.key}`} className="cursor-pointer">
+                {cap.key}
+              </Label>
+              {hasTools && (
+                <span className="text-xs text-muted-foreground">
+                  {cap.tools.length} tool{cap.tools.length !== 1 ? "s" : ""}
+                </span>
+              )}
+            </div>
+            {showToolFilter && (
+              <div className="ml-8 mt-1 space-y-1">
+                {cap.tools.map((tool) => {
+                  const isToolActive = activeTools
+                    ? activeTools.includes(tool.name)
+                    : true;
+                  return (
+                    <div key={tool.name} className="flex items-center gap-2">
+                      <Checkbox
+                        id={`tool-${cap.key}-${tool.name}`}
+                        checked={isToolActive}
+                        onCheckedChange={(checked) =>
+                          handleToggleTool(cap.key, tool.name, checked === true)
+                        }
+                      />
+                      <Label
+                        htmlFor={`tool-${cap.key}-${tool.name}`}
+                        className="cursor-pointer text-xs font-mono"
+                      >
+                        {tool.name}
+                      </Label>
+                      <span className="text-xs text-muted-foreground">
+                        {tool.description}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }

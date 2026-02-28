@@ -43,6 +43,11 @@ const CreateAgentSchema = AgentJsonSchema.extend({
 export function createConsoleAgentsRouter(workspaceDir: string): Hono {
   const app = new Hono()
 
+  // Capabilities metadata (must be before /:id to avoid matching "capabilities" as an agent id)
+  app.get("/capabilities", (c) => {
+    return c.json({ capabilities: capabilityRegistry.knownCapabilities() })
+  })
+
   // List all agents
   app.get("/", (c) => {
     const agentsMap = agentStore.list()
