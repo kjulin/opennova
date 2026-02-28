@@ -1,6 +1,7 @@
 import fs from "fs";
 import path from "path";
 import { z } from "zod/v4";
+import { Config } from "../config.js";
 
 export const EmbeddingRecordSchema = z.object({
   threadId: z.string(),
@@ -13,15 +14,15 @@ export const EmbeddingRecordSchema = z.object({
 
 export type EmbeddingRecord = z.infer<typeof EmbeddingRecordSchema>;
 
-function getEmbeddingsPath(agentDir: string): string {
-  return path.join(agentDir, "embeddings.jsonl");
+function getEmbeddingsPath(agentId: string): string {
+  return path.join(Config.workspaceDir, "threads", "embeddings", `${agentId}.jsonl`);
 }
 
 /**
  * Load all embedding records for an agent.
  */
-export function loadEmbeddings(agentDir: string): EmbeddingRecord[] {
-  const filePath = getEmbeddingsPath(agentDir);
+export function loadEmbeddings(agentId: string): EmbeddingRecord[] {
+  const filePath = getEmbeddingsPath(agentId);
   if (!fs.existsSync(filePath)) return [];
 
   const content = fs.readFileSync(filePath, "utf-8");
@@ -46,8 +47,8 @@ export function loadEmbeddings(agentDir: string): EmbeddingRecord[] {
 /**
  * Append a single embedding record to the agent's embeddings file.
  */
-export function appendEmbedding(agentDir: string, record: EmbeddingRecord): void {
-  const filePath = getEmbeddingsPath(agentDir);
+export function appendEmbedding(agentId: string, record: EmbeddingRecord): void {
+  const filePath = getEmbeddingsPath(agentId);
   const dir = path.dirname(filePath);
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
   fs.appendFileSync(filePath, JSON.stringify(record) + "\n");
@@ -56,11 +57,19 @@ export function appendEmbedding(agentDir: string, record: EmbeddingRecord): void
 /**
  * Rewrite the entire embeddings file (used by backfill to clean orphans).
  */
-export function rewriteEmbeddings(agentDir: string, records: EmbeddingRecord[]): void {
-  const filePath = getEmbeddingsPath(agentDir);
+export function rewriteEmbeddings(agentId: string, records: EmbeddingRecord[]): void {
+  const filePath = getEmbeddingsPath(agentId);
   const dir = path.dirname(filePath);
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 
   const content = records.map((r) => JSON.stringify(r)).join("\n");
   fs.writeFileSync(filePath, content ? content + "\n" : "");
+}
+
+/**
+ * Delete the embeddings file for an agent.
+ */
+export function deleteEmbeddings(agentId: string): void {
+  const filePath = getEmbeddingsPath(agentId);
+  if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
 }

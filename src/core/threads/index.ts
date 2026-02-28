@@ -11,8 +11,6 @@ export {
   appendEvent,
   loadEvents,
   withThreadLock,
-  findThread,
-  getThreadManifest,
   type ThreadManifest,
   type ThreadMessage,
   type CreateThreadOptions,
