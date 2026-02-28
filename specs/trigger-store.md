@@ -15,39 +15,48 @@ Triggers live at `agents/{agentId}/triggers.json` — one JSON array per agent. 
 
 ```typescript
 interface TriggerStore {
-  // Per-agent
-  list(agentId: string): Trigger[]
+  list(agentId?: string): Trigger[]
+  get(triggerId: string): Trigger | null
   create(agentId: string, input: TriggerInput): Trigger
-  deleteAllForAgent(agentId: string): void
-
-  // Cross-agent
-  listAll(): Map<string, Trigger[]>
-  get(triggerId: string): (Trigger & { agentId: string }) | null
-
-  // Mutations by trigger ID
   update(triggerId: string, partial: Partial<TriggerInput>): Trigger
   delete(triggerId: string): void
-  setLastRun(triggerId: string, timestamp: string): void
+  deleteAllForAgent(agentId: string): void
 }
 
 interface TriggerInput {
   cron: string
   tz?: string
   prompt: string
+  lastRun?: string
 }
 ```
 
-### list(agentId: string) → Trigger[]
+`Trigger` includes `agentId` as a field — every trigger knows which agent owns it.
 
-Returns all triggers for a given agent.
+### list(agentId?: string) → Trigger[]
+
+Returns triggers. If `agentId` is provided, returns triggers for that agent only. If omitted, returns all triggers across all agents.
 
 **Guarantees:**
 - All triggers are valid (schema-validated)
-- Returns empty array if agent has no triggers
+- Every trigger includes `agentId`
+- Returns empty array if no triggers match
 
 **Does NOT guarantee:**
 - Specific ordering
-- Agent existence (caller's responsibility)
+- Agent existence (caller's responsibility when `agentId` is provided)
+
+**Use case (no agentId):** Scheduler needs to scan all agents every tick. Console GET `/` lists all triggers.
+
+### get(triggerId: string) → Trigger | null
+
+Returns a single trigger by ID, or `null` if not found.
+
+**Guarantees:**
+- Trigger is valid (schema-validated)
+- Trigger includes `agentId`
+
+**Why no `agentId` parameter:** Trigger IDs are globally unique (12-char hex). The current console API already does cross-agent scans to find triggers by ID for PATCH/DELETE. The store internalizes this scan.
 
 ### create(agentId: string, input: TriggerInput) → Trigger
 
@@ -58,6 +67,7 @@ Creates a new trigger for the given agent. Returns the created trigger with gene
 - Trigger ID format: `/^[a-f0-9]{12}$/` (12-char hex)
 - Cron expression is validated before persistence
 - `lastRun` is initialized to current timestamp (prevents firing on first scheduler tick)
+- Returned trigger includes `agentId`
 
 **Validation:**
 - `cron` is a valid 5-field cron expression
@@ -69,38 +79,12 @@ Creates a new trigger for the given agent. Returns the created trigger with gene
 
 **Idempotency:** Not idempotent. Creates new ID each time.
 
-### deleteAllForAgent(agentId: string) → void
-
-Removes all triggers for an agent. Used during agent deletion cleanup.
-
-**Idempotency:** Idempotent (no-op if agent has no triggers).
-
-### listAll() → Map<string, Trigger[]>
-
-Returns all triggers across all agents. Map key is agent ID, value is that agent's triggers.
-
-**Guarantees:**
-- All triggers are valid (schema-validated)
-- Agents with no triggers are omitted from the map
-
-**Use case:** Scheduler needs to scan all agents every tick. Console GET `/` lists all triggers.
-
-### get(triggerId: string) → (Trigger & { agentId: string }) | null
-
-Returns a single trigger by ID with its owning agent ID, or `null` if not found.
-
-**Guarantees:**
-- Trigger is valid (schema-validated)
-- `agentId` identifies which agent owns this trigger
-
-**Why no `agentId` parameter:** Trigger IDs are globally unique (12-char hex). The current console API already does cross-agent scans to find triggers by ID for PATCH/DELETE. The store internalizes this scan.
-
 ### update(triggerId: string, partial: Partial<TriggerInput>) → Trigger
 
 Updates trigger fields. Merges `partial` with existing trigger.
 
 **Semantics:**
-- Only `cron`, `tz`, and `prompt` are updatable (not `id`, not `lastRun`)
+- `cron`, `tz`, `prompt`, and `lastRun` are updatable (not `id`, not `agentId`)
 - If `cron` is provided, it is validated before persistence
 
 **Failures:**
@@ -115,15 +99,11 @@ Removes a single trigger by ID.
 
 **Idempotency:** Idempotent (no-op if trigger doesn't exist).
 
-### setLastRun(triggerId: string, timestamp: string) → void
+### deleteAllForAgent(agentId: string) → void
 
-Updates the `lastRun` timestamp for a trigger. Separated from `update()` because this is a scheduler-internal operation, not a user-facing update.
+Removes all triggers for an agent. Used during agent deletion cleanup.
 
-**Guarantees:**
-- Timestamp is persisted before return
-
-**Failures:**
-- Throws if trigger doesn't exist
+**Idempotency:** Idempotent (no-op if agent has no triggers).
 
 ## Validation Rules
 
@@ -165,14 +145,14 @@ Validation failures MUST throw clear errors with the validation rule that failed
 | Consumer | Current approach | Store methods needed |
 |----------|-----------------|---------------------|
 | `src/core/triggers.ts` (MCP server) | `loadTriggers(agentDir)` / `saveTriggers(agentDir, ...)` | `list`, `create`, `update`, `delete` |
-| `src/daemon/triggers.ts` (scheduler) | Scans all agent dirs, loads triggers, saves lastRun | `listAll`, `setLastRun` |
-| `src/api/console-triggers.ts` (console API) | Duplicate load/save, scans all agents | `list`, `listAll`, `get`, `create`, `update`, `delete` |
+| `src/daemon/triggers.ts` (scheduler) | Scans all agent dirs, loads triggers, saves lastRun | `list` (no agentId), `update` (lastRun) |
+| `src/api/console-triggers.ts` (console API) | Duplicate load/save, scans all agents | `list`, `get`, `create`, `update`, `delete` |
 | `src/core/agents/store.ts` (agent deletion) | `fs.rmSync(agentDir)` removes triggers implicitly | `deleteAllForAgent` |
 
 ## Thread Safety
 
 Implementations MUST be safe for:
-- **Concurrent reads:** Multiple `get()`, `list()`, `listAll()` calls in parallel
+- **Concurrent reads:** Multiple `get()`, `list()` calls in parallel
 - **Read during write:** Reading agent A's triggers while writing agent B's
 
 Implementations MAY NOT be safe for:
@@ -195,19 +175,9 @@ If yes, the boundary is real. If no, the contract is incomplete or the coupling 
 
 **Decision:** No. Store generates IDs. Import scenarios can be handled separately.
 
-### Should `setLastRun()` be part of `update()`?
+### Should `delete()` throw or no-op for missing triggers?
 
-**Current:** Separate method.
-
-**Alternative:** Allow `update(triggerId, { lastRun: "..." })` as a general field update.
-
-**Decision:** Separate. `setLastRun()` is a scheduler-internal operation with different semantics (no validation of user-facing fields, no cron re-validation). Keeping it separate makes the intent clear and avoids exposing `lastRun` as a user-updatable field.
-
-### Should `delete()` and `setLastRun()` throw or no-op for missing triggers?
-
-**Current decision:** `delete()` is idempotent (no-op). `setLastRun()` throws (scheduler bug if trigger is missing).
-
-**Rationale:** Delete is called defensively (cleanup code). `setLastRun` should only be called for triggers that just matched a cron expression — if the trigger is gone, something is wrong.
+**Decision:** Idempotent (no-op). Delete is called defensively (cleanup code).
 
 ## Success Criteria
 
