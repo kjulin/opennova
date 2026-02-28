@@ -10,7 +10,7 @@ export function createConsoleTriggersRouter(): Hono {
     const agentsMap = agentStore.list()
     const triggers = triggerStore.list()
     const allTriggers = triggers.map((t) => {
-      const agent = agentsMap.get(t.agentId!)
+      const agent = agentsMap.get(t.agentId)
       return { ...t, agentName: agent?.name }
     })
     return c.json({ triggers: allTriggers })
@@ -71,7 +71,7 @@ export function createConsoleTriggersRouter(): Hono {
         ...(body.prompt !== undefined && { prompt: body.prompt }),
       })
       const agentsMap = agentStore.list()
-      const agent = agentsMap.get(trigger.agentId!)
+      const agent = agentsMap.get(trigger.agentId)
       return c.json({ ...trigger, agentName: agent?.name })
     } catch (e) {
       const msg = (e as Error).message

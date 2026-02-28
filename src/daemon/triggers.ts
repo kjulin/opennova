@@ -38,7 +38,7 @@ export function startTriggerScheduler() {
           log.debug("trigger", `${trigger.agentId}/${trigger.id} cron="${trigger.cron}" tz=${tz} prev=${new Date(prevTime).toISOString()} lastRun=${trigger.lastRun ?? "never"}`);
           triggerStore.update(trigger.id, { lastRun: new Date().toISOString() });
 
-          const agentId = trigger.agentId!;
+          const agentId = trigger.agentId;
           const threadId = threadStore.create(agentId);
 
           log.info("trigger", `firing for agent ${agentId} thread ${threadId}: "${trigger.prompt}"`);
