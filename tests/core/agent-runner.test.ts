@@ -33,7 +33,7 @@ vi.mock("#core/threads/index.js", () => ({
   threadStore: mockThreadStore,
 }));
 
-const testAgent = { id: "test-agent", name: "Test Agent", role: "Test role", trust: "controlled", model: "sonnet", capabilities: ["memory"] };
+const testAgent = { id: "test-agent", name: "Test Agent", role: "Test role", trust: "controlled", model: "sonnet", capabilities: { memory: {} } };
 
 vi.mock("#core/agents/index.js", () => ({
   agentStore: {
@@ -46,8 +46,8 @@ vi.mock("#core/agents/index.js", () => ({
   getAgentDirectories: vi.fn(() => []),
 }));
 
-vi.mock("#core/capabilities.js", () => ({
-  resolveCapabilities: vi.fn(() => ({})),
+vi.mock("#core/capabilities/index.js", () => ({
+  capabilityRegistry: { resolve: vi.fn(() => ({})) },
   resolveInjections: vi.fn(() => ({})),
 }));
 

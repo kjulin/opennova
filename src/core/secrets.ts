@@ -7,6 +7,7 @@ import {
   tool,
   type McpSdkServerConfigWithInstance,
 } from "@anthropic-ai/claude-agent-sdk";
+import { filterTools } from "./capabilities/tool-filter.js";
 
 const SERVICE = "nova";
 
@@ -61,10 +62,8 @@ export function removeSecretName(workspaceDir: string, name: string): void {
 
 // ── MCP server ──────────────────────────────────────────────────────────────
 
-export function createSecretsMcpServer(workspaceDir: string): McpSdkServerConfigWithInstance {
-  return createSdkMcpServer({
-    name: "secrets",
-    tools: [
+export function createSecretsMcpServer(workspaceDir: string, allowedTools?: string[]): McpSdkServerConfigWithInstance {
+  const allTools = [
       tool(
         "get_secret",
         "Retrieve a secret value by name",
@@ -117,6 +116,10 @@ export function createSecretsMcpServer(workspaceDir: string): McpSdkServerConfig
           };
         },
       ),
-    ],
+  ];
+
+  return createSdkMcpServer({
+    name: "secrets",
+    tools: filterTools(allTools, "secrets", allowedTools),
   });
 }

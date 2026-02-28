@@ -5,7 +5,7 @@ import { claudeEngine, generateThreadTitle, type Engine, type EngineCallbacks, t
 import { getAgentCwd, getAgentDirectories, agentStore } from "./agents/index.js";
 import { Config } from "./config.js";
 import { buildSystemPrompt } from "./prompts/index.js";
-import { resolveCapabilities, resolveInjections, type ResolverContext } from "./capabilities.js";
+import { capabilityRegistry, resolveInjections, type ResolverContext } from "./capabilities/index.js";
 import { appendUsage } from "./usage.js";
 import { generateEmbedding, appendEmbedding, isModelAvailable } from "./episodic/index.js";
 import { getTask } from "#tasks/index.js";
@@ -137,7 +137,7 @@ export function createAgentRunner(engine: Engine = claudeEngine): AgentRunner {
         materializeSkills(Config.workspaceDir, agentId, agent.skills ?? []);
 
         const mcpServers = {
-          ...resolveCapabilities(agent.capabilities, resolverContext),
+          ...capabilityRegistry.resolve(agent.capabilities, resolverContext),
           ...extraMcpServers,
           ...resolveInjections(resolverContext, { background: overrides?.background }),
         };
@@ -196,7 +196,7 @@ export function createAgentRunner(engine: Engine = claudeEngine): AgentRunner {
           ...(overrides?.triggerId ? { triggerId: overrides.triggerId } : {}),
           systemPromptChars: systemPrompt?.length,
           mcpServerCount,
-          capabilityCount: agent.capabilities?.length ?? 0,
+          capabilityCount: agent.capabilities ? Object.keys(agent.capabilities).length : 0,
         });
       }
 

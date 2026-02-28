@@ -6,6 +6,7 @@ import {
   tool,
   type McpSdkServerConfigWithInstance,
 } from "@anthropic-ai/claude-agent-sdk";
+import { filterTools } from "./capabilities/tool-filter.js";
 
 const IMAGE_EXTENSIONS = [".jpg", ".jpeg", ".png", ".gif", ".webp"];
 const AUDIO_EXTENSIONS = [".mp3", ".ogg", ".wav", ".m4a", ".opus"];
@@ -36,13 +37,12 @@ export function createFileSendMcpServer(
   agentDir: string,
   allowedDirectories: string[],
   onFileSend: OnFileSendCallback,
+  allowedTools?: string[],
 ): McpSdkServerConfigWithInstance {
   // Always allow agent's own directory
   const allAllowedDirs = [agentDir, ...allowedDirectories];
 
-  return createSdkMcpServer({
-    name: "file-send",
-    tools: [
+  const allTools = [
       tool(
         "send_file",
         "Send a file to the user over the current channel (e.g., Telegram). Use this when the user asks you to share a file, image, document, or any other media. The file must exist within your allowed directories.",
@@ -116,6 +116,10 @@ export function createFileSendMcpServer(
           };
         },
       ),
-    ],
+  ];
+
+  return createSdkMcpServer({
+    name: "file-send",
+    tools: filterTools(allTools, "media", allowedTools),
   });
 }

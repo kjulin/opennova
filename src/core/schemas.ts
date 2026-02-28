@@ -126,7 +126,9 @@ export const AgentJsonSchema = z.object({
     model: z.enum(MODELS).optional(),
     maxTurns: z.number().int().positive().optional(),
   })).optional(),
-  capabilities: z.array(z.string()).optional(),
+  capabilities: z.record(z.string(), z.object({
+    tools: z.array(z.string()).optional(),
+  }).passthrough()).optional(),
   skills: z.array(z.string()).optional(),
   model: z.enum(MODELS).default("sonnet"),
 }).passthrough();
