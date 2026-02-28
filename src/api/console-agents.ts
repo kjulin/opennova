@@ -1,6 +1,7 @@
 import { Hono } from "hono"
 import { z } from "zod/v4"
 import { agentStore } from "#core/agents/index.js"
+import { triggerStore } from "#core/triggers/index.js"
 import { KNOWN_CAPABILITIES } from "#core/capabilities.js"
 import {
   AgentJsonSchema,
@@ -8,20 +9,9 @@ import {
   TrustLevel,
   type AgentJsonInput,
 } from "#core/schemas.js"
-import fs from "fs"
-import path from "path"
 
-function loadAgentDetail(workspaceDir: string, id: string, agent: { name: string; description?: string | undefined; identity?: string | undefined; instructions?: string | undefined; responsibilities?: { title: string; content: string }[] | undefined; trust?: string | undefined; capabilities?: string[] | undefined; directories?: string[] | undefined; model?: string | undefined }) {
-  const dir = path.join(workspaceDir, "agents", id)
-
-  // Load triggers
-  let triggers: unknown[] = []
-  const triggersPath = path.join(dir, "triggers.json")
-  if (fs.existsSync(triggersPath)) {
-    try {
-      triggers = JSON.parse(fs.readFileSync(triggersPath, "utf-8"))
-    } catch {}
-  }
+function loadAgentDetail(id: string, agent: { name: string; description?: string | undefined; identity?: string | undefined; instructions?: string | undefined; responsibilities?: { title: string; content: string }[] | undefined; trust?: string | undefined; capabilities?: string[] | undefined; directories?: string[] | undefined; model?: string | undefined }) {
+  const triggers = triggerStore.list(id)
 
   // Load skills from agent.json (source of truth)
   const agentJson = agentStore.get(id)
@@ -57,7 +47,7 @@ export function createConsoleAgentsRouter(workspaceDir: string): Hono {
   app.get("/", (c) => {
     const agentsMap = agentStore.list()
     const agents = Array.from(agentsMap.values()).map((agent) =>
-      loadAgentDetail(workspaceDir, agent.id, {
+      loadAgentDetail(agent.id, {
         ...agent,
         trust: agent.trust,
       }),
@@ -73,7 +63,7 @@ export function createConsoleAgentsRouter(workspaceDir: string): Hono {
     if (!agent) {
       return c.json({ error: "Agent not found" }, 404)
     }
-    return c.json(loadAgentDetail(workspaceDir, agent.id, {
+    return c.json(loadAgentDetail(agent.id, {
       ...agent,
       trust: agent.trust,
     }))
@@ -118,7 +108,7 @@ export function createConsoleAgentsRouter(workspaceDir: string): Hono {
     if (!created) {
       return c.json({ error: "Failed to create agent" }, 500)
     }
-    return c.json(loadAgentDetail(workspaceDir, id, {
+    return c.json(loadAgentDetail(id, {
       ...created,
       trust: created.trust,
     }), 201)
@@ -161,7 +151,7 @@ export function createConsoleAgentsRouter(workspaceDir: string): Hono {
     if (!updated) {
       return c.json({ error: "Agent not found" }, 404)
     }
-    return c.json(loadAgentDetail(workspaceDir, id, {
+    return c.json(loadAgentDetail(id, {
       ...updated,
       trust: updated.trust,
     }))

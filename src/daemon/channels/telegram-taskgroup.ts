@@ -278,7 +278,7 @@ async function handleGeneralTopicMessage(
   runAgent(
     agentDir, threadId, userMessage,
     callbacks,
-    { triggers: createTriggerMcpServer(agentDir) },
+    { triggers: createTriggerMcpServer(agent.id) },
     undefined, abortController,
     { source: "chat" },
   ).catch((err) => {
@@ -366,7 +366,7 @@ async function handleTopicReply(
   runAgent(
     agentDir, task.threadId, userMessage,
     topicCallbacks,
-    { triggers: createTriggerMcpServer(agentDir) },
+    { triggers: createTriggerMcpServer(agent.id) },
     undefined, undefined,
     { source: "chat" },
   ).catch((err) => {

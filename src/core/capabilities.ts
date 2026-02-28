@@ -12,7 +12,7 @@ import { createSelfManagementMcpServer, createAgentManagementMcpServer } from ".
 import { createMediaMcpServer } from "./media/mcp.js";
 import { createSecretsMcpServer } from "./secrets.js";
 import { createAgentsMcpServer } from "./agents/ask-agent.js";
-import { createTriggerMcpServer } from "./triggers.js";
+import { createTriggerMcpServer } from "./triggers/index.js";
 
 export interface ResolverContext {
   agentId: string;
@@ -47,7 +47,7 @@ const CAPABILITY_REGISTRY: Record<string, CapabilityResolver> = {
     return createAgentsMcpServer(ctx.agent, ctx.askAgentDepth ?? 0, ctx.runAgentFn);
   },
   "agent-management": () => createAgentManagementMcpServer(),
-  triggers: (ctx) => createTriggerMcpServer(ctx.agentDir),
+  triggers: (ctx) => createTriggerMcpServer(ctx.agentId),
   browser: () => ({
     type: "stdio" as const,
     command: "npx",

@@ -120,10 +120,11 @@ export {
 
 // Triggers
 export {
-  loadTriggers,
-  saveTriggers,
+  triggerStore,
+  type TriggerStore,
+  type TriggerInput,
   createTriggerMcpServer,
-} from "./triggers.js";
+} from "./triggers/index.js";
 
 // MCP Servers
 export { createMemoryMcpServer } from "./memory.js";

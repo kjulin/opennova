@@ -1,27 +1,17 @@
-import crypto from "crypto";
-import fs from "fs";
-import path from "path";
 import type { AgentJsonInput } from "../schemas.js";
 import { z } from "zod/v4";
-import { CronExpressionParser } from "cron-parser";
 import {
   createSdkMcpServer,
   tool,
   type McpSdkServerConfigWithInstance,
 } from "@anthropic-ai/claude-agent-sdk";
 import {
-  VALID_AGENT_ID,
   MAX_INSTRUCTIONS_LENGTH,
   ResponsibilitySchema,
 } from "../schemas.js";
 import { MODELS } from "../models.js";
-import { agentDir } from "./io.js";
 import { agentStore } from "./singleton.js";
-
-
-function generateTriggerId(): string {
-  return crypto.randomBytes(6).toString("hex");
-}
+import { triggerStore } from "../triggers/singleton.js";
 
 function ok(text: string) {
   return { content: [{ type: "text" as const, text }] };
@@ -140,27 +130,20 @@ export function createAgentManagementMcpServer(): McpSdkServerConfigWithInstance
           id: z.string().describe("Agent identifier"),
         },
         async (args) => {
-          const triggersPath = path.join(agentDir(args.id), "triggers.json");
-          if (!fs.existsSync(triggersPath)) return ok("[]");
-          try {
-            const data = fs.readFileSync(triggersPath, "utf-8");
-            return ok(data);
-          } catch {
-            return err(`Failed to read triggers for agent: ${args.id}`);
-          }
+          const triggers = triggerStore.list(args.id);
+          return ok(JSON.stringify(triggers, null, 2));
         },
       ),
 
       tool(
         "write_triggers",
-        "Write an agent's triggers.json. Validates cron expressions. Cannot target system agents.",
+        "Write an agent's triggers. Validates cron expressions. Cannot target system agents.",
         {
           id: z.string().describe("Agent identifier"),
-          triggers: z.string().describe("Full triggers.json content as a JSON string"),
+          triggers: z.string().describe("Full triggers content as a JSON string"),
         },
         async (args) => {
           if (!agentStore.get(args.id)) return err(`Agent not found: ${args.id}`);
-          const dir = agentDir(args.id);
 
           let parsed: unknown;
           try {
@@ -171,40 +154,28 @@ export function createAgentManagementMcpServer(): McpSdkServerConfigWithInstance
 
           if (!Array.isArray(parsed)) return err("Triggers must be a JSON array");
 
-          // Validate and normalize each trigger
-          const normalized = [];
-          for (const trigger of parsed) {
-            if (!trigger || typeof trigger !== "object") {
-              return err("Each trigger must be an object");
-            }
+          // Clear existing triggers and create new ones
+          triggerStore.deleteAllForAgent(args.id);
 
-            const t = trigger as Record<string, unknown>;
-
-            // Validate cron expression
-            if ("cron" in t) {
-              try {
-                CronExpressionParser.parse(t.cron as string);
-              } catch {
-                return err(`Invalid cron expression: ${t.cron}`);
+          try {
+            for (const trigger of parsed) {
+              if (!trigger || typeof trigger !== "object") {
+                return err("Each trigger must be an object");
               }
+              const t = trigger as Record<string, unknown>;
+              const input: { cron: string; prompt: string; tz?: string } = {
+                cron: t.cron as string,
+                prompt: t.prompt as string,
+              };
+              if (t.tz) input.tz = t.tz as string;
+              triggerStore.create(args.id, input);
             }
-
-            // Auto-fill missing fields (lastRun always set to now on creation)
-            normalized.push({
-              id: t.id ?? generateTriggerId(),
-              channel: t.channel ?? "telegram",
-              cron: t.cron,
-              prompt: t.prompt,
-              enabled: t.enabled ?? true,
-              lastRun: new Date().toISOString(),
-            });
+          } catch (e) {
+            return err((e as Error).message);
           }
 
-          fs.writeFileSync(
-            path.join(dir, "triggers.json"),
-            JSON.stringify(normalized, null, 2) + "\n",
-          );
-          return ok(`Wrote ${normalized.length} trigger(s) for agent "${args.id}"`);
+          const created = triggerStore.list(args.id);
+          return ok(`Wrote ${created.length} trigger(s) for agent "${args.id}"`);
         },
       ),
     ],

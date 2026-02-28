@@ -1,89 +1,60 @@
-import fs from "fs";
-import path from "path";
 import { CronExpressionParser } from "cron-parser";
 import {
-  Config,
   threadStore,
   runAgent,
+  triggerStore,
   createTriggerMcpServer,
 } from "#core/index.js";
 import { log } from "./logger.js";
-
-// Re-export from core
-export { loadTriggers, saveTriggers, createTriggerMcpServer } from "#core/triggers.js";
-export type { Trigger } from "#core/triggers.js";
-
-import { loadTriggers, saveTriggers } from "#core/triggers.js";
-import type { Trigger } from "#core/triggers.js";
+import { agentDir } from "#core/agents/index.js";
 
 export function startTriggerScheduler() {
-  const agentsDir = path.join(Config.workspaceDir, "agents");
-
   function tick() {
-    if (!fs.existsSync(agentsDir)) return;
     log.debug("trigger", "scheduler tick");
 
     const systemTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const allTriggers = triggerStore.list();
 
-    for (const entry of fs.readdirSync(agentsDir, { withFileTypes: true })) {
-      if (!entry.isDirectory()) continue;
-      const agentDir = path.join(agentsDir, entry.name);
-      const agentId = entry.name;
-
-      let triggers: Trigger[];
+    for (const trigger of allTriggers) {
       try {
-        triggers = loadTriggers(agentDir);
-      } catch (err) {
-        log.error("trigger", `failed to load triggers for agent ${agentId}:`, err);
-        continue;
-      }
+        const tz = trigger.tz ?? systemTz;
+        const expr = CronExpressionParser.parse(trigger.cron, {
+          currentDate: new Date(),
+          tz,
+        });
+        const prev = expr.prev();
+        const prevTime = prev.getTime();
 
-      let changed = false;
-      for (const trigger of triggers) {
-        try {
-          const tz = trigger.tz ?? systemTz;
-          const expr = CronExpressionParser.parse(trigger.cron, {
-            currentDate: new Date(),
-            tz,
-          });
-          const prev = expr.prev();
-          const prevTime = prev.getTime();
-          // If lastRun is missing, initialize to now (don't fire on first tick)
-          if (!trigger.lastRun) {
-            log.debug("trigger", `${agentId}/${trigger.id} initializing lastRun (first seen)`);
-            trigger.lastRun = new Date().toISOString();
-            changed = true;
-            continue;
-          }
-
-          const lastRunTime = new Date(trigger.lastRun).getTime();
-
-          if (prevTime > lastRunTime) {
-            log.debug("trigger", `${agentId}/${trigger.id} cron="${trigger.cron}" tz=${tz} prev=${new Date(prevTime).toISOString()} lastRun=${trigger.lastRun ?? "never"}`);
-            trigger.lastRun = new Date().toISOString();
-            changed = true;
-
-            const threadId = threadStore.create(agentId);
-
-            log.info("trigger", `firing for agent ${agentId} thread ${threadId}: "${trigger.prompt}"`);
-
-            runAgent(agentDir, threadId, trigger.prompt, undefined, {
-              triggers: createTriggerMcpServer(agentDir),
-            }, undefined, undefined, { background: true, source: "trigger", triggerId: trigger.id })
-              .then(() => {
-                log.info("trigger", `completed for agent ${agentId} thread ${threadId}`);
-              })
-              .catch((err) => {
-                log.error("trigger", `error for agent ${agentId}:`, err);
-              });
-          }
-        } catch (err) {
-          log.error("trigger", `cron error for agent ${agentId} trigger ${trigger.id}:`, err);
+        // If lastRun is missing, initialize to now (don't fire on first tick)
+        if (!trigger.lastRun) {
+          log.debug("trigger", `${trigger.agentId}/${trigger.id} initializing lastRun (first seen)`);
+          triggerStore.update(trigger.id, { lastRun: new Date().toISOString() });
+          continue;
         }
-      }
 
-      if (changed) {
-        saveTriggers(agentDir, triggers);
+        const lastRunTime = new Date(trigger.lastRun).getTime();
+
+        if (prevTime > lastRunTime) {
+          log.debug("trigger", `${trigger.agentId}/${trigger.id} cron="${trigger.cron}" tz=${tz} prev=${new Date(prevTime).toISOString()} lastRun=${trigger.lastRun ?? "never"}`);
+          triggerStore.update(trigger.id, { lastRun: new Date().toISOString() });
+
+          const agentId = trigger.agentId!;
+          const threadId = threadStore.create(agentId);
+
+          log.info("trigger", `firing for agent ${agentId} thread ${threadId}: "${trigger.prompt}"`);
+
+          runAgent(agentDir(agentId), threadId, trigger.prompt, undefined, {
+            triggers: createTriggerMcpServer(agentId),
+          }, undefined, undefined, { background: true, source: "trigger", triggerId: trigger.id })
+            .then(() => {
+              log.info("trigger", `completed for agent ${agentId} thread ${threadId}`);
+            })
+            .catch((err) => {
+              log.error("trigger", `error for agent ${agentId}:`, err);
+            });
+        }
+      } catch (err) {
+        log.error("trigger", `cron error for agent ${trigger.agentId} trigger ${trigger.id}:`, err);
       }
     }
   }

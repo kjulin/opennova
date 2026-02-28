@@ -34,7 +34,7 @@ vi.mock("#core/ask-agent.js", () => ({
   createAgentsMcpServer: vi.fn(() => ({ type: "sdk", name: "agents" })),
 }));
 
-vi.mock("#core/triggers.js", () => ({
+vi.mock("#core/triggers/index.js", () => ({
   createTriggerMcpServer: vi.fn(() => ({ type: "sdk", name: "triggers" })),
 }));
 
