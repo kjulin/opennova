@@ -4,7 +4,6 @@ import { randomBytes } from "crypto";
 import { CronExpressionParser } from "cron-parser";
 import { Config } from "../config.js";
 import { TriggerSchema, safeParseJsonFile, type Trigger } from "../schemas.js";
-import { agentStore } from "../agents/singleton.js";
 import { log } from "../logger.js";
 
 export interface TriggerInput {
@@ -24,58 +23,92 @@ export interface TriggerStore {
 }
 
 export class FilesystemTriggerStore implements TriggerStore {
-  private triggersPath(agentId: string): string {
-    return path.join(Config.workspaceDir, "agents", agentId, "triggers.json");
+  private migrated = false;
+
+  private triggersPath(): string {
+    return path.join(Config.workspaceDir, "triggers.json");
   }
 
-  private loadFile(agentId: string): Trigger[] {
-    const filePath = this.triggersPath(agentId);
+  private migrate(): void {
+    if (this.migrated) return;
+    this.migrated = true;
+
+    const newPath = this.triggersPath();
+    if (fs.existsSync(newPath)) return;
+
+    const agentsDir = path.join(Config.workspaceDir, "agents");
+    if (!fs.existsSync(agentsDir)) return;
+
+    const merged: Trigger[] = [];
+    const oldFiles: string[] = [];
+
+    for (const entry of fs.readdirSync(agentsDir, { withFileTypes: true })) {
+      if (!entry.isDirectory()) continue;
+      const oldPath = path.join(agentsDir, entry.name, "triggers.json");
+      if (!fs.existsSync(oldPath)) continue;
+
+      const raw = safeParseJsonFile(oldPath, `triggers.json (${entry.name})`);
+      if (raw === null || !Array.isArray(raw)) continue;
+
+      for (const item of raw) {
+        const result = TriggerSchema.safeParse({ ...item, agentId: entry.name });
+        if (result.success) {
+          merged.push(result.data);
+        } else {
+          log.warn("trigger", `migration: skipping invalid trigger in ${entry.name}: ${result.error.message}`);
+        }
+      }
+      oldFiles.push(oldPath);
+    }
+
+    if (merged.length > 0 || oldFiles.length > 0) {
+      fs.writeFileSync(newPath, JSON.stringify(merged, null, 2));
+      log.info("trigger", `migrated ${merged.length} trigger(s) to workspace-level triggers.json`);
+
+      for (const oldPath of oldFiles) {
+        fs.unlinkSync(oldPath);
+        log.info("trigger", `removed old ${oldPath}`);
+      }
+    }
+  }
+
+  private loadAll(): Trigger[] {
+    this.migrate();
+    const filePath = this.triggersPath();
     if (!fs.existsSync(filePath)) return [];
-    const raw = safeParseJsonFile(filePath, `triggers.json (${agentId})`);
+    const raw = safeParseJsonFile(filePath, "triggers.json");
     if (raw === null) return [];
     if (!Array.isArray(raw)) {
-      log.warn("trigger", `triggers.json is not an array for agent ${agentId}`);
+      log.warn("trigger", "triggers.json is not an array");
       return [];
     }
     const triggers: Trigger[] = [];
     for (const item of raw) {
       const result = TriggerSchema.safeParse(item);
       if (result.success) {
-        triggers.push({ ...result.data, agentId });
+        triggers.push(result.data);
       } else {
-        log.warn("trigger", `skipping invalid trigger in ${agentId}: ${result.error.message}`);
+        log.warn("trigger", `skipping invalid trigger: ${result.error.message}`);
       }
     }
     return triggers;
   }
 
-  private saveFile(agentId: string, triggers: Trigger[]): void {
-    // Strip agentId before persisting (it's added at read time)
-    const toWrite = triggers.map(({ agentId: _aid, ...rest }) => rest);
+  private saveAll(triggers: Trigger[]): void {
     fs.writeFileSync(
-      this.triggersPath(agentId),
-      JSON.stringify(toWrite, null, 2),
+      this.triggersPath(),
+      JSON.stringify(triggers, null, 2),
     );
   }
 
   list(agentId?: string): Trigger[] {
-    if (agentId) {
-      return this.loadFile(agentId);
-    }
-    const all: Trigger[] = [];
-    for (const [id] of agentStore.list()) {
-      all.push(...this.loadFile(id));
-    }
+    const all = this.loadAll();
+    if (agentId) return all.filter((t) => t.agentId === agentId);
     return all;
   }
 
   get(triggerId: string): Trigger | null {
-    for (const [agentId] of agentStore.list()) {
-      const triggers = this.loadFile(agentId);
-      const found = triggers.find((t) => t.id === triggerId);
-      if (found) return found;
-    }
-    return null;
+    return this.loadAll().find((t) => t.id === triggerId) ?? null;
   }
 
   create(agentId: string, input: TriggerInput): Trigger {
@@ -97,9 +130,9 @@ export class FilesystemTriggerStore implements TriggerStore {
       ...(input.tz !== undefined && { tz: input.tz }),
     };
 
-    const triggers = this.loadFile(agentId);
+    const triggers = this.loadAll();
     triggers.push(trigger);
-    this.saveFile(agentId, triggers);
+    this.saveAll(triggers);
     return trigger;
   }
 
@@ -112,38 +145,32 @@ export class FilesystemTriggerStore implements TriggerStore {
       }
     }
 
-    for (const [agentId] of agentStore.list()) {
-      const triggers = this.loadFile(agentId);
-      const trigger = triggers.find((t) => t.id === triggerId);
-      if (!trigger) continue;
+    const triggers = this.loadAll();
+    const trigger = triggers.find((t) => t.id === triggerId);
+    if (!trigger) throw new Error(`Trigger not found: ${triggerId}`);
 
-      if (partial.cron !== undefined) trigger.cron = partial.cron;
-      if (partial.tz !== undefined) trigger.tz = partial.tz;
-      if (partial.prompt !== undefined) trigger.prompt = partial.prompt;
-      if (partial.lastRun !== undefined) trigger.lastRun = partial.lastRun;
+    if (partial.cron !== undefined) trigger.cron = partial.cron;
+    if (partial.tz !== undefined) trigger.tz = partial.tz;
+    if (partial.prompt !== undefined) trigger.prompt = partial.prompt;
+    if (partial.lastRun !== undefined) trigger.lastRun = partial.lastRun;
 
-      this.saveFile(agentId, triggers);
-      return trigger;
-    }
-
-    throw new Error(`Trigger not found: ${triggerId}`);
+    this.saveAll(triggers);
+    return trigger;
   }
 
   delete(triggerId: string): void {
-    for (const [agentId] of agentStore.list()) {
-      const triggers = this.loadFile(agentId);
-      const idx = triggers.findIndex((t) => t.id === triggerId);
-      if (idx === -1) continue;
-      triggers.splice(idx, 1);
-      this.saveFile(agentId, triggers);
-      return;
+    const triggers = this.loadAll();
+    const filtered = triggers.filter((t) => t.id !== triggerId);
+    if (filtered.length !== triggers.length) {
+      this.saveAll(filtered);
     }
   }
 
   deleteAllForAgent(agentId: string): void {
-    const filePath = this.triggersPath(agentId);
-    if (fs.existsSync(filePath)) {
-      fs.writeFileSync(filePath, "[]");
+    const triggers = this.loadAll();
+    const filtered = triggers.filter((t) => t.agentId !== agentId);
+    if (filtered.length !== triggers.length) {
+      this.saveAll(filtered);
     }
   }
 }
