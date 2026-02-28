@@ -10,7 +10,6 @@ import {
   TelegramConfigSchema,
   safeParseJsonFile,
   transcribe,
-  checkTranscriptionDependencies,
   getAgentDirectories,
   createTriggerMcpServer,
   type TelegramConfig,
@@ -525,17 +524,6 @@ export function startTelegram() {
     const duration = voice.duration;
 
     log.info("telegram", `[${chatId}] [${agent.id}] voice message (${duration}s)`);
-
-    // Check transcription dependencies
-    const deps = await checkTranscriptionDependencies();
-    if (!deps.ffmpeg || !deps.whisper || !deps.model) {
-      const missing = [];
-      if (!deps.ffmpeg) missing.push("ffmpeg");
-      if (!deps.whisper) missing.push("whisper-cpp");
-      if (!deps.model) missing.push(`model at ${deps.modelPath}`);
-      await ctx.reply(`\u274C Transcription not available. Missing: ${missing.join(", ")}\n\nRun \`nova transcription setup\` to configure.`);
-      return;
-    }
 
     const statusMsg = await ctx.reply("\uD83C\uDF99\uFE0F Transcribing...");
 

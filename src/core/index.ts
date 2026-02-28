@@ -167,16 +167,6 @@ export {
 // Transcription
 export {
   transcribe,
-  loadTranscriptionConfig,
-  saveTranscriptionConfig,
-  checkDependencies as checkTranscriptionDependencies,
-  downloadModel,
-  MODEL_URLS,
-  MODEL_SIZES,
-  checkFfmpeg,
-  checkWhisper,
-  type TranscriptionConfig,
   type TranscriptionResult,
-  type TranscriptionOptions,
 } from "./transcription/index.js";
 
