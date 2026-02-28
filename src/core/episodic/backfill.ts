@@ -1,5 +1,4 @@
 import fs from "fs";
-import path from "path";
 import { generateEmbedding, isModelAvailable } from "./embeddings.js";
 import { loadEmbeddings, appendEmbedding, rewriteEmbeddings, type EmbeddingRecord } from "./storage.js";
 import { threadPath, listThreads, loadMessages } from "../threads/io.js";
@@ -15,15 +14,14 @@ import { log } from "../logger.js";
  * Returns count of newly embedded messages and cleaned orphans.
  */
 export async function backfillAgent(
-  agentDir: string,
+  agentId: string,
 ): Promise<{ embedded: number; cleaned: number }> {
   if (!isModelAvailable()) {
     log.warn("episodic", "embedding model not available, skipping backfill");
     return { embedded: 0, cleaned: 0 };
   }
 
-  const agentId = path.basename(agentDir);
-  const existing = loadEmbeddings(agentDir);
+  const existing = loadEmbeddings(agentId);
 
   // Build a set of existing (threadId, messageIndex, role) for fast lookup
   const existingKeys = new Set<string>();
@@ -31,8 +29,8 @@ export async function backfillAgent(
     existingKeys.add(`${rec.threadId}:${rec.messageIndex}:${rec.role}`);
   }
 
-  // Get all current thread IDs
-  const threads = listThreads(agentDir);
+  // Get all current thread IDs for this agent
+  const threads = listThreads(agentId);
   const currentThreadIds = new Set(threads.map((t) => t.id));
 
   // Clean orphaned embeddings (threads that no longer exist)
@@ -47,7 +45,7 @@ export async function backfillAgent(
   }
 
   if (cleaned > 0) {
-    rewriteEmbeddings(agentDir, validRecords);
+    rewriteEmbeddings(agentId, validRecords);
     log.info("episodic", `cleaned ${cleaned} orphaned embeddings for agent ${agentId}`);
   }
 
@@ -55,7 +53,7 @@ export async function backfillAgent(
   let embedded = 0;
 
   for (const thread of threads) {
-    const filePath = threadPath(agentDir, thread.id);
+    const filePath = threadPath(thread.id);
     if (!fs.existsSync(filePath)) continue;
 
     let messages;
@@ -85,7 +83,7 @@ export async function backfillAgent(
             embedding,
             timestamp: msg.timestamp,
           };
-          appendEmbedding(agentDir, record);
+          appendEmbedding(agentId, record);
           embedded++;
         } catch (err) {
           log.warn("episodic", `failed to embed message in thread ${thread.id}:`, (err as Error).message);

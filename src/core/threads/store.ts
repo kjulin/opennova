@@ -48,77 +48,47 @@ export interface ThreadStore {
 }
 
 export class FilesystemThreadStore implements ThreadStore {
-  private agentDirFor(agentId: string): string {
-    return path.join(Config.workspaceDir, "agents", agentId);
-  }
-
-  private resolveThread(threadId: string): { filePath: string; agentDir: string; agentId: string } | null {
-    const agentsDir = path.join(Config.workspaceDir, "agents");
-    if (!fs.existsSync(agentsDir)) return null;
-
-    for (const entry of fs.readdirSync(agentsDir, { withFileTypes: true })) {
-      if (!entry.isDirectory()) continue;
-      const agentDir = path.join(agentsDir, entry.name);
-      const filePath = threadPath(agentDir, threadId);
-      if (fs.existsSync(filePath)) {
-        return { filePath, agentDir, agentId: entry.name };
-      }
-    }
-
-    return null;
-  }
-
-  private requireThread(threadId: string): { filePath: string; agentDir: string; agentId: string } {
-    const result = this.resolveThread(threadId);
-    if (!result) throw new Error(`Thread not found: ${threadId}`);
-    return result;
-  }
-
   create(agentId: string, opts?: CreateThreadOptions): string {
-    return createThread(this.agentDirFor(agentId), opts);
+    return createThread(agentId, opts);
   }
 
   get(threadId: string): ThreadManifest | null {
-    const resolved = this.resolveThread(threadId);
-    if (!resolved) return null;
-    const manifest = loadManifest(resolved.filePath);
-    if (!manifest.id) manifest.id = threadId;
-    if (!manifest.agentId) manifest.agentId = resolved.agentId;
-    return manifest;
+    const filePath = threadPath(threadId);
+    if (!fs.existsSync(filePath)) return null;
+    return loadManifest(filePath);
   }
 
   list(agentId: string): ThreadManifest[] {
-    return listThreads(this.agentDirFor(agentId));
+    return listThreads(agentId);
   }
 
   delete(threadId: string): void {
-    const resolved = this.resolveThread(threadId);
-    if (!resolved) return;
-    fs.unlinkSync(resolved.filePath);
+    const filePath = threadPath(threadId);
+    if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
   }
 
   appendMessage(threadId: string, msg: ThreadMessage): void {
-    const { filePath } = this.requireThread(threadId);
+    const filePath = threadPath(threadId);
     fs.appendFileSync(filePath, JSON.stringify(msg) + "\n");
   }
 
   appendEvent(threadId: string, event: ThreadEvent): void {
-    const { filePath } = this.requireThread(threadId);
+    const filePath = threadPath(threadId);
     fs.appendFileSync(filePath, JSON.stringify(event) + "\n");
   }
 
   loadEvents(threadId: string): ThreadEvent[] {
-    const { filePath } = this.requireThread(threadId);
+    const filePath = threadPath(threadId);
     return loadEvents(filePath);
   }
 
   loadMessages(threadId: string): ThreadMessage[] {
-    const { filePath } = this.requireThread(threadId);
+    const filePath = threadPath(threadId);
     return loadMessages(filePath);
   }
 
   updateManifest(threadId: string, partial: Partial<ThreadManifest>): void {
-    const { filePath } = this.requireThread(threadId);
+    const filePath = threadPath(threadId);
     const manifest = loadManifest(filePath);
     Object.assign(manifest, partial);
     saveManifest(filePath, manifest);
@@ -130,11 +100,10 @@ export class FilesystemThreadStore implements ThreadStore {
 
   async search(query: string, opts?: SearchOptions): Promise<SearchResult[]> {
     if (!opts?.agentId) throw new Error("agentId is required for search");
-    const agentDir = this.agentDirFor(opts.agentId);
-    return searchThreads(agentDir, query, opts.limit ?? 5);
+    return searchThreads(opts.agentId, query, opts.limit ?? 5);
   }
 
   async backfill(agentId: string): Promise<BackfillResult> {
-    return backfillAgent(this.agentDirFor(agentId));
+    return backfillAgent(agentId);
   }
 }

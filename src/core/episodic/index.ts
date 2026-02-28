@@ -9,6 +9,7 @@ export {
   loadEmbeddings,
   appendEmbedding,
   rewriteEmbeddings,
+  deleteEmbeddings,
   EmbeddingRecordSchema,
   type EmbeddingRecord,
 } from "./storage.js";

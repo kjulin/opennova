@@ -1,8 +1,6 @@
-import fs from "fs";
-import path from "path";
 import cron from "node-cron";
-import { Config } from "#core/config.js";
 import { backfillAgent, isModelAvailable } from "#core/episodic/index.js";
+import { loadAllAgents } from "#core/agents/io.js";
 import { log } from "./logger.js";
 
 async function runBackfill() {
@@ -11,23 +9,17 @@ async function runBackfill() {
     return;
   }
 
-  const agentsDir = path.join(Config.workspaceDir, "agents");
-  if (!fs.existsSync(agentsDir)) return;
-
-  const entries = fs.readdirSync(agentsDir, { withFileTypes: true });
+  const agents = loadAllAgents();
   let totalEmbedded = 0;
   let totalCleaned = 0;
 
-  for (const entry of entries) {
-    if (!entry.isDirectory()) continue;
-    const agentDir = path.join(agentsDir, entry.name);
-
+  for (const [agentId] of agents) {
     try {
-      const { embedded, cleaned } = await backfillAgent(agentDir);
+      const { embedded, cleaned } = await backfillAgent(agentId);
       totalEmbedded += embedded;
       totalCleaned += cleaned;
     } catch (err) {
-      log.error("episodic", `backfill failed for agent ${entry.name}:`, err);
+      log.error("episodic", `backfill failed for agent ${agentId}:`, err);
     }
   }
 

@@ -42,8 +42,6 @@ export {
   appendEvent,
   loadEvents,
   withThreadLock,
-  findThread,
-  getThreadManifest,
   threadStore,
   type ThreadStore,
   type ThreadManifest,

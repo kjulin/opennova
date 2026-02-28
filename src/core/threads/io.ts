@@ -59,8 +59,8 @@ export type ThreadEvent =
   | ThreadResultEvent;
 
 
-export function threadPath(agentDir: string, threadId: string): string {
-  return path.join(agentDir, "threads", `${threadId}.jsonl`);
+export function threadPath(threadId: string): string {
+  return path.join(Config.workspaceDir, "threads", `${threadId}.jsonl`);
 }
 
 export function loadManifest(filePath: string): ThreadManifest {
@@ -84,12 +84,11 @@ export interface CreateThreadOptions {
   taskId?: string;
 }
 
-export function createThread(agentDir: string, options?: CreateThreadOptions): string {
+export function createThread(agentId: string, options?: CreateThreadOptions): string {
   const id = randomBytes(6).toString("hex");
-  const threadsDir = path.join(agentDir, "threads");
+  const threadsDir = path.join(Config.workspaceDir, "threads");
   if (!fs.existsSync(threadsDir)) fs.mkdirSync(threadsDir, { recursive: true });
 
-  const agentId = path.basename(agentDir);
   const manifest: ThreadManifest = {
     id,
     agentId,
@@ -106,21 +105,17 @@ export function createThread(agentDir: string, options?: CreateThreadOptions): s
   return id;
 }
 
-export function listThreads(agentDir: string): ThreadManifest[] {
-  const threadsDir = path.join(agentDir, "threads");
+export function listThreads(agentId?: string): ThreadManifest[] {
+  const threadsDir = path.join(Config.workspaceDir, "threads");
   if (!fs.existsSync(threadsDir)) return [];
 
-  const agentId = path.basename(agentDir);
   const threads: ThreadManifest[] = [];
 
   for (const file of fs.readdirSync(threadsDir)) {
     if (!file.endsWith(".jsonl")) continue;
-    const id = file.replace(".jsonl", "");
     try {
       const manifest = loadManifest(path.join(threadsDir, file));
-      // Backfill id/agentId for older threads
-      if (!manifest.id) manifest.id = id;
-      if (!manifest.agentId) manifest.agentId = agentId;
+      if (agentId && manifest.agentId !== agentId) continue;
       threads.push(manifest);
     } catch {
       // skip corrupt files
@@ -147,42 +142,9 @@ export function loadMessages(filePath: string): ThreadMessage[] {
   return messages;
 }
 
-export function deleteThread(agentDir: string, threadId: string): void {
-  const filePath = threadPath(agentDir, threadId);
+export function deleteThread(threadId: string): void {
+  const filePath = threadPath(threadId);
   if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
-}
-
-/**
- * Find a thread by ID, searching all agent directories.
- * Returns the manifest (including agentId) if found, null otherwise.
- */
-export function findThread(workspaceDir: string, threadId: string): ThreadManifest | null {
-  const agentsDir = path.join(workspaceDir, "agents");
-  if (!fs.existsSync(agentsDir)) return null;
-
-  for (const entry of fs.readdirSync(agentsDir, { withFileTypes: true })) {
-    if (!entry.isDirectory()) continue;
-    const agentDir = path.join(agentsDir, entry.name);
-    const filePath = threadPath(agentDir, threadId);
-    if (fs.existsSync(filePath)) {
-      const manifest = loadManifest(filePath);
-      // Backfill id/agentId for older threads
-      if (!manifest.id) manifest.id = threadId;
-      if (!manifest.agentId) manifest.agentId = entry.name;
-      return manifest;
-    }
-  }
-
-  return null;
-}
-
-export function getThreadManifest(agentId: string, threadId: string): ThreadManifest {
-  const agentDir = path.join(Config.workspaceDir, "agents", agentId);
-  const filePath = threadPath(agentDir, threadId);
-  const manifest = loadManifest(filePath);
-  if (!manifest.id) manifest.id = threadId;
-  if (!manifest.agentId) manifest.agentId = agentId;
-  return manifest;
 }
 
 export function appendMessage(filePath: string, msg: ThreadMessage): void {

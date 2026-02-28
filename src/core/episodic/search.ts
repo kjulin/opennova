@@ -1,5 +1,4 @@
 import fs from "fs";
-import path from "path";
 import { generateEmbedding, cosineSimilarity } from "./embeddings.js";
 import { loadEmbeddings, type EmbeddingRecord } from "./storage.js";
 import { threadPath, loadManifest, loadMessages, type ThreadMessage } from "../threads/io.js";
@@ -25,11 +24,11 @@ export interface SearchResult {
  * Returns top-N results with surrounding context messages.
  */
 export async function searchThreads(
-  agentDir: string,
+  agentId: string,
   query: string,
   limit: number,
 ): Promise<SearchResult[]> {
-  const embeddings = loadEmbeddings(agentDir);
+  const embeddings = loadEmbeddings(agentId);
   if (embeddings.length === 0) return [];
 
   const queryEmbedding = await generateEmbedding(query);
@@ -60,7 +59,7 @@ export async function searchThreads(
 
   for (const match of topMatches) {
     const { record, score } = match;
-    const filePath = threadPath(agentDir, record.threadId);
+    const filePath = threadPath(record.threadId);
 
     // Thread may have been deleted
     if (!fs.existsSync(filePath)) continue;

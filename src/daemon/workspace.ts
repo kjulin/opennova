@@ -28,16 +28,10 @@ export function workspaceSummary(dir: string): { agents: number; threads: number
     agents = fs.readdirSync(storeDir).filter((f) => f.endsWith(".json")).length;
   }
 
-  // Count threads from agents/{id}/threads/
-  const agentsDir = path.join(dir, "agents");
-  if (fs.existsSync(agentsDir)) {
-    for (const entry of fs.readdirSync(agentsDir, { withFileTypes: true })) {
-      if (!entry.isDirectory()) continue;
-      const threadsDir = path.join(agentsDir, entry.name, "threads");
-      if (fs.existsSync(threadsDir)) {
-        threads += fs.readdirSync(threadsDir).filter((f) => f.endsWith(".jsonl")).length;
-      }
-    }
+  // Count threads from threads/
+  const threadsDir = path.join(dir, "threads");
+  if (fs.existsSync(threadsDir)) {
+    threads = fs.readdirSync(threadsDir).filter((f) => f.endsWith(".jsonl")).length;
   }
 
   return { agents, threads };

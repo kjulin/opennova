@@ -9,6 +9,8 @@ import {
   loadAgentConfig,
   loadAllAgents,
 } from "./io.js";
+import { listThreads, deleteThread } from "../threads/io.js";
+import { deleteEmbeddings } from "../episodic/storage.js";
 
 export interface AgentStore {
   list(): Map<string, AgentConfig>;
@@ -46,7 +48,13 @@ export class FilesystemAgentStore implements AgentStore {
   delete(id: string): void {
     // Remove config from agent-store/
     deleteAgentJson(id);
-    // Remove runtime directory (threads, triggers, skills, etc.)
+    // Remove agent's threads from threads/
+    for (const thread of listThreads(id)) {
+      deleteThread(thread.id);
+    }
+    // Remove agent's embeddings
+    deleteEmbeddings(id);
+    // Remove runtime directory (triggers, skills, etc.)
     const dir = agentDir(id);
     if (fs.existsSync(dir)) {
       fs.rmSync(dir, { recursive: true });
