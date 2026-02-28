@@ -7,6 +7,7 @@ import {
 import { threadStore } from "../threads/index.js";
 import { isModelAvailable } from "./embeddings.js";
 import { logSearch } from "./analytics.js";
+import { filterTools } from "../capabilities/tool-filter.js";
 
 /**
  * Create an MCP server that exposes episodic memory search to agents.
@@ -14,10 +15,9 @@ import { logSearch } from "./analytics.js";
 export function createHistoryMcpServer(
   agentId: string,
   threadId: string,
+  allowedTools?: string[],
 ): McpSdkServerConfigWithInstance {
-  return createSdkMcpServer({
-    name: "history",
-    tools: [
+  const allTools = [
       tool(
         "search_threads",
         "Search your past conversation history using natural language. Returns relevant messages from previous threads with surrounding context.",
@@ -85,6 +85,10 @@ export function createHistoryMcpServer(
           }
         },
       ),
-    ],
+  ];
+
+  return createSdkMcpServer({
+    name: "history",
+    tools: filterTools(allTools, "history", allowedTools),
   });
 }

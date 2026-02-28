@@ -8,6 +8,7 @@ import {
 } from "@anthropic-ai/claude-agent-sdk";
 import { transcribe } from "../transcription/index.js";
 import { generateSpeech } from "./tts.js";
+import { filterTools } from "../capabilities/tool-filter.js";
 
 const AUDIO_EXTENSIONS = [".mp3", ".ogg", ".wav", ".m4a", ".opus", ".flac", ".aac"];
 const VIDEO_EXTENSIONS = [".mp4", ".mov", ".avi", ".webm", ".mkv", ".m4v"];
@@ -28,13 +29,12 @@ function isTranscribable(filePath: string): boolean {
 export function createAudioMcpServer(
   agentDir: string,
   allowedDirectories: string[],
+  allowedTools?: string[],
 ): McpSdkServerConfigWithInstance {
   // Always allow agent's own directory
   const allAllowedDirs = [agentDir, ...allowedDirectories];
 
-  return createSdkMcpServer({
-    name: "audio",
-    tools: [
+  const allTools = [
       tool(
         "transcribe",
         "Transcribe speech from an audio or video file to text. Supports mp3, ogg, wav, m4a, opus, flac, aac, mp4, mov, avi, webm, mkv. Use this when the user sends you an audio/video file and you need to understand what is said.",
@@ -235,6 +235,10 @@ export function createAudioMcpServer(
           }
         },
       ),
-    ],
+  ];
+
+  return createSdkMcpServer({
+    name: "audio",
+    tools: filterTools(allTools, "audio", allowedTools),
   });
 }

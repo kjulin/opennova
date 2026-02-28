@@ -2,7 +2,7 @@ import { Hono } from "hono"
 import { z } from "zod/v4"
 import { agentStore } from "#core/agents/index.js"
 import { triggerStore } from "#core/triggers/index.js"
-import { KNOWN_CAPABILITIES } from "#core/capabilities.js"
+import { capabilityRegistry } from "#core/capabilities/index.js"
 import {
   AgentJsonSchema,
   VALID_AGENT_ID,
@@ -10,7 +10,7 @@ import {
   type AgentJsonInput,
 } from "#core/schemas.js"
 
-function loadAgentDetail(id: string, agent: { name: string; description?: string | undefined; identity?: string | undefined; instructions?: string | undefined; responsibilities?: { title: string; content: string }[] | undefined; trust?: string | undefined; capabilities?: string[] | undefined; directories?: string[] | undefined; model?: string | undefined }) {
+function loadAgentDetail(id: string, agent: { name: string; description?: string | undefined; identity?: string | undefined; instructions?: string | undefined; responsibilities?: { title: string; content: string }[] | undefined; trust?: string | undefined; capabilities?: Record<string, { tools?: string[] | undefined }> | undefined; directories?: string[] | undefined; model?: string | undefined }) {
   const triggers = triggerStore.list(id)
 
   // Load skills from agent.json (source of truth)
@@ -86,9 +86,10 @@ export function createConsoleAgentsRouter(workspaceDir: string): Hono {
 
     // Validate capabilities against runtime registry
     if (agentData.capabilities) {
-      const unknown = agentData.capabilities.filter((cap: string) => !KNOWN_CAPABILITIES.includes(cap))
+      const knownKeys = capabilityRegistry.knownKeys()
+      const unknown = Object.keys(agentData.capabilities).filter((cap) => !knownKeys.includes(cap))
       if (unknown.length > 0) {
-        return c.json({ error: `Unknown capabilities: ${unknown.join(", ")}. Valid: ${KNOWN_CAPABILITIES.join(", ")}` }, 400)
+        return c.json({ error: `Unknown capabilities: ${unknown.join(", ")}. Valid: ${knownKeys.join(", ")}` }, 400)
       }
     }
 
@@ -96,7 +97,7 @@ export function createConsoleAgentsRouter(workspaceDir: string): Hono {
     if (agentData.description) agentJson.description = agentData.description
     if (agentData.instructions) agentJson.instructions = agentData.instructions
     if (agentData.directories && agentData.directories.length > 0) agentJson.directories = agentData.directories
-    if (agentData.capabilities && agentData.capabilities.length > 0) agentJson.capabilities = agentData.capabilities
+    if (agentData.capabilities && Object.keys(agentData.capabilities).length > 0) agentJson.capabilities = agentData.capabilities
 
     try {
       agentStore.create(id, agentJson)
@@ -131,10 +132,11 @@ export function createConsoleAgentsRouter(workspaceDir: string): Hono {
     }
 
     // Validate capabilities against runtime registry
-    if ("capabilities" in body && Array.isArray(body.capabilities)) {
-      const unknown = body.capabilities.filter((cap: string) => !KNOWN_CAPABILITIES.includes(cap))
+    if ("capabilities" in body && body.capabilities && typeof body.capabilities === "object" && !Array.isArray(body.capabilities)) {
+      const knownKeys = capabilityRegistry.knownKeys()
+      const unknown = Object.keys(body.capabilities).filter((cap: string) => !knownKeys.includes(cap))
       if (unknown.length > 0) {
-        return c.json({ error: `Unknown capabilities: ${unknown.join(", ")}. Valid: ${KNOWN_CAPABILITIES.join(", ")}` }, 400)
+        return c.json({ error: `Unknown capabilities: ${unknown.join(", ")}. Valid: ${knownKeys.join(", ")}` }, 400)
       }
     }
 

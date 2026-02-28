@@ -23,7 +23,7 @@ export interface Agent {
   trust: string;
   security?: string; // deprecated, use trust
   model?: string;
-  capabilities?: string[];
+  capabilities?: Record<string, { tools?: string[] }>;
   directories?: string[];
   skills: string[];
   triggers: Trigger[];

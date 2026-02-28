@@ -5,13 +5,13 @@ import {
   type McpSdkServerConfigWithInstance,
 } from "@anthropic-ai/claude-agent-sdk";
 import { triggerStore } from "./singleton.js";
+import { filterTools } from "../capabilities/tool-filter.js";
 
 export function createTriggerMcpServer(
   agentId: string,
+  allowedTools?: string[],
 ): McpSdkServerConfigWithInstance {
-  return createSdkMcpServer({
-    name: "triggers",
-    tools: [
+  const allTools = [
       tool(
         "list_triggers",
         "List this agent's own cron triggers. You can only see and manage your own triggers, not those of other agents.",
@@ -95,6 +95,10 @@ export function createTriggerMcpServer(
           };
         },
       ),
-    ],
+  ];
+
+  return createSdkMcpServer({
+    name: "triggers",
+    tools: filterTools(allTools, "triggers", allowedTools),
   });
 }

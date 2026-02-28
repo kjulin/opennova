@@ -7,6 +7,7 @@ import {
   type McpSdkServerConfigWithInstance,
 } from "@anthropic-ai/claude-agent-sdk";
 import { Config } from "./config.js";
+import { filterTools } from "./capabilities/tool-filter.js";
 
 function loadMemories(filePath: string): string[] {
   if (!fs.existsSync(filePath)) return [];
@@ -19,12 +20,10 @@ function saveMemories(filePath: string, memories: string[]): void {
   fs.writeFileSync(filePath, JSON.stringify(memories, null, 2));
 }
 
-export function createMemoryMcpServer(): McpSdkServerConfigWithInstance {
+export function createMemoryMcpServer(allowedTools?: string[]): McpSdkServerConfigWithInstance {
   const memoriesPath = path.join(Config.workspaceDir, "memories.json");
 
-  return createSdkMcpServer({
-    name: "memory",
-    tools: [
+  const allTools = [
       tool(
         "save_memory",
         "Save a short global fact visible to all agents (max 200 chars). Use for cross-agent facts only: user's name, timezone, preferences. NOT for notes, meeting details, or task status — use files or instructions for those.",
@@ -95,6 +94,10 @@ export function createMemoryMcpServer(): McpSdkServerConfigWithInstance {
           };
         },
       ),
-    ],
+  ];
+
+  return createSdkMcpServer({
+    name: "memory",
+    tools: filterTools(allTools, "memory", allowedTools),
   });
 }

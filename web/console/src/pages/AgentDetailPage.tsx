@@ -44,7 +44,7 @@ export function AgentDetailPage() {
         setIdentity(data.identity ?? "");
         setInstructions(data.instructions ?? "");
         setResponsibilities(data.responsibilities ?? []);
-        setCapabilities(data.capabilities ?? []);
+        setCapabilities(data.capabilities ? Object.keys(data.capabilities) : []);
         setDirectories(data.directories ?? []);
       })
       .catch((err) => setError(err.message))

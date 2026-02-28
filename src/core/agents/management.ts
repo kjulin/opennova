@@ -12,6 +12,7 @@ import {
 import { MODELS } from "../models.js";
 import { agentStore } from "./singleton.js";
 import { triggerStore } from "../triggers/singleton.js";
+import { filterTools } from "../capabilities/tool-filter.js";
 
 function ok(text: string) {
   return { content: [{ type: "text" as const, text }] };
@@ -21,10 +22,8 @@ function err(text: string) {
   return { content: [{ type: "text" as const, text }], isError: true as const };
 }
 
-export function createAgentManagementMcpServer(): McpSdkServerConfigWithInstance {
-  return createSdkMcpServer({
-    name: "agent-management",
-    tools: [
+export function createAgentManagementMcpServer(allowedTools?: string[]): McpSdkServerConfigWithInstance {
+  const allTools = [
       tool(
         "list_agents",
         "List all agents with their configuration",
@@ -61,7 +60,7 @@ export function createAgentManagementMcpServer(): McpSdkServerConfigWithInstance
           identity: z.string().describe("Who the agent is — expertise, personality, methodology"),
           instructions: z.string().optional().describe("How the agent operates — files, rhythm, focus, constraints"),
           directories: z.array(z.string()).optional().describe("Directories the agent can access (optional)"),
-          capabilities: z.array(z.string()).optional().describe("System capabilities to enable (e.g. memory, history, tasks, notes, web-search, agent-management)"),
+          capabilities: z.record(z.string(), z.object({ tools: z.array(z.string()).optional() }).passthrough()).optional().describe("System capabilities to enable, e.g. { \"memory\": {}, \"audio\": { \"tools\": [\"transcribe\"] } }"),
           model: z.enum(MODELS).optional().describe("Model to use. Defaults to 'sonnet'."),
         },
         async (args) => {
@@ -73,7 +72,7 @@ export function createAgentManagementMcpServer(): McpSdkServerConfigWithInstance
               ...(args.description && { description: args.description }),
               ...(args.instructions && { instructions: args.instructions }),
               ...(args.directories && args.directories.length > 0 && { directories: args.directories }),
-              ...(args.capabilities && args.capabilities.length > 0 && { capabilities: args.capabilities }),
+              ...(args.capabilities && Object.keys(args.capabilities).length > 0 && { capabilities: args.capabilities }),
             });
             return ok(`Created agent "${args.id}"`);
           } catch (e) {
@@ -178,16 +177,19 @@ export function createAgentManagementMcpServer(): McpSdkServerConfigWithInstance
           return ok(`Wrote ${created.length} trigger(s) for agent "${args.id}"`);
         },
       ),
-    ],
+  ];
+
+  return createSdkMcpServer({
+    name: "agent-management",
+    tools: filterTools(allTools, "agent-management", allowedTools),
   });
 }
 
 export function createSelfManagementMcpServer(
   agentId: string,
+  allowedTools?: string[],
 ): McpSdkServerConfigWithInstance {
-  return createSdkMcpServer({
-    name: "self",
-    tools: [
+  const allTools = [
       tool(
         "update_my_instructions",
         "Update how you operate. Use when you discover better approaches, user preferences about your workflow, or patterns that work well. Takes effect next conversation.",
@@ -299,6 +301,10 @@ export function createSelfManagementMcpServer(
           }
         },
       ),
-    ],
+  ];
+
+  return createSdkMcpServer({
+    name: "self",
+    tools: filterTools(allTools, "self", allowedTools),
   });
 }

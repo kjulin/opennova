@@ -21,6 +21,7 @@ import {
 } from "./storage.js";
 import type { Task, Step, Resource } from "./types.js";
 import { taskBus } from "./events.js";
+import { filterTools } from "#core/capabilities/tool-filter.js";
 
 const StepSchema = z.object({
   title: z.string().max(60).describe("Short step label (max 60 chars)"),
@@ -58,10 +59,9 @@ Updated: ${task.updatedAt}`;
 export function createTasksMcpServer(
   agentId: string,
   workspaceDir: string,
+  allowedTools?: string[],
 ): McpSdkServerConfigWithInstance {
-  return createSdkMcpServer({
-    name: "tasks",
-    tools: [
+  const allTools = [
       tool(
         "create_task",
         "Create a new task. The task will be owned by the specified owner (defaults to you). A dedicated thread will be created for the task.",
@@ -515,6 +515,10 @@ export function createTasksMcpServer(
           };
         },
       ),
-    ],
+  ];
+
+  return createSdkMcpServer({
+    name: "tasks",
+    tools: filterTools(allTools, "tasks", allowedTools),
   });
 }

@@ -5,14 +5,13 @@ import {
   type McpSdkServerConfigWithInstance,
 } from "@anthropic-ai/claude-agent-sdk";
 import { slugify, listNotes, readNote, writeNote, deleteNote, noteExists, pinNote, unpinNote, getPinnedSlugs } from "./storage.js";
+import { filterTools } from "#core/capabilities/tool-filter.js";
 
 export type OnShareNoteCallback = (title: string, slug: string, message: string | undefined) => void;
 export type OnPinChangeCallback = () => void;
 
-export function createNotesMcpServer(agentDir: string, onShareNote?: OnShareNoteCallback, onPinChange?: OnPinChangeCallback): McpSdkServerConfigWithInstance {
-  return createSdkMcpServer({
-    name: "notes",
-    tools: [
+export function createNotesMcpServer(agentDir: string, onShareNote?: OnShareNoteCallback, onPinChange?: OnPinChangeCallback, allowedTools?: string[]): McpSdkServerConfigWithInstance {
+  const allTools = [
       tool(
         "save_note",
         "Create or overwrite a note. Use for new notes or when you want to replace existing content entirely. Use standard markdown: **bold**, *italic*, - for lists.",
@@ -205,6 +204,10 @@ export function createNotesMcpServer(agentDir: string, onShareNote?: OnShareNote
           };
         },
       ),
-    ],
+  ];
+
+  return createSdkMcpServer({
+    name: "notes",
+    tools: filterTools(allTools, "notes", allowedTools),
   });
 }

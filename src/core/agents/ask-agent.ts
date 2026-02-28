@@ -10,6 +10,7 @@ import type { AgentConfig } from "./agents.js";
 import { agentStore } from "./singleton.js";
 import { threadStore } from "../threads/index.js";
 import { log } from "../logger.js";
+import { filterTools } from "../capabilities/tool-filter.js";
 
 const MAX_DEPTH = 3;
 
@@ -32,10 +33,9 @@ export function createAgentsMcpServer(
   caller: AgentConfig,
   depth: number,
   runAgentFn: RunAgentFn,
+  allowedTools?: string[],
 ): McpSdkServerConfigWithInstance {
-  return createSdkMcpServer({
-    name: "agents",
-    tools: [
+  const allTools = [
       tool(
         "list_available_agents",
         "List the agents you can delegate tasks to, with their descriptions.",
@@ -93,6 +93,10 @@ export function createAgentsMcpServer(
           }
         },
       ),
-    ],
+  ];
+
+  return createSdkMcpServer({
+    name: "agents",
+    tools: filterTools(allTools, "agents", allowedTools),
   });
 }

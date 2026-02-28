@@ -34,7 +34,10 @@ export function AgentCapabilities({
       ? [...capabilities, capId]
       : capabilities.filter((c) => c !== capId);
     onCapabilitiesChange(updated);
-    save({ capabilities: updated });
+    // Convert string[] to Record<string, {}> for the API
+    const capsRecord: Record<string, Record<string, never>> = {};
+    for (const cap of updated) capsRecord[cap] = {};
+    save({ capabilities: capsRecord });
   }
 
   return (

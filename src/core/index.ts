@@ -111,12 +111,19 @@ export {
 
 // Capabilities
 export {
-  resolveCapabilities,
+  capabilityRegistry,
   resolveInjections,
-  capabilityToolPatterns,
-  KNOWN_CAPABILITIES,
+  CapabilityRegistry,
+  filterTools,
   type ResolverContext,
-} from "./capabilities.js";
+  type CapabilityConfig,
+  type CapabilitiesRecord,
+  type ToolDescriptor,
+  type CapabilityDescriptor,
+  type ResolvedCapability,
+  type ResolvedCapabilities,
+  type CapabilityResolver,
+} from "./capabilities/index.js";
 
 // Triggers
 export {
