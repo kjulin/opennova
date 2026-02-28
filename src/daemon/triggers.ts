@@ -7,6 +7,7 @@ import {
 } from "#core/index.js";
 import { log } from "./logger.js";
 import { agentDir } from "#core/agents/index.js";
+import { getDeliveryCallbacks } from "./channels.js";
 
 export function startTriggerScheduler() {
   function tick() {
@@ -43,7 +44,9 @@ export function startTriggerScheduler() {
 
           log.info("trigger", `firing for agent ${agentId} thread ${threadId}: "${trigger.prompt}"`);
 
-          runAgent(agentDir(agentId), threadId, trigger.prompt, undefined, {
+          const callbacks = getDeliveryCallbacks(agentId);
+
+          runAgent(agentDir(agentId), threadId, trigger.prompt, callbacks, {
             triggers: createTriggerMcpServer(agentId),
           }, undefined, undefined, { background: true, source: "trigger", triggerId: trigger.id })
             .then(() => {

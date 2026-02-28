@@ -3,6 +3,7 @@ import path from "path";
 import { startTelegram } from "./channels/telegram.js";
 import { startAgentTelegram } from "./channels/telegram-agent.js";
 import { TelegramConfigSchema, safeParseJsonFile, Config } from "#core/index.js";
+import type { AgentRunnerCallbacks } from "#core/agent-runner.js";
 import { log } from "./logger.js";
 
 export interface ChannelInfo {
@@ -16,6 +17,13 @@ export interface LoadChannelsResult {
 }
 
 let currentShutdown: (() => void) | null = null;
+const deliveryCallbackMap = new Map<string, () => Partial<AgentRunnerCallbacks>>();
+
+/** Get delivery callbacks for an agent (e.g. Telegram message sending). */
+export function getDeliveryCallbacks(agentId: string): Partial<AgentRunnerCallbacks> | undefined {
+  const factory = deliveryCallbackMap.get(agentId);
+  return factory?.();
+}
 
 export function reloadChannels(): void {
   if (currentShutdown) {
@@ -40,6 +48,9 @@ export function getCurrentShutdown(): (() => void) | null {
 export function loadChannels(): LoadChannelsResult {
   const channels: ChannelInfo[] = [];
   const shutdowns: (() => void)[] = [];
+
+  // Clear previous delivery callbacks on reload
+  deliveryCallbackMap.clear();
 
   // Global Telegram bot
   const telegram = startTelegram();
@@ -66,6 +77,7 @@ export function loadChannels(): LoadChannelsResult {
           if (agentBot) {
             channels.push({ name: `Telegram (${agentId})`, detail: "polling" });
             shutdowns.push(agentBot.shutdown);
+            deliveryCallbackMap.set(agentId, agentBot.deliveryCallbacks);
           }
         }
       }
