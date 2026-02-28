@@ -40,13 +40,13 @@ This means the audio capability is resolved, but only the `transcribe` tool is a
 
 ### Capability-Specific Config
 
-Beyond `tools`, each capability can define its own config schema. The resolver declares what config it accepts. `tools` is reserved by the registry and stripped before the config is passed to the resolver.
+Beyond `tools`, each capability can define its own config schema. The resolver declares what config it accepts via a Zod schema. `tools` is reserved by the registry and stripped before the config is passed to the resolver.
 
 ```json
 "files": { "dirs": ["/data/reports"], "tools": ["read_file"] }
 ```
 
-The resolver receives `{ "dirs": ["/data/reports"] }`. The registry handles `tools` filtering separately.
+The resolver receives `{ "dirs": ["/data/reports"] }` — validated against its declared Zod schema.
 
 ## CapabilityRegistry
 
@@ -64,18 +64,19 @@ interface ToolDescriptor {
 interface CapabilityResolver {
   key: string
   tools: ToolDescriptor[]
-  configSchema?: Record<string, unknown>  // JSON Schema for capability-specific config (excludes `tools`)
+  configSchema?: z.ZodType             // Zod schema for capability-specific config (excludes `tools`)
   resolve(ctx: ResolverContext, config: ResolvedConfig): ResolvedCapability | null
 }
 
 // What the resolver receives after the registry processes the agent config
 interface ResolvedConfig {
   tools: string[]                      // validated tool allowlist (or all tool keys if agent omitted `tools`)
-  [key: string]: unknown               // capability-specific config
+  [key: string]: unknown               // capability-specific config (validated against configSchema)
 }
 
 interface ResolvedCapability {
   mcpServer: McpServerConfig
+  [key: string]: unknown               // extra keys passed through to the engine
 }
 ```
 
@@ -108,7 +109,7 @@ interface ResolverContext {
 interface CapabilityDescriptor {
   key: string
   tools: ToolDescriptor[]
-  configSchema?: Record<string, unknown>  // JSON Schema for capability-specific config (excludes `tools`)
+  configSchema?: z.ZodType             // Zod schema for capability-specific config (excludes `tools`)
 }
 
 class CapabilityRegistry {
@@ -131,31 +132,22 @@ interface ResolvedCapabilities {
 }
 ```
 
-`resolve()` iterates the agent's capabilities object. For each key, it finds the registered resolver, validates the `tools` allowlist against the resolver's declared tools (defaulting to all if omitted), passes the resolved config to the resolver, and collects the results. Unknown capabilities are an error.
+`resolve()` iterates the agent's capabilities object. For each key, it finds the registered resolver, validates the `tools` allowlist against the resolver's declared tools (defaulting to all if omitted), validates capability-specific config against the resolver's Zod schema, passes the resolved config to the resolver, and collects the results. Unknown capabilities are an error.
 
 Since resolvers enforce tool filtering themselves, the MCP servers in `ResolvedCapabilities` only expose allowed tools.
 
-## Run-time Injections
+## Integration Example
 
-Not all MCP servers are capabilities. Some are wired by AgentRunner based on execution context, never listed in agent config, and not togglable.
-
-Run-time injections are added after capability resolution. They use the same infrastructure but are not part of the agent's capabilities object and are not registered in CapabilityRegistry.
-
-## AgentRunner Integration
-
-```
+```typescript
 const registry = CapabilityRegistry.instance()
 const { mcpServers } = registry.resolve(agent.capabilities, context)
-const injections = resolveInjections(mode, context)
 
 const result = await engine.run(message, {
   systemPrompt,
-  mcpServers: { ...mcpServers, ...injections },
+  mcpServers,
   ...overrides
 }, sessionId, callbacks, abortController)
 ```
-
-Tool filtering is already enforced — resolvers only expose allowed tools in the MCP servers they return.
 
 ## Constraints
 
