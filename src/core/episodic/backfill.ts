@@ -2,7 +2,7 @@ import fs from "fs";
 import path from "path";
 import { generateEmbedding, isModelAvailable } from "./embeddings.js";
 import { loadEmbeddings, appendEmbedding, rewriteEmbeddings, type EmbeddingRecord } from "./storage.js";
-import { threadPath, listThreads, loadMessages } from "../threads.js";
+import { threadPath, listThreads, loadMessages } from "../threads/io.js";
 import { log } from "../logger.js";
 
 /**

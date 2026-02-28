@@ -1,8 +1,8 @@
 import fs from "fs";
 import path from "path";
 import { randomBytes } from "crypto";
-import { ThreadManifestSchema } from "./schemas.js";
-import { Config } from "./config.js";
+import { ThreadManifestSchema } from "../schemas.js";
+import { Config } from "../config.js";
 
 export interface ThreadManifest {
   title?: string;

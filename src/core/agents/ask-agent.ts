@@ -8,7 +8,7 @@ import {
 import { Config } from "../config.js";
 import type { AgentConfig } from "./agents.js";
 import { agentStore } from "./singleton.js";
-import { createThread } from "../threads.js";
+import { threadStore } from "../threads/index.js";
 import { log } from "../logger.js";
 
 const MAX_DEPTH = 3;
@@ -79,7 +79,7 @@ export function createAgentsMcpServer(
           }
 
           const targetDir = path.join(Config.workspaceDir, "agents", target.id);
-          const threadId = createThread(targetDir);
+          const threadId = threadStore.create(target.id);
           const prompt = `[Message from agent "${caller.name}" (${caller.id})]\n\n${args.message}`;
 
           log.info("ask-agent", `${caller.id} → ${target.id} (depth ${depth}): ${args.message.slice(0, 100)}`);

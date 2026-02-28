@@ -9,15 +9,7 @@ import { resolveCapabilities, resolveInjections, type ResolverContext } from "./
 import { appendUsage } from "./usage.js";
 import { generateEmbedding, appendEmbedding, isModelAvailable } from "./episodic/index.js";
 import { getTask } from "#tasks/index.js";
-import {
-  threadPath,
-  loadManifest,
-  saveManifest,
-  loadMessages,
-  appendMessage,
-  appendEvent,
-  withThreadLock,
-} from "./threads.js";
+import { threadStore } from "./threads/index.js";
 import { log } from "./logger.js";
 import { materializeSkills } from "./skills.js";
 import type { FileType } from "./media/mcp.js";
@@ -63,9 +55,9 @@ export function createAgentRunner(engine: Engine = claudeEngine): AgentRunner {
     abortController?: AbortController,
     overrides?: RunAgentOverrides,
   ): Promise<{ text: string }> => {
-    return withThreadLock(threadId, async () => {
-      const filePath = threadPath(agentDir, threadId);
-      const manifest = loadManifest(filePath);
+    return threadStore.withLock(threadId, async () => {
+      const manifest = threadStore.get(threadId);
+      if (!manifest) throw new Error(`Thread not found: ${threadId}`);
 
       const agentId = path.basename(agentDir);
       const agent = agentStore.get(agentId);
@@ -73,7 +65,7 @@ export function createAgentRunner(engine: Engine = claudeEngine): AgentRunner {
 
       log.info("agent-runner", `starting thread ${threadId} for agent ${agentId}`);
 
-      appendMessage(filePath, {
+      threadStore.appendMessage(threadId, {
         role: "user",
         text: message,
         timestamp: new Date().toISOString(),
@@ -118,7 +110,7 @@ export function createAgentRunner(engine: Engine = claudeEngine): AgentRunner {
         const engineCallbacks: EngineCallbacks = {
           ...callbacks,
           onEvent: (event: EngineEvent) => {
-            appendEvent(filePath, { ...event, timestamp: new Date().toISOString() });
+            threadStore.appendEvent(threadId, { ...event, timestamp: new Date().toISOString() });
             callbacks?.onEvent?.(event);
           },
         };
@@ -170,18 +162,17 @@ export function createAgentRunner(engine: Engine = claudeEngine): AgentRunner {
       } catch (err) {
         if (abortController?.signal.aborted) {
           log.info("agent-runner", `thread ${threadId} for agent ${agentId} stopped by user`);
-          appendMessage(filePath, {
+          threadStore.appendMessage(threadId, {
             role: "assistant",
             text: "(stopped by user)",
             timestamp: new Date().toISOString(),
           });
-          manifest.updatedAt = new Date().toISOString();
-          saveManifest(filePath, manifest);
+          threadStore.updateManifest(threadId, { updatedAt: new Date().toISOString() });
           return { text: "" };
         }
         log.error("agent-runner", `thread ${threadId} for agent ${agentId} failed:`, err);
         const errorMsg = (err as Error).message ?? "unknown error";
-        appendMessage(filePath, {
+        threadStore.appendMessage(threadId, {
           role: "assistant",
           text: `(error: ${errorMsg})`,
           timestamp: new Date().toISOString(),
@@ -209,17 +200,16 @@ export function createAgentRunner(engine: Engine = claudeEngine): AgentRunner {
         });
       }
 
-      appendMessage(filePath, {
+      threadStore.appendMessage(threadId, {
         role: "assistant",
         text: responseText,
         timestamp: new Date().toISOString(),
       });
 
-      if (result.sessionId) {
-        manifest.sessionId = result.sessionId;
-      }
-      manifest.updatedAt = new Date().toISOString();
-      saveManifest(filePath, manifest);
+      threadStore.updateManifest(threadId, {
+        ...(result.sessionId ? { sessionId: result.sessionId } : {}),
+        updatedAt: new Date().toISOString(),
+      });
 
       callbacks?.onResponse?.(agentId, threadId, responseText);
 
@@ -229,7 +219,7 @@ export function createAgentRunner(engine: Engine = claudeEngine): AgentRunner {
       if (!isModelAvailable()) {
         log.debug("episodic", `skipping embedding for ${threadId} — model not available (run 'nova init')`);
       } else {
-        const msgMessages = loadMessages(filePath);
+        const msgMessages = threadStore.loadMessages(threadId);
         const userAssistantMessages = msgMessages.filter((m) => m.role === "user" || m.role === "assistant");
         const messageCount = userAssistantMessages.length;
 
@@ -274,15 +264,14 @@ export function createAgentRunner(engine: Engine = claudeEngine): AgentRunner {
       }
 
       if (!manifest.title) {
-        const messages = loadMessages(filePath);
+        const messages = threadStore.loadMessages(threadId);
         const userMessages = messages.filter((m) => m.role === "user");
         // Wait for at least 2 user messages — the first is often just a greeting
         if (userMessages.length >= 2) {
           const topicMessages = userMessages.slice(-2).map((m) => m.text).join("\n");
           generateThreadTitle(topicMessages, responseText).then(({ title, usage: titleUsage }) => {
             if (title) {
-              manifest.title = title;
-              saveManifest(filePath, manifest);
+              threadStore.updateManifest(threadId, { title });
               log.info("agent-runner", `titled thread ${threadId}: "${title}"`);
             }
             if (titleUsage) {

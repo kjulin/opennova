@@ -1,7 +1,7 @@
 import path from "path";
 import cron from "node-cron";
 import { Config } from "#core/config.js";
-import { createThread } from "#core/threads.js";
+import { threadStore } from "#core/threads/index.js";
 import { getTask, loadTasks, updateTask, findParentTask } from "./storage.js";
 import { TASK_WORK_PROMPT } from "./prompts.js";
 import { runAgent } from "#core/index.js";
@@ -38,7 +38,7 @@ export function runTaskNow(workspaceDir: string, taskId: string): string | null 
   if (!threadId) {
     log.warn("tasks", `task ${taskId} has no thread, creating one`);
     const agentDir = path.join(workspaceDir, "agents", task.owner);
-    threadId = createThread(agentDir, { taskId });
+    threadId = threadStore.create(task.owner, { taskId });
     updateTask(workspaceDir, taskId, { threadId });
   }
 
@@ -93,7 +93,7 @@ export function startTaskScheduler() {
 
       if (!threadId) {
         log.warn("tasks", `task ${task.id} has no thread, creating one`);
-        threadId = createThread(agentDir, { taskId: task.id });
+        threadId = threadStore.create(task.owner, { taskId: task.id });
         updateTask(workspaceDir, task.id, { threadId });
       }
 

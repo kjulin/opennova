@@ -12,14 +12,25 @@ vi.mock("#core/logger.js", () => ({
   },
 }));
 
-vi.mock("#core/threads.js", () => ({
-  threadPath: vi.fn((agentDir: string, threadId: string) => `${agentDir}/threads/${threadId}.jsonl`),
-  loadManifest: vi.fn(() => ({ sessionId: "sess-123" })),
-  saveManifest: vi.fn(),
-  loadMessages: vi.fn(() => []),
-  appendMessage: vi.fn(),
-  appendEvent: vi.fn(),
-  withThreadLock: vi.fn((_threadId: string, fn: () => unknown) => fn()),
+const { mockThreadStore } = vi.hoisted(() => ({
+  mockThreadStore: {
+    get: vi.fn(() => ({ sessionId: "sess-123" })),
+    withLock: vi.fn((_threadId: string, fn: () => unknown) => fn()),
+    appendMessage: vi.fn(),
+    appendEvent: vi.fn(),
+    loadMessages: vi.fn(() => []),
+    updateManifest: vi.fn(),
+    create: vi.fn(),
+    list: vi.fn(() => []),
+    delete: vi.fn(),
+    loadEvents: vi.fn(() => []),
+    search: vi.fn(),
+    backfill: vi.fn(),
+  },
+}));
+
+vi.mock("#core/threads/index.js", () => ({
+  threadStore: mockThreadStore,
 }));
 
 const testAgent = { id: "test-agent", name: "Test Agent", role: "Test role", trust: "controlled", model: "sonnet", capabilities: ["memory"] };
@@ -53,7 +64,6 @@ vi.mock("#core/engine/index.js", async (importOriginal) => {
   };
 });
 
-import { appendMessage, saveManifest } from "#core/threads.js";
 import { appendUsage } from "#core/usage.js";
 
 function createMockEngine(): Engine & { calls: Array<{ message: string; trust: string }> } {
@@ -70,6 +80,10 @@ function createMockEngine(): Engine & { calls: Array<{ message: string; trust: s
 describe("AgentRunner", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // Re-setup default mock return values after clearAllMocks
+    mockThreadStore.get.mockReturnValue({ sessionId: "sess-123" });
+    mockThreadStore.withLock.mockImplementation((_threadId: string, fn: () => unknown) => fn());
+    mockThreadStore.loadMessages.mockReturnValue([]);
   });
 
   it("appends user message to thread", async () => {
@@ -78,8 +92,8 @@ describe("AgentRunner", () => {
 
     await runner.runAgent("/agents/test-agent", "thread-1", "Hello");
 
-    expect(appendMessage).toHaveBeenCalledWith(
-      "/agents/test-agent/threads/thread-1.jsonl",
+    expect(mockThreadStore.appendMessage).toHaveBeenCalledWith(
+      "thread-1",
       expect.objectContaining({
         role: "user",
         text: "Hello",
@@ -104,8 +118,8 @@ describe("AgentRunner", () => {
 
     await runner.runAgent("/agents/test-agent", "thread-1", "Hello");
 
-    expect(appendMessage).toHaveBeenCalledWith(
-      "/agents/test-agent/threads/thread-1.jsonl",
+    expect(mockThreadStore.appendMessage).toHaveBeenCalledWith(
+      "thread-1",
       expect.objectContaining({
         role: "assistant",
         text: "Response from engine",
@@ -113,14 +127,14 @@ describe("AgentRunner", () => {
     );
   });
 
-  it("saves manifest with updated sessionId", async () => {
+  it("updates manifest with sessionId", async () => {
     const mockEngine = createMockEngine();
     const runner = createAgentRunner(mockEngine);
 
     await runner.runAgent("/agents/test-agent", "thread-1", "Hello");
 
-    expect(saveManifest).toHaveBeenCalledWith(
-      "/agents/test-agent/threads/thread-1.jsonl",
+    expect(mockThreadStore.updateManifest).toHaveBeenCalledWith(
+      "thread-1",
       expect.objectContaining({
         sessionId: "sess-456",
       })
@@ -227,8 +241,8 @@ describe("AgentRunner", () => {
     );
 
     expect(result.text).toBe("");
-    expect(appendMessage).toHaveBeenCalledWith(
-      expect.any(String),
+    expect(mockThreadStore.appendMessage).toHaveBeenCalledWith(
+      "thread-1",
       expect.objectContaining({
         role: "assistant",
         text: "(stopped by user)",

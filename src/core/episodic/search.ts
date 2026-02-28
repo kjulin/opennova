@@ -2,7 +2,7 @@ import fs from "fs";
 import path from "path";
 import { generateEmbedding, cosineSimilarity } from "./embeddings.js";
 import { loadEmbeddings, type EmbeddingRecord } from "./storage.js";
-import { threadPath, loadManifest, loadMessages, type ThreadMessage } from "../threads.js";
+import { threadPath, loadManifest, loadMessages, type ThreadMessage } from "../threads/io.js";
 
 const CONTEXT_WINDOW = 3;
 

@@ -1,11 +1,10 @@
-import path from "path";
 import { z } from "zod/v4";
 import {
   createSdkMcpServer,
   tool,
   type McpSdkServerConfigWithInstance,
 } from "@anthropic-ai/claude-agent-sdk";
-import { createThread } from "#core/threads.js";
+import { threadStore } from "#core/threads/index.js";
 import {
   loadTasks,
   loadHistory,
@@ -98,8 +97,7 @@ export function createTasksMcpServer(
           });
 
           // Create dedicated thread for the task in the owner's agent directory
-          const ownerAgentDir = path.join(workspaceDir, "agents", task.owner);
-          const threadId = createThread(ownerAgentDir, { taskId: task.id });
+          const threadId = threadStore.create(task.owner, { taskId: task.id });
 
           // Update task with the thread ID
           const updatedTask = updateTask(workspaceDir, task.id, { threadId });
@@ -420,8 +418,7 @@ export function createTasksMcpServer(
           });
 
           // Create thread for the subtask
-          const ownerAgentDir = path.join(workspaceDir, "agents", subtask.owner);
-          const threadId = createThread(ownerAgentDir, { taskId: subtask.id });
+          const threadId = threadStore.create(subtask.owner, { taskId: subtask.id });
           updateTask(workspaceDir, subtask.id, { threadId });
 
           // Link subtask to the parent task's step

@@ -4,7 +4,7 @@ import {
   tool,
   type McpSdkServerConfigWithInstance,
 } from "@anthropic-ai/claude-agent-sdk";
-import { searchThreads } from "./search.js";
+import { threadStore } from "../threads/index.js";
 import { isModelAvailable } from "./embeddings.js";
 import { logSearch } from "./analytics.js";
 
@@ -12,7 +12,6 @@ import { logSearch } from "./analytics.js";
  * Create an MCP server that exposes episodic memory search to agents.
  */
 export function createHistoryMcpServer(
-  agentDir: string,
   agentId: string,
   threadId: string,
 ): McpSdkServerConfigWithInstance {
@@ -47,7 +46,7 @@ export function createHistoryMcpServer(
           }
 
           try {
-            const results = await searchThreads(agentDir, args.query, args.limit);
+            const results = await threadStore.search(args.query, { agentId, limit: args.limit });
 
             // Log analytics
             const topScore = results.length > 0 ? results[0]!.score : 0;

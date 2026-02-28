@@ -18,7 +18,7 @@ import {
   isValidOwner,
   runTaskNow,
 } from "#tasks/index.js";
-import { createThread } from "#core/threads.js";
+import { threadStore } from "#core/threads/index.js";
 import { createNotesRouter } from "#notes/index.js";
 import { createConsoleAgentsRouter } from "#api/console-agents.js";
 import { createConsoleTriggersRouter } from "#api/console-triggers.js";
@@ -144,8 +144,7 @@ function createApp(workspaceDir: string): Hono {
     });
 
     // Create dedicated thread for the task
-    const ownerAgentDir = path.join(workspaceDir, "agents", task.owner);
-    const threadId = createThread(ownerAgentDir, { taskId: task.id });
+    const threadId = threadStore.create(task.owner, { taskId: task.id });
 
     // Update task with thread ID
     const updatedTask = updateTask(workspaceDir, task.id, { threadId });

@@ -3,7 +3,7 @@ import path from "path";
 import { CronExpressionParser } from "cron-parser";
 import {
   Config,
-  createThread,
+  threadStore,
   runAgent,
   createTriggerMcpServer,
 } from "#core/index.js";
@@ -63,7 +63,7 @@ export function startTriggerScheduler() {
             trigger.lastRun = new Date().toISOString();
             changed = true;
 
-            const threadId = createThread(agentDir);
+            const threadId = threadStore.create(agentId);
 
             log.info("trigger", `firing for agent ${agentId} thread ${threadId}: "${trigger.prompt}"`);
 
