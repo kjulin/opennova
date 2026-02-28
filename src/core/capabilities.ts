@@ -1,6 +1,6 @@
 import type { McpServerConfig } from "@anthropic-ai/claude-agent-sdk";
 import type { AgentConfig } from "./agents/index.js";
-import type { ThreadManifest } from "./threads.js";
+import type { ThreadManifest } from "./threads/index.js";
 import type { FileType } from "./media/mcp.js";
 import type { RunAgentFn } from "./agents/ask-agent.js";
 import { createNotifyUserMcpServer } from "./notify-user.js";
@@ -36,7 +36,7 @@ type CapabilityResolver = (ctx: ResolverContext) => McpServerConfig | null;
 
 const CAPABILITY_REGISTRY: Record<string, CapabilityResolver> = {
   memory: () => createMemoryMcpServer(),
-  history: (ctx) => createHistoryMcpServer(ctx.agentDir, ctx.agentId, ctx.threadId),
+  history: (ctx) => createHistoryMcpServer(ctx.agentId, ctx.threadId),
   tasks: (ctx) => createTasksMcpServer(ctx.agentId, ctx.workspaceDir),
   notes: (ctx) => createNotesMcpServer(ctx.agentDir, ctx.callbacks.onShareNote, ctx.callbacks.onPinChange),
   self: (ctx) => createSelfManagementMcpServer(ctx.agentId),

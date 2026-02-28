@@ -41,6 +41,7 @@ export const TriggerSchema = z.object({
 export type Trigger = z.infer<typeof TriggerSchema>;
 
 export const ThreadManifestSchema = z.object({
+  id: z.string().optional(),
   title: z.string().optional(),
   agentId: z.string().optional(),
   sessionId: z.string().optional(),

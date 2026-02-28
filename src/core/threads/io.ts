@@ -1,15 +1,17 @@
 import fs from "fs";
 import path from "path";
 import { randomBytes } from "crypto";
-import { ThreadManifestSchema } from "./schemas.js";
-import { Config } from "./config.js";
+import { ThreadManifestSchema } from "../schemas.js";
+import { Config } from "../config.js";
 
 export interface ThreadManifest {
+  id: string;
+  agentId: string;
   title?: string;
-  agentId?: string;
   sessionId?: string;
   createdAt: string;
   updatedAt: string;
+  /** Allow additional fields (e.g. taskId) */
   [key: string]: unknown;
 }
 
@@ -56,11 +58,6 @@ export type ThreadEvent =
   | ThreadAssistantTextEvent
   | ThreadResultEvent;
 
-export interface ThreadInfo {
-  id: string;
-  agentId: string;
-  manifest: ThreadManifest;
-}
 
 export function threadPath(agentDir: string, threadId: string): string {
   return path.join(agentDir, "threads", `${threadId}.jsonl`);
@@ -94,6 +91,7 @@ export function createThread(agentDir: string, options?: CreateThreadOptions): s
 
   const agentId = path.basename(agentDir);
   const manifest: ThreadManifest = {
+    id,
     agentId,
     ...(options?.taskId ? { taskId: options.taskId } : {}),
     createdAt: new Date().toISOString(),
@@ -108,20 +106,22 @@ export function createThread(agentDir: string, options?: CreateThreadOptions): s
   return id;
 }
 
-export function listThreads(agentDir: string): ThreadInfo[] {
+export function listThreads(agentDir: string): ThreadManifest[] {
   const threadsDir = path.join(agentDir, "threads");
   if (!fs.existsSync(threadsDir)) return [];
 
   const agentId = path.basename(agentDir);
-  const threads: ThreadInfo[] = [];
+  const threads: ThreadManifest[] = [];
 
   for (const file of fs.readdirSync(threadsDir)) {
     if (!file.endsWith(".jsonl")) continue;
     const id = file.replace(".jsonl", "");
     try {
       const manifest = loadManifest(path.join(threadsDir, file));
+      // Backfill id/agentId for older threads
+      if (!manifest.id) manifest.id = id;
       if (!manifest.agentId) manifest.agentId = agentId;
-      threads.push({ id, agentId, manifest });
+      threads.push(manifest);
     } catch {
       // skip corrupt files
     }
@@ -166,10 +166,9 @@ export function findThread(workspaceDir: string, threadId: string): ThreadManife
     const filePath = threadPath(agentDir, threadId);
     if (fs.existsSync(filePath)) {
       const manifest = loadManifest(filePath);
-      // Backfill agentId for older threads that don't have it
-      if (!manifest.agentId) {
-        manifest.agentId = entry.name;
-      }
+      // Backfill id/agentId for older threads
+      if (!manifest.id) manifest.id = threadId;
+      if (!manifest.agentId) manifest.agentId = entry.name;
       return manifest;
     }
   }
@@ -181,6 +180,7 @@ export function getThreadManifest(agentId: string, threadId: string): ThreadMani
   const agentDir = path.join(Config.workspaceDir, "agents", agentId);
   const filePath = threadPath(agentDir, threadId);
   const manifest = loadManifest(filePath);
+  if (!manifest.id) manifest.id = threadId;
   if (!manifest.agentId) manifest.agentId = agentId;
   return manifest;
 }

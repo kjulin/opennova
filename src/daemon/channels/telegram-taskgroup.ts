@@ -10,13 +10,11 @@
 
 import { Bot, InlineKeyboard, InputFile } from "grammy";
 import type { Context, NextFunction } from "grammy";
-import fs from "fs";
 import {
   Config,
   agentStore,
+  threadStore,
   runAgent,
-  getThreadManifest,
-  createThread,
   createTriggerMcpServer,
   type TelegramConfig,
 } from "#core/index.js";
@@ -167,7 +165,7 @@ async function handleGeneralTopicMessage(
       return;
     }
     const agentDir = path.join(Config.workspaceDir, "agents", agent.id);
-    config.taskgroup!.generalThreadId = createThread(agentDir);
+    config.taskgroup!.generalThreadId = threadStore.create(agent.id);
     saveConfig();
     await ctx.reply("New conversation started.");
     return;
@@ -186,11 +184,10 @@ async function handleGeneralTopicMessage(
   // Resolve or create dedicated thread
   let threadId = config.taskgroup!.generalThreadId;
   if (threadId) {
-    const file = path.join(agentDir, "threads", `${threadId}.jsonl`);
-    if (!fs.existsSync(file)) threadId = undefined;
+    if (!threadStore.get(threadId)) threadId = undefined;
   }
   if (!threadId) {
-    threadId = createThread(agentDir);
+    threadId = threadStore.create(agent.id);
     config.taskgroup!.generalThreadId = threadId;
     saveConfig();
   }

@@ -4,9 +4,7 @@ import { Bot, InlineKeyboard, InputFile, Keyboard } from "grammy";
 import {
   Config,
   agentStore,
-  listThreads,
-  createThread,
-  getThreadManifest,
+  threadStore,
   runAgent,
   createTriggerMcpServer,
   type AgentBotConfig,
@@ -17,15 +15,15 @@ import { splitMessage, chatGuard } from "./telegram-utils.js";
 import { log } from "../logger.js";
 import { getPublicUrl } from "../workspace.js";
 
-function resolveThreadId(config: AgentBotConfig, agentDir: string): string {
+function resolveThreadId(config: AgentBotConfig, agentId: string): string {
   if (config.activeThreadId) {
-    const file = path.join(agentDir, "threads", `${config.activeThreadId}.jsonl`);
-    if (fs.existsSync(file)) return config.activeThreadId;
+    const manifest = threadStore.get(config.activeThreadId);
+    if (manifest) return config.activeThreadId;
   }
-  const threads = listThreads(agentDir)
-    .filter((t) => !t.manifest.taskId)
-    .sort((a, b) => b.manifest.updatedAt.localeCompare(a.manifest.updatedAt));
-  const id = threads.length > 0 ? threads[0]!.id : createThread(agentDir);
+  const threads = threadStore.list(agentId)
+    .filter((t) => !t.taskId)
+    .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+  const id = threads.length > 0 ? threads[0]!.id : threadStore.create(agentId);
   config.activeThreadId = id;
   return id;
 }
@@ -211,9 +209,9 @@ export function startAgentTelegram(
     }
 
     if (text === "/threads") {
-      const threads = listThreads(agentDir)
-        .filter((t) => !t.manifest.taskId)
-        .sort((a, b) => b.manifest.updatedAt.localeCompare(a.manifest.updatedAt))
+      const threads = threadStore.list(agentId)
+        .filter((t) => !t.taskId)
+        .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
         .slice(0, 10);
 
       if (threads.length === 0) {
@@ -223,8 +221,8 @@ export function startAgentTelegram(
 
       const keyboard = new InlineKeyboard();
       for (const t of threads) {
-        const title = t.manifest.title || "Untitled";
-        const time = relativeTime(t.manifest.updatedAt);
+        const title = t.title || "Untitled";
+        const time = relativeTime(t.updatedAt);
         const active = t.id === botConfig.activeThreadId ? "\u2713 " : "";
         keyboard.text(`${active}${title} \u00b7 ${time}`, `thread:${t.id}`).row();
       }
@@ -271,14 +269,14 @@ export function startAgentTelegram(
     }
 
     if (text === "/new") {
-      const id = createThread(agentDir);
+      const id = threadStore.create(agentId);
       botConfig.activeThreadId = id;
       saveConfig();
       await ctx.reply("New thread started");
       return;
     }
 
-    const threadId = resolveThreadId(botConfig, agentDir);
+    const threadId = resolveThreadId(botConfig, agentId);
     saveConfig();
 
     const truncated = text.length > 200 ? text.slice(0, 200) + "\u2026" : text;
@@ -370,7 +368,7 @@ export function startAgentTelegram(
 
       await bot.api.editMessageText(chatId, (statusMsg as { message_id: number }).message_id, `Received: ${fileName}`);
 
-      const threadId = resolveThreadId(botConfig, agentDir);
+      const threadId = resolveThreadId(botConfig, agentId);
       saveConfig();
 
       const prompt = `The user sent you a file:
@@ -457,16 +455,15 @@ You can read, process, or move this file as needed.`;
     if (!data.startsWith("thread:")) return;
 
     const threadId = data.slice("thread:".length);
-    try {
-      const manifest = getThreadManifest(agentId, threadId);
-      botConfig.activeThreadId = threadId;
-      saveConfig();
-      const title = manifest.title || "Untitled";
-      await ctx.editMessageText(`Switched to: ${title}`);
-    } catch {
+    const manifest = threadStore.get(threadId);
+    if (!manifest) {
       await ctx.answerCallbackQuery({ text: "Thread not found" });
       return;
     }
+    botConfig.activeThreadId = threadId;
+    saveConfig();
+    const title = manifest.title || "Untitled";
+    await ctx.editMessageText(`Switched to: ${title}`);
     await ctx.answerCallbackQuery();
   });
 

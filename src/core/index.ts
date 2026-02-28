@@ -44,16 +44,17 @@ export {
   withThreadLock,
   findThread,
   getThreadManifest,
+  threadStore,
+  type ThreadStore,
   type ThreadManifest,
   type ThreadMessage,
-  type ThreadInfo,
   type CreateThreadOptions,
   type ThreadEvent,
   type ThreadMessageEvent,
   type ThreadToolUseEvent,
   type ThreadAssistantTextEvent,
   type ThreadResultEvent,
-} from "./threads.js";
+} from "./threads/index.js";
 
 // Agents
 export {
