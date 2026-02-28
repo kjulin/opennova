@@ -6,7 +6,7 @@ import {
   tool,
   type McpSdkServerConfigWithInstance,
 } from "@anthropic-ai/claude-agent-sdk";
-import { transcribe, checkDependencies } from "../transcription/index.js";
+import { transcribe } from "../transcription/index.js";
 import { generateSpeech } from "./tts.js";
 
 const AUDIO_EXTENSIONS = [".mp3", ".ogg", ".wav", ".m4a", ".opus", ".flac", ".aac"];
@@ -75,33 +75,6 @@ export function createAudioMcpServer(
                   type: "text" as const,
                   text: `Error: Unsupported file type. Supported: ${[...AUDIO_EXTENSIONS, ...VIDEO_EXTENSIONS].join(", ")}`,
                 },
-              ],
-              isError: true,
-            };
-          }
-
-          // Check dependencies
-          const deps = await checkDependencies();
-          if (!deps.ffmpeg) {
-            return {
-              content: [
-                { type: "text" as const, text: "Error: ffmpeg is not installed. Required for transcription." },
-              ],
-              isError: true,
-            };
-          }
-          if (!deps.whisper) {
-            return {
-              content: [
-                { type: "text" as const, text: "Error: whisper-cpp is not installed. Required for transcription." },
-              ],
-              isError: true,
-            };
-          }
-          if (!deps.model) {
-            return {
-              content: [
-                { type: "text" as const, text: "Error: Whisper model not found. Run 'nova transcription setup' first." },
               ],
               isError: true,
             };
