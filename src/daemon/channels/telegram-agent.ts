@@ -65,7 +65,7 @@ export function startAgentTelegram(
   agentId: string,
   botConfig: AgentBotConfig,
   saveConfig: () => void,
-): { bot: Bot; shutdown: () => void } | null {
+): { bot: Bot; deliveryCallbacks: () => Record<string, unknown>; shutdown: () => void } | null {
   if (!botConfig.chatId) {
     log.warn("telegram-agent", `agent ${agentId}: skipped (no chatId)`);
     return null;
@@ -471,6 +471,7 @@ You can read, process, or move this file as needed.`;
 
   return {
     bot,
+    deliveryCallbacks,
     shutdown() {
       bot.stop();
     },
