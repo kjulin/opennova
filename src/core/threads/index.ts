@@ -15,7 +15,6 @@ export {
   getThreadManifest,
   type ThreadManifest,
   type ThreadMessage,
-  type ThreadInfo,
   type CreateThreadOptions,
   type ThreadEvent,
   type ThreadMessageEvent,

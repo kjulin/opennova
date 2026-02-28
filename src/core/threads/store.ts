@@ -13,7 +13,6 @@ import {
   type ThreadManifest,
   type ThreadMessage,
   type ThreadEvent,
-  type ThreadInfo,
   type CreateThreadOptions,
 } from "./io.js";
 import { searchThreads, type SearchResult } from "../episodic/search.js";
@@ -32,7 +31,7 @@ export interface BackfillResult {
 export interface ThreadStore {
   create(agentId: string, opts?: CreateThreadOptions): string;
   get(threadId: string): ThreadManifest | null;
-  list(agentId: string): ThreadInfo[];
+  list(agentId: string): ThreadManifest[];
   delete(threadId: string): void;
 
   appendMessage(threadId: string, msg: ThreadMessage): void;
@@ -83,11 +82,12 @@ export class FilesystemThreadStore implements ThreadStore {
     const resolved = this.resolveThread(threadId);
     if (!resolved) return null;
     const manifest = loadManifest(resolved.filePath);
+    if (!manifest.id) manifest.id = threadId;
     if (!manifest.agentId) manifest.agentId = resolved.agentId;
     return manifest;
   }
 
-  list(agentId: string): ThreadInfo[] {
+  list(agentId: string): ThreadManifest[] {
     return listThreads(this.agentDirFor(agentId));
   }
 

@@ -48,7 +48,6 @@ export {
   type ThreadStore,
   type ThreadManifest,
   type ThreadMessage,
-  type ThreadInfo,
   type CreateThreadOptions,
   type ThreadEvent,
   type ThreadMessageEvent,

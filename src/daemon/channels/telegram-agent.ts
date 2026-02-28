@@ -21,8 +21,8 @@ function resolveThreadId(config: AgentBotConfig, agentId: string): string {
     if (manifest) return config.activeThreadId;
   }
   const threads = threadStore.list(agentId)
-    .filter((t) => !t.manifest.taskId)
-    .sort((a, b) => b.manifest.updatedAt.localeCompare(a.manifest.updatedAt));
+    .filter((t) => !t.taskId)
+    .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
   const id = threads.length > 0 ? threads[0]!.id : threadStore.create(agentId);
   config.activeThreadId = id;
   return id;
@@ -210,8 +210,8 @@ export function startAgentTelegram(
 
     if (text === "/threads") {
       const threads = threadStore.list(agentId)
-        .filter((t) => !t.manifest.taskId)
-        .sort((a, b) => b.manifest.updatedAt.localeCompare(a.manifest.updatedAt))
+        .filter((t) => !t.taskId)
+        .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
         .slice(0, 10);
 
       if (threads.length === 0) {
@@ -221,8 +221,8 @@ export function startAgentTelegram(
 
       const keyboard = new InlineKeyboard();
       for (const t of threads) {
-        const title = t.manifest.title || "Untitled";
-        const time = relativeTime(t.manifest.updatedAt);
+        const title = t.title || "Untitled";
+        const time = relativeTime(t.updatedAt);
         const active = t.id === botConfig.activeThreadId ? "\u2713 " : "";
         keyboard.text(`${active}${title} \u00b7 ${time}`, `thread:${t.id}`).row();
       }
