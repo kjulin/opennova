@@ -1,4 +1,4 @@
-import type { Agent, AgentsResponse, Skill, SkillsResponse, Trigger, TriggersResponse, SecretsResponse, ConfigResponse, UsageResponse } from "@/types";
+import type { Agent, AgentsResponse, CapabilitiesResponse, Skill, SkillsResponse, Trigger, TriggersResponse, SecretsResponse, ConfigResponse, UsageResponse } from "@/types";
 export type { UsageResponse } from "@/types";
 
 const API_BASE = "/api/console";
@@ -7,6 +7,12 @@ const CONFIG_API = "/api/config";
 export async function fetchAgents(): Promise<AgentsResponse> {
   const res = await fetch(`${API_BASE}/agents`);
   if (!res.ok) throw new Error("Failed to fetch agents");
+  return res.json();
+}
+
+export async function fetchCapabilities(): Promise<CapabilitiesResponse> {
+  const res = await fetch(`${API_BASE}/agents/capabilities`);
+  if (!res.ok) throw new Error("Failed to fetch capabilities");
   return res.json();
 }
 

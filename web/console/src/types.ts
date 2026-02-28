@@ -33,6 +33,20 @@ export interface AgentsResponse {
   agents: Agent[];
 }
 
+export interface CapabilityToolDescriptor {
+  name: string;
+  description: string;
+}
+
+export interface CapabilityDescriptor {
+  key: string;
+  tools: CapabilityToolDescriptor[];
+}
+
+export interface CapabilitiesResponse {
+  capabilities: CapabilityDescriptor[];
+}
+
 export interface Skill {
   name: string;
   description?: string;

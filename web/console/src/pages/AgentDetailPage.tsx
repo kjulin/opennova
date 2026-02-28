@@ -29,7 +29,7 @@ export function AgentDetailPage() {
   const [identity, setIdentity] = useState("");
   const [instructions, setInstructions] = useState("");
   const [responsibilities, setResponsibilities] = useState<Responsibility[]>([]);
-  const [capabilities, setCapabilities] = useState<string[]>([]);
+  const [capabilities, setCapabilities] = useState<Record<string, { tools?: string[] }>>({});
   const [directories, setDirectories] = useState<string[]>([]);
 
   useEffect(() => {
@@ -44,7 +44,7 @@ export function AgentDetailPage() {
         setIdentity(data.identity ?? "");
         setInstructions(data.instructions ?? "");
         setResponsibilities(data.responsibilities ?? []);
-        setCapabilities(data.capabilities ? Object.keys(data.capabilities) : []);
+        setCapabilities(data.capabilities ?? {});
         setDirectories(data.directories ?? []);
       })
       .catch((err) => setError(err.message))
@@ -84,8 +84,9 @@ export function AgentDetailPage() {
     ? responsibilities.map((r) => r.title).join(", ")
     : "No responsibilities defined";
 
-  const capsSummary = capabilities.length > 0
-    ? capabilities.join(", ")
+  const capKeys = Object.keys(capabilities);
+  const capsSummary = capKeys.length > 0
+    ? capKeys.join(", ")
     : "No capabilities enabled";
 
   const dirsSummary = directories.length > 0
