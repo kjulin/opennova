@@ -1,7 +1,7 @@
 import type { McpServerConfig } from "@anthropic-ai/claude-agent-sdk";
 import type { AgentConfig } from "./agents/index.js";
 import type { ThreadManifest } from "./threads/index.js";
-import type { FileType } from "./media/mcp.js";
+import type { FileType } from "./file-send.js";
 import type { RunAgentFn } from "./agents/ask-agent.js";
 import { createNotifyUserMcpServer } from "./notify-user.js";
 import { createMemoryMcpServer } from "./memory.js";
@@ -9,7 +9,8 @@ import { createHistoryMcpServer } from "./episodic/index.js";
 import { createTasksMcpServer } from "#tasks/index.js";
 import { createNotesMcpServer } from "#notes/index.js";
 import { createSelfManagementMcpServer, createAgentManagementMcpServer } from "./agents/management.js";
-import { createMediaMcpServer } from "./media/mcp.js";
+import { createFileSendMcpServer } from "./file-send.js";
+import { createAudioMcpServer } from "./audio/index.js";
 import { createSecretsMcpServer } from "./secrets.js";
 import { createAgentsMcpServer } from "./agents/ask-agent.js";
 import { createTriggerMcpServer } from "./triggers/index.js";
@@ -40,7 +41,8 @@ const CAPABILITY_REGISTRY: Record<string, CapabilityResolver> = {
   tasks: (ctx) => createTasksMcpServer(ctx.agentId, ctx.workspaceDir),
   notes: (ctx) => createNotesMcpServer(ctx.agentDir, ctx.callbacks.onShareNote, ctx.callbacks.onPinChange),
   self: (ctx) => createSelfManagementMcpServer(ctx.agentId),
-  media: (ctx) => createMediaMcpServer(ctx.agentDir, ctx.directories, ctx.callbacks.onFileSend ?? (() => {})),
+  media: (ctx) => createFileSendMcpServer(ctx.agentDir, ctx.directories, ctx.callbacks.onFileSend ?? (() => {})),
+  audio: (ctx) => createAudioMcpServer(ctx.agentDir, ctx.directories),
   secrets: (ctx) => createSecretsMcpServer(ctx.workspaceDir),
   agents: (ctx) => {
     if (!ctx.runAgentFn) return null;
