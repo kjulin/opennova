@@ -32,6 +32,7 @@ export type TelegramConfig = z.infer<typeof TelegramConfigSchema>;
 
 export const TriggerSchema = z.object({
   id: z.string(),
+  agentId: z.string().optional(),
   cron: z.string(),
   tz: z.string().optional(),
   prompt: z.string(),

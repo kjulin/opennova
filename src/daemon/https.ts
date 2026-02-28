@@ -221,7 +221,7 @@ function createApp(workspaceDir: string): Hono {
 
   // Console API
   app.route("/api/console/agents", createConsoleAgentsRouter(workspaceDir));
-  app.route("/api/console/triggers", createConsoleTriggersRouter(workspaceDir));
+  app.route("/api/console/triggers", createConsoleTriggersRouter());
   app.route("/api/console/skills", createConsoleSkillsRouter(workspaceDir));
   app.route("/api/console/secrets", createConsoleSecretsRouter(workspaceDir));
   app.route("/api/console/usage", createConsoleUsageRouter(workspaceDir));

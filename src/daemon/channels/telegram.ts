@@ -494,7 +494,7 @@ export function startTelegram() {
         },
         ...deliveryCallbacks(),
       },
-      { triggers: createTriggerMcpServer(agentDir) },
+      { triggers: createTriggerMcpServer(agent.id) },
       undefined,
       abortController,
       { source: "chat" },
@@ -615,7 +615,7 @@ Please read it and respond to what I said.`;
           },
           ...deliveryCallbacks(),
         },
-        { triggers: createTriggerMcpServer(agentDir) },
+        { triggers: createTriggerMcpServer(agent.id) },
         undefined,
         abortController,
         { source: "chat" },
@@ -706,7 +706,7 @@ You can read, process, or move this file as needed.`;
           },
           ...deliveryCallbacks(),
         },
-        { triggers: createTriggerMcpServer(agentDir) },
+        { triggers: createTriggerMcpServer(agent.id) },
         undefined,
         abortController,
         { source: "chat" },
@@ -891,7 +891,7 @@ You can read, process, or move this file as needed.`;
     bot.api.sendChatAction(chatId, "typing").catch(() => {});
     runAgent(agentDir, threadId, "The user just switched to you. Greet them briefly, then in 1-2 sentences help them reorient — recap where you left off, any open questions or pending tasks. If there's no prior context, just say hi and what you can help with. Keep it short.",
       deliveryCallbacks(),
-      { triggers: createTriggerMcpServer(agentDir) },
+      { triggers: createTriggerMcpServer(agentId) },
       undefined, undefined, { model: "haiku", maxTurns: 1, source: "chat" },
     ).catch((err) => {
       log.error("telegram", `greeting failed for ${agentId}:`, (err as Error).message);

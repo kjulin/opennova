@@ -1,44 +1,18 @@
 import { Hono } from "hono"
 import { agentStore } from "#core/agents/index.js"
-import { CronExpressionParser } from "cron-parser"
-import crypto from "crypto"
-import fs from "fs"
-import path from "path"
+import { triggerStore } from "#core/triggers/index.js"
 
-function loadTriggers(workspaceDir: string, agentId: string): unknown[] {
-  const p = path.join(workspaceDir, "agents", agentId, "triggers.json")
-  if (!fs.existsSync(p)) return []
-  try {
-    return JSON.parse(fs.readFileSync(p, "utf-8"))
-  } catch {
-    return []
-  }
-}
-
-function saveTriggers(workspaceDir: string, agentId: string, triggers: unknown[]): void {
-  fs.writeFileSync(
-    path.join(workspaceDir, "agents", agentId, "triggers.json"),
-    JSON.stringify(triggers, null, 2) + "\n",
-  )
-}
-
-export function createConsoleTriggersRouter(workspaceDir: string): Hono {
+export function createConsoleTriggersRouter(): Hono {
   const app = new Hono()
 
   // List all triggers (cross-agent)
   app.get("/", (c) => {
     const agentsMap = agentStore.list()
-    const allTriggers: unknown[] = []
-
-    for (const [agentId, agent] of agentsMap) {
-      const triggers = loadTriggers(workspaceDir, agentId)
-      for (const trigger of triggers) {
-        if (trigger && typeof trigger === "object") {
-          allTriggers.push({ ...(trigger as Record<string, unknown>), agentId, agentName: agent.name })
-        }
-      }
-    }
-
+    const triggers = triggerStore.list()
+    const allTriggers = triggers.map((t) => {
+      const agent = agentsMap.get(t.agentId!)
+      return { ...t, agentName: agent?.name }
+    })
     return c.json({ triggers: allTriggers })
   })
 
@@ -51,12 +25,10 @@ export function createConsoleTriggersRouter(workspaceDir: string): Hono {
       return c.json({ error: "Agent not found" }, 404)
     }
 
-    const triggers = loadTriggers(workspaceDir, agentId).map((t) => {
-      if (t && typeof t === "object") {
-        return { ...(t as Record<string, unknown>), agentId, agentName: agent.name }
-      }
-      return t
-    })
+    const triggers = triggerStore.list(agentId).map((t) => ({
+      ...t,
+      agentName: agent.name,
+    }))
 
     return c.json({ triggers })
   })
@@ -75,84 +47,51 @@ export function createConsoleTriggersRouter(workspaceDir: string): Hono {
     if (!cron || typeof cron !== "string") {
       return c.json({ error: "cron is required" }, 400)
     }
-    try {
-      CronExpressionParser.parse(cron)
-    } catch {
-      return c.json({ error: "Invalid cron expression" }, 400)
-    }
     if (!prompt || typeof prompt !== "string") {
       return c.json({ error: "prompt is required" }, 400)
     }
 
-    const trigger: Record<string, unknown> = {
-      id: crypto.randomBytes(6).toString("hex"),
-      cron,
-      prompt,
-      lastRun: new Date().toISOString(),
+    try {
+      const trigger = triggerStore.create(agentId, { cron, tz, prompt })
+      return c.json(trigger, 201)
+    } catch (e) {
+      return c.json({ error: (e as Error).message }, 400)
     }
-    if (tz) trigger.tz = tz
-
-    const triggers = loadTriggers(workspaceDir, agentId)
-    triggers.push(trigger)
-    saveTriggers(workspaceDir, agentId, triggers)
-
-    return c.json(trigger, 201)
   })
 
   // Update trigger by triggerId
   app.patch("/:triggerId", async (c) => {
     const triggerId = c.req.param("triggerId")
-    const agentsMap = agentStore.list()
     const body = await c.req.json()
 
-    for (const [agentId, agent] of agentsMap) {
-      const triggers = loadTriggers(workspaceDir, agentId)
-      const idx = triggers.findIndex(
-        (t) => t && typeof t === "object" && (t as Record<string, unknown>).id === triggerId,
-      )
-      if (idx === -1) continue
-
-      const existing = triggers[idx] as Record<string, unknown>
-
-      if (body.cron !== undefined) {
-        try {
-          CronExpressionParser.parse(body.cron)
-        } catch {
-          return c.json({ error: "Invalid cron expression" }, 400)
-        }
-        existing.cron = body.cron
-      }
-      if (body.tz !== undefined) existing.tz = body.tz
-      if (body.prompt !== undefined) existing.prompt = body.prompt
-
-      triggers[idx] = existing
-      saveTriggers(workspaceDir, agentId, triggers)
-
-      return c.json({ ...existing, agentId, agentName: agent.name })
+    try {
+      const trigger = triggerStore.update(triggerId, {
+        ...(body.cron !== undefined && { cron: body.cron }),
+        ...(body.tz !== undefined && { tz: body.tz }),
+        ...(body.prompt !== undefined && { prompt: body.prompt }),
+      })
+      const agentsMap = agentStore.list()
+      const agent = agentsMap.get(trigger.agentId!)
+      return c.json({ ...trigger, agentName: agent?.name })
+    } catch (e) {
+      const msg = (e as Error).message
+      if (msg.includes("not found")) return c.json({ error: msg }, 404)
+      return c.json({ error: msg }, 400)
     }
-
-    return c.json({ error: "Trigger not found" }, 404)
   })
 
   // Delete trigger by triggerId
   app.delete("/:triggerId", (c) => {
     const triggerId = c.req.param("triggerId")
-    const agentsMap = agentStore.list()
 
-    for (const [agentId] of agentsMap) {
-      const triggers = loadTriggers(workspaceDir, agentId)
-      const idx = triggers.findIndex(
-        (t) => t && typeof t === "object" && (t as Record<string, unknown>).id === triggerId,
-      )
-      if (idx === -1) continue
-
-      triggers.splice(idx, 1)
-      saveTriggers(workspaceDir, agentId, triggers)
-
-      return c.json({ ok: true })
+    // Check if trigger exists first to return 404
+    const existing = triggerStore.get(triggerId)
+    if (!existing) {
+      return c.json({ error: "Trigger not found" }, 404)
     }
 
-    return c.json({ error: "Trigger not found" }, 404)
+    triggerStore.delete(triggerId)
+    return c.json({ ok: true })
   })
 
   return app
