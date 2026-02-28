@@ -130,7 +130,8 @@ export {
 export { createMemoryMcpServer } from "./memory.js";
 export { createAgentManagementMcpServer, createSelfManagementMcpServer } from "./agents/management.js";
 export { createAgentsMcpServer, type RunAgentFn } from "./agents/ask-agent.js";
-export { createMediaMcpServer, type FileType, type OnFileSendCallback } from "./media/mcp.js";
+export { createFileSendMcpServer, type FileType, type OnFileSendCallback } from "./file-send.js";
+export { createAudioMcpServer, generateSpeech, chunkText, concatAudioFiles, type SpeechOptions } from "./audio/index.js";
 export {
   appendUsage,
   loadUsageRecords,

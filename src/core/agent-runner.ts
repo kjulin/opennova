@@ -12,7 +12,7 @@ import { getTask } from "#tasks/index.js";
 import { threadStore } from "./threads/index.js";
 import { log } from "./logger.js";
 import { materializeSkills } from "./skills.js";
-import type { FileType } from "./media/mcp.js";
+import type { FileType } from "./file-send.js";
 
 export interface RunAgentOverrides {
   model?: Model | undefined;
