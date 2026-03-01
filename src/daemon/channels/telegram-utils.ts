@@ -77,6 +77,9 @@ export function toTelegramMarkdown(text: string): string {
   let result = text.replace(/```[\s\S]*?```/g, protect);
   result = result.replace(/`[^`]+`/g, protect);
 
+  // Protect @mentions (usernames contain letters, digits, underscores)
+  result = result.replace(/@\w+/g, protect);
+
   // Convert headings (# text) to bold — use placeholder to avoid italic conversion
   result = result.replace(/^#{1,6}\s+(.+)$/gm, (_match, content) => `\x01B${content}\x01`);
 

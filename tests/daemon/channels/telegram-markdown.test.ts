@@ -47,4 +47,14 @@ describe("toTelegramMarkdown", () => {
     const expected = "- *Item 1*: description\n- *Item 2*: description";
     expect(toTelegramMarkdown(input)).toBe(expected);
   });
+
+  it("preserves @mentions with underscores", () => {
+    expect(toTelegramMarkdown("Hey @kjulin_novacpo_bot what do you think?"))
+      .toBe("Hey @kjulin_novacpo_bot what do you think?");
+  });
+
+  it("preserves @mentions alongside markdown", () => {
+    expect(toTelegramMarkdown("**Hey** @test_bot_name check *this*"))
+      .toBe("*Hey* @test_bot_name check _this_");
+  });
 });
