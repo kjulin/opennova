@@ -210,7 +210,7 @@ describe("telegram taskgroup pairing", () => {
     expect(sendCalls).toHaveLength(0);
   });
 
-  it("non-supergroup → error message", async () => {
+  it("non-supergroup → passes through (not a taskgroup candidate)", async () => {
     const { bot, apiCalls } = createTestBot({
       token: "t", chatId: PRIVATE_CHAT_ID, activeAgentId: "main",
     });
@@ -229,11 +229,10 @@ describe("telegram taskgroup pairing", () => {
     await bot.handleUpdate(update);
 
     const sendCalls = apiCalls.filter(c => c.method === "sendMessage");
-    expect(sendCalls).toHaveLength(1);
-    expect(sendCalls[0]!.payload.text).toBe("Task board requires a supergroup.");
+    expect(sendCalls).toHaveLength(0);
   });
 
-  it("supergroup without topics → error message", async () => {
+  it("supergroup without topics → passes through (not a taskgroup candidate)", async () => {
     const { bot, apiCalls } = createTestBot({
       token: "t", chatId: PRIVATE_CHAT_ID, activeAgentId: "main",
     });
@@ -242,8 +241,7 @@ describe("telegram taskgroup pairing", () => {
     await bot.handleUpdate(makeSupergroupUpdate(SUPERGROUP_CHAT_ID, "hello", { isForum: false }));
 
     const sendCalls = apiCalls.filter(c => c.method === "sendMessage");
-    expect(sendCalls).toHaveLength(1);
-    expect(sendCalls[0]!.payload.text).toContain("Enable Topics");
+    expect(sendCalls).toHaveLength(0);
   });
 
   it("no admin permission → error message", async () => {
