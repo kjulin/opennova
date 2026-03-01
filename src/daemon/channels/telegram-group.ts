@@ -1,15 +1,118 @@
 /**
- * Group chat pairing — authorizes Telegram groups for multi-agent chat.
+ * Telegram group chat — pairing, message logging, context building, and agent invocation.
  *
- * Phase 1: pairing only. When the main bot is added to a group,
- * it sends a DM confirmation to the user. On confirm, the group
- * is persisted in telegram.json under `groups`.
+ * All group chat logic lives here. Both the main bot and agent bots register
+ * the middleware exported from this module.
  */
 
+import fs from "fs";
+import path from "path";
 import { Bot, InlineKeyboard } from "grammy";
 import type { Context, NextFunction } from "grammy";
-import type { TelegramConfig } from "#core/index.js";
+import {
+  Config,
+  agentStore,
+  threadStore,
+  runAgent,
+  createTriggerMcpServer,
+  type TelegramConfig,
+} from "#core/index.js";
+import { splitMessage, toTelegramMarkdown } from "./telegram-utils.js";
 import { log } from "../logger.js";
+
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
+
+interface GroupMessage {
+  id: number;
+  from: string;
+  fromBot: boolean;
+  text: string;
+  ts: string;
+}
+
+interface GroupReset {
+  type: "reset";
+  ts: string;
+}
+
+type GroupLogEntry = GroupMessage | GroupReset;
+
+// ---------------------------------------------------------------------------
+// JSONL message log
+// ---------------------------------------------------------------------------
+
+/** Recent message IDs for dedup (chatId:messageId). */
+const recentIds = new Set<string>();
+const RECENT_IDS_MAX = 500;
+
+function logPath(chatId: string): string {
+  return path.join(Config.workspaceDir, "groups", chatId, "messages.jsonl");
+}
+
+export function appendGroupMessage(chatId: string, msg: GroupMessage): boolean {
+  const key = `${chatId}:${msg.id}`;
+  if (recentIds.has(key)) return false; // dedup
+
+  recentIds.add(key);
+  if (recentIds.size > RECENT_IDS_MAX) {
+    const first = recentIds.values().next().value;
+    if (first) recentIds.delete(first);
+  }
+
+  const filePath = logPath(chatId);
+  fs.mkdirSync(path.dirname(filePath), { recursive: true });
+  fs.appendFileSync(filePath, JSON.stringify(msg) + "\n");
+  return true;
+}
+
+export function appendGroupReset(chatId: string): void {
+  const filePath = logPath(chatId);
+  fs.mkdirSync(path.dirname(filePath), { recursive: true });
+  const entry: GroupReset = { type: "reset", ts: new Date().toISOString() };
+  fs.appendFileSync(filePath, JSON.stringify(entry) + "\n");
+}
+
+/**
+ * Build group context for an agent. Reads JSONL backwards from end,
+ * stops at the agent's own last message or a reset sentinel.
+ */
+export function buildGroupContext(chatId: string, agentId: string, groupName: string): string {
+  const filePath = logPath(chatId);
+  if (!fs.existsSync(filePath)) return "";
+
+  const raw = fs.readFileSync(filePath, "utf-8").trim();
+  if (!raw) return "";
+
+  const lines = raw.split("\n");
+  const contextMessages: GroupMessage[] = [];
+
+  // Read backwards
+  for (let i = lines.length - 1; i >= 0; i--) {
+    try {
+      const entry = JSON.parse(lines[i]!) as GroupLogEntry;
+      if ("type" in entry && entry.type === "reset") break;
+      const msg = entry as GroupMessage;
+      if (msg.fromBot && msg.from === agentId) break; // agent's own last message
+      contextMessages.unshift(msg);
+    } catch {
+      // skip malformed lines
+    }
+  }
+
+  if (contextMessages.length === 0) return "";
+
+  const formatted = contextMessages
+    .map((m) => `[${m.from}]: ${m.text}`)
+    .join("\n");
+
+  return `<GroupChat name="${groupName}">\nRecent messages:\n\n${formatted}\n</GroupChat>`;
+}
+
+// ---------------------------------------------------------------------------
+// Pairing
+// ---------------------------------------------------------------------------
 
 /** Pending group names keyed by chatId (callback data has a 64-byte limit). */
 const pendingGroups = new Map<string, string>();
@@ -156,4 +259,195 @@ async function handleGroupCallback(
     log.info("telegram", `group ignored: ${groupChatId}`);
     return;
   }
+}
+
+// ---------------------------------------------------------------------------
+// Group message middleware
+// ---------------------------------------------------------------------------
+
+/** Active abort controllers keyed by "chatId:agentId". */
+const activeAbortControllers = new Map<string, AbortController>();
+
+export interface GroupMessageOptions {
+  bot: Bot;
+  config: TelegramConfig;
+  saveConfig: () => void;
+  /** Return the agent to invoke. Null means no agent available. */
+  resolveAgent: () => { agentId: string; agentDir: string } | null;
+}
+
+/**
+ * Creates middleware that handles group messages: logging, @mention detection,
+ * context building, agent invocation, and /new + /stop commands.
+ *
+ * Must be registered BEFORE chatGuard.
+ */
+export function groupMessageMiddleware(opts: GroupMessageOptions) {
+  const { bot, config, saveConfig } = opts;
+
+  return async (ctx: Context, next: NextFunction) => {
+    const message = ctx.message;
+    if (!message) return next();
+
+    const chat = message.chat;
+    if (chat.type !== "group" && chat.type !== "supergroup") return next();
+
+    const chatIdStr = String(chat.id);
+    if (!isAuthorizedGroup(config, chatIdStr)) return next();
+
+    const text = message.text;
+    if (!text) return; // only handle text messages in groups for v1
+
+    const groupConfig = config.groups![chatIdStr]!;
+
+    // Log message to JSONL
+    const fromName = message.from?.first_name ?? "Unknown";
+    const fromBot = message.from?.is_bot ?? false;
+    appendGroupMessage(chatIdStr, {
+      id: message.message_id,
+      from: fromBot ? (opts.resolveAgent()?.agentId ?? fromName) : fromName,
+      fromBot,
+      text,
+      ts: new Date().toISOString(),
+    });
+
+    // Handle /new — reset context and rotate threads
+    if (text === "/new") {
+      appendGroupReset(chatIdStr);
+      const agentNames: string[] = [];
+      for (const agentId of Object.keys(groupConfig.threads)) {
+        const agent = agentStore.list().get(agentId);
+        const newThreadId = threadStore.create(agentId);
+        groupConfig.threads[agentId] = newThreadId;
+        agentNames.push(agent?.name ?? agentId);
+      }
+      saveConfig();
+      const names = agentNames.length > 0 ? agentNames.join(", ") : "all agents";
+      await bot.api.sendMessage(chat.id, `New conversation started for ${names}.`).catch(() => {});
+      return;
+    }
+
+    // Handle /stop — abort all running agents in this group
+    if (text === "/stop") {
+      let stopped = 0;
+      for (const [key, ac] of activeAbortControllers) {
+        if (key.startsWith(`${chatIdStr}:`)) {
+          ac.abort();
+          activeAbortControllers.delete(key);
+          stopped++;
+        }
+      }
+      await bot.api.sendMessage(chat.id, stopped > 0 ? "Stopped." : "Nothing running.").catch(() => {});
+      return;
+    }
+
+    // Check trigger conditions
+    const botInfo = bot.botInfo;
+    let triggered = false;
+
+    // 1. @mention by username in entities
+    if (botInfo.username && message.entities) {
+      for (const entity of message.entities) {
+        if (entity.type === "mention") {
+          const mentionText = text.slice(entity.offset, entity.offset + entity.length);
+          if (mentionText.toLowerCase() === `@${botInfo.username.toLowerCase()}`) {
+            triggered = true;
+            break;
+          }
+        }
+      }
+    }
+
+    // 2. Reply to one of this bot's messages
+    if (!triggered && message.reply_to_message?.from?.id === botInfo.id) {
+      triggered = true;
+    }
+
+    if (!triggered) return; // Message logged but not acted on
+
+    // Resolve agent
+    const resolved = opts.resolveAgent();
+    if (!resolved) return;
+
+    const { agentId, agentDir } = resolved;
+
+    // Resolve thread
+    let threadId = groupConfig.threads[agentId];
+    if (threadId && !threadStore.get(threadId)) {
+      threadId = undefined;
+    }
+    if (!threadId) {
+      threadId = threadStore.create(agentId);
+      groupConfig.threads[agentId] = threadId;
+      saveConfig();
+    }
+
+    // Build context
+    const context = buildGroupContext(chatIdStr, agentId, groupConfig.name);
+    const groupPrompt = `<GroupChat>\nYou are participating in a Telegram group chat "${groupConfig.name}".\nMessages from other participants are provided as context above your prompt.\nWhen responding, you are speaking to the group — keep responses conversational and concise.\nYou can reference what other participants (including other agents) have said.\n</GroupChat>`;
+
+    const contextualizedMessage = [context, groupPrompt, text].filter(Boolean).join("\n\n");
+
+    // Run agent
+    const abortKey = `${chatIdStr}:${agentId}`;
+    const abortController = new AbortController();
+    activeAbortControllers.set(abortKey, abortController);
+
+    const groupChatId = chat.id;
+
+    const typingInterval = setInterval(() => {
+      bot.api.sendChatAction(groupChatId, "typing").catch(() => {});
+    }, 4000);
+    bot.api.sendChatAction(groupChatId, "typing").catch(() => {});
+
+    runAgent(
+      agentDir, threadId, contextualizedMessage,
+      {
+        onThinking() {},
+        onAssistantMessage() {
+          bot.api.sendChatAction(groupChatId, "typing").catch(() => {});
+        },
+        onToolUse() {
+          bot.api.sendChatAction(groupChatId, "typing").catch(() => {});
+        },
+        onToolUseSummary() {},
+        async onResponse(_agentId: string, _threadId: string, responseText: string) {
+          // Deliver to group
+          const formatted = toTelegramMarkdown(responseText);
+          const chunks = splitMessage(formatted);
+          for (const chunk of chunks) {
+            await bot.api.sendMessage(groupChatId, chunk, { parse_mode: "Markdown" }).catch(() => {
+              return bot.api.sendMessage(groupChatId, chunk).catch((err) => {
+                log.error("telegram", `failed to deliver group response:`, err);
+              });
+            });
+          }
+          // Append agent response to JSONL
+          appendGroupMessage(chatIdStr, {
+            id: Date.now(), // No Telegram message ID for agent responses
+            from: agentId,
+            fromBot: true,
+            text: responseText,
+            ts: new Date().toISOString(),
+          });
+        },
+        onNotifyUser(_agentId: string, _threadId: string, notifyMessage: string) {
+          bot.api.sendMessage(groupChatId, notifyMessage).catch(() => {});
+        },
+      },
+      { triggers: createTriggerMcpServer(agentId) },
+      undefined,
+      abortController,
+      { source: "chat" },
+    ).catch((err) => {
+      if (!abortController.signal.aborted) {
+        log.error("telegram", `group agent ${agentId} error:`, (err as Error).message);
+      }
+    }).finally(() => {
+      clearInterval(typingInterval);
+      if (activeAbortControllers.get(abortKey) === abortController) {
+        activeAbortControllers.delete(abortKey);
+      }
+    });
+  };
 }

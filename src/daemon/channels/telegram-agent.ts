@@ -8,9 +8,11 @@ import {
   runAgent,
   createTriggerMcpServer,
   type AgentBotConfig,
+  type TelegramConfig,
 } from "#core/index.js";
 import { relativeTime } from "./telegram.js";
 import { splitMessage, chatGuard } from "./telegram-utils.js";
+import { groupMessageMiddleware } from "./telegram-group.js";
 import { log } from "../logger.js";
 import { getPublicUrl } from "../workspace.js";
 
@@ -64,6 +66,7 @@ export function startAgentTelegram(
   agentId: string,
   botConfig: AgentBotConfig,
   saveConfig: () => void,
+  telegramConfig: TelegramConfig,
 ): { bot: Bot; deliveryCallbacks: () => Record<string, unknown>; shutdown: () => void } | null {
   if (!botConfig.chatId) {
     log.warn("telegram-agent", `agent ${agentId}: skipped (no chatId)`);
@@ -79,6 +82,15 @@ export function startAgentTelegram(
 
   const agentDir = path.join(Config.workspaceDir, "agents", agentId);
   const bot = new Bot(botConfig.token);
+
+  // Group message handling — must run BEFORE chatGuard
+  bot.use(groupMessageMiddleware({
+    bot,
+    config: telegramConfig,
+    saveConfig,
+    resolveAgent: () => ({ agentId, agentDir }),
+  }));
+
   bot.use(chatGuard(botConfig.chatId));
   let activeAbortController: AbortController | null = null;
 

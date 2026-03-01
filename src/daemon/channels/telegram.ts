@@ -7,8 +7,6 @@ import {
   agentStore,
   threadStore,
   runAgent,
-  TelegramConfigSchema,
-  safeParseJsonFile,
   transcribe,
   getAgentDirectories,
   createTriggerMcpServer,
@@ -18,48 +16,9 @@ import { getTask, loadTasks } from "#tasks/index.js";
 import { TELEGRAM_HELP_MESSAGE } from "./telegram-help.js";
 import { splitMessage, chatGuard, toTelegramMarkdown } from "./telegram-utils.js";
 import { taskgroupMiddleware } from "./telegram-taskgroup.js";
-import { groupPairingMiddleware } from "./telegram-group.js";
+import { groupPairingMiddleware, groupMessageMiddleware } from "./telegram-group.js";
 import { log } from "../logger.js";
 import { getPublicUrl } from "../workspace.js";
-
-function loadTelegramConfig(): TelegramConfig | null {
-  const filePath = path.join(Config.workspaceDir, "telegram.json");
-  if (!fs.existsSync(filePath)) return null;
-  const raw = safeParseJsonFile(filePath, "telegram.json");
-  if (raw === null) return null;
-  const result = TelegramConfigSchema.safeParse(raw);
-  if (!result.success) {
-    log.warn("telegram", `invalid telegram.json: ${result.error.message}`);
-    return null;
-  }
-  return result.data;
-}
-
-function saveTelegramConfig(config: TelegramConfig): void {
-  fs.writeFileSync(path.join(Config.workspaceDir, "telegram.json"), JSON.stringify(config, null, 2), { mode: 0o600 });
-}
-
-function resolveThreadId(config: TelegramConfig, agentId: string): string {
-  // Use active thread if it still exists on disk
-  if (config.activeThreadId) {
-    const manifest = threadStore.get(config.activeThreadId);
-    if (manifest) return config.activeThreadId;
-  }
-  // Fall back to most recent non-task thread for this agent
-  const threads = threadStore.list(agentId)
-    .filter((t) => !t.taskId)
-    .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
-  const id = threads.length > 0 ? threads[0]!.id : threadStore.create(agentId);
-  config.activeThreadId = id;
-  saveTelegramConfig(config);
-  return id;
-}
-
-function switchAgent(config: TelegramConfig, agentId: string): void {
-  config.activeAgentId = agentId;
-  config.activeThreadId = undefined;
-  resolveThreadId(config, agentId);
-}
 
 export function relativeTime(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime();
@@ -114,25 +73,46 @@ function agentKeyboard(agents: Map<string, { id: string; name: string }>, active
   return keyboard;
 }
 
-export function startTelegram() {
-  const maybeConfig = loadTelegramConfig();
-  if (!maybeConfig) {
-    log.info("telegram", "channel skipped (no telegram.json)");
-    return null;
+export function startTelegram(config: TelegramConfig, saveConfig: () => void) {
+  function resolveThreadId(config: TelegramConfig, agentId: string): string {
+    if (config.activeThreadId) {
+      const manifest = threadStore.get(config.activeThreadId);
+      if (manifest) return config.activeThreadId;
+    }
+    const threads = threadStore.list(agentId)
+      .filter((t) => !t.taskId)
+      .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+    const id = threads.length > 0 ? threads[0]!.id : threadStore.create(agentId);
+    config.activeThreadId = id;
+    saveConfig();
+    return id;
   }
-  if (!maybeConfig.chatId) {
-    log.info("telegram", "channel skipped (chatId not configured)");
-    return null;
+
+  function switchAgent(agentId: string): void {
+    config.activeAgentId = agentId;
+    config.activeThreadId = undefined;
+    resolveThreadId(config, agentId);
   }
-  const config = maybeConfig;
 
   const bot = new Bot(config.token);
 
   // Taskgroup pairing — must run BEFORE chatGuard
-  bot.use(taskgroupMiddleware(bot, config, () => saveTelegramConfig(config)));
+  bot.use(taskgroupMiddleware(bot, config, saveConfig));
 
   // Group chat pairing — must run BEFORE chatGuard
-  bot.use(groupPairingMiddleware(bot, config, () => saveTelegramConfig(config)));
+  bot.use(groupPairingMiddleware(bot, config, saveConfig));
+
+  // Group message handling — must run BEFORE chatGuard
+  bot.use(groupMessageMiddleware({
+    bot,
+    config,
+    saveConfig,
+    resolveAgent: () => {
+      const agent = agentStore.list().get(config.activeAgentId);
+      if (!agent) return null;
+      return { agentId: agent.id, agentDir: path.join(Config.workspaceDir, "agents", agent.id) };
+    },
+  }));
 
   bot.use(chatGuard(config.chatId));
   log.info("telegram", "channel started");
@@ -266,7 +246,7 @@ export function startTelegram() {
     if (text === "/new") {
       const id = threadStore.create(config.activeAgentId);
       config.activeThreadId = id;
-      saveTelegramConfig(config);
+      saveConfig();
       await ctx.reply("New thread started");
       return;
     }
@@ -369,7 +349,7 @@ export function startTelegram() {
         return;
       }
 
-      switchAgent(config, agentName);
+      switchAgent(agentName);
       const switched = agents.get(agentName)!;
       await ctx.reply(`Switched to *${switched.name}*`, { parse_mode: "Markdown" });
       return;
@@ -702,7 +682,7 @@ You can read, process, or move this file as needed.`;
         // Switch to the agent and thread
         config.activeAgentId = data.agentId;
         config.activeThreadId = data.threadId;
-        saveTelegramConfig(config);
+        saveConfig();
 
         log.info("telegram", `switched to agent=${data.agentId} thread=${data.threadId} via Mini App`);
 
@@ -724,7 +704,7 @@ You can read, process, or move this file as needed.`;
         // Switch to the task's agent and thread
         config.activeAgentId = data.agentId;
         config.activeThreadId = data.threadId;
-        saveTelegramConfig(config);
+        saveConfig();
 
         // Validate file path is within agent dir or allowed directories
         const agentDir = path.join(Config.workspaceDir, "agents", data.agentId);
@@ -771,7 +751,7 @@ You can read, process, or move this file as needed.`;
         return;
       }
       config.activeThreadId = threadId;
-      saveTelegramConfig(config);
+      saveConfig();
       const title = manifest.title || "Untitled";
       await ctx.editMessageText(`Switched to: ${title}`);
       await ctx.answerCallbackQuery();
@@ -786,10 +766,10 @@ You can read, process, or move this file as needed.`;
         return;
       }
       if (task.owner !== "user" && task.owner !== config.activeAgentId) {
-        switchAgent(config, task.owner);
+        switchAgent(task.owner);
       }
       config.activeThreadId = task.threadId;
-      saveTelegramConfig(config);
+      saveConfig();
       await ctx.editMessageText(`Switched to task *#${task.id}*: ${task.title}`, { parse_mode: "Markdown" });
       await ctx.answerCallbackQuery();
       return;
@@ -804,7 +784,7 @@ You can read, process, or move this file as needed.`;
       return;
     }
 
-    switchAgent(config, agentId);
+    switchAgent(agentId);
     const agent = agents.get(agentId)!;
 
     await ctx.editMessageText(`Switched to *${agent.name}*`, { parse_mode: "Markdown" });

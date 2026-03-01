@@ -1,9 +1,51 @@
-import { describe, it, expect, vi } from "vitest";
+import fs from "fs";
+import os from "os";
+import path from "path";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { Bot } from "grammy";
 import type { Update } from "grammy/types";
 import { chatGuard } from "../../../src/daemon/channels/telegram-utils.js";
-import { groupPairingMiddleware, isAuthorizedGroup } from "../../../src/daemon/channels/telegram-group.js";
+import {
+  groupPairingMiddleware,
+  groupMessageMiddleware,
+  isAuthorizedGroup,
+  appendGroupMessage,
+  appendGroupReset,
+  buildGroupContext,
+} from "../../../src/daemon/channels/telegram-group.js";
 import { makeTextUpdate } from "./telegram-test-utils.js";
+
+// Mock core modules used by groupMessageMiddleware
+const mockRunAgent = vi.fn().mockResolvedValue(undefined);
+const mockThreadStoreCreate = vi.fn().mockReturnValue("new-thread-id");
+const mockThreadStoreGet = vi.fn().mockReturnValue({ id: "t1", title: "Thread" });
+const mockAgentStoreList = vi.fn().mockReturnValue(new Map([["agent-1", { id: "agent-1", name: "TestAgent" }]]));
+const mockCreateTriggerMcpServer = vi.fn().mockReturnValue(undefined);
+
+vi.mock("#core/index.js", async (importOriginal) => {
+  const original = await importOriginal<Record<string, unknown>>();
+  return {
+    ...original,
+    Config: { workspaceDir: "" }, // overridden per test via setWorkspaceDir
+    runAgent: (...args: unknown[]) => mockRunAgent(...args),
+    threadStore: {
+      create: (...args: unknown[]) => mockThreadStoreCreate(...args),
+      get: (...args: unknown[]) => mockThreadStoreGet(...args),
+      list: () => [],
+    },
+    agentStore: {
+      list: () => mockAgentStoreList(),
+    },
+    createTriggerMcpServer: (...args: unknown[]) => mockCreateTriggerMcpServer(...args),
+  };
+});
+
+// Access the mocked Config to change workspaceDir per test
+import { Config } from "#core/index.js";
+
+function setWorkspaceDir(dir: string) {
+  (Config as any).workspaceDir = dir;
+}
 
 const PRIVATE_CHAT_ID = "12345";
 const GROUP_CHAT_ID = -1001234567890;
@@ -320,5 +362,386 @@ describe("isAuthorizedGroup", () => {
       token: "t", chatId: "123", activeAgentId: "main",
     } as any;
     expect(isAuthorizedGroup(config, "-100123")).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Phase 2: JSONL message logging, context building, group message middleware
+// ---------------------------------------------------------------------------
+
+let tmpDir: string;
+
+beforeEach(() => {
+  tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "nova-group-test-"));
+  setWorkspaceDir(tmpDir);
+  mockRunAgent.mockReset().mockResolvedValue(undefined);
+  mockThreadStoreCreate.mockReset().mockReturnValue("new-thread-id");
+  mockThreadStoreGet.mockReset().mockReturnValue({ id: "t1", title: "Thread" });
+  mockAgentStoreList.mockReset().mockReturnValue(new Map([["agent-1", { id: "agent-1", name: "TestAgent" }]]));
+  mockCreateTriggerMcpServer.mockReset().mockReturnValue(undefined);
+});
+
+afterEach(() => {
+  fs.rmSync(tmpDir, { recursive: true, force: true });
+});
+
+describe("JSONL message log", () => {
+  it("appendGroupMessage writes to file", () => {
+    appendGroupMessage("-100999", { id: 1, from: "Alice", fromBot: false, text: "hello", ts: "2026-01-01T00:00:00Z" });
+    const filePath = path.join(tmpDir, "groups", "-100999", "messages.jsonl");
+    expect(fs.existsSync(filePath)).toBe(true);
+    const lines = fs.readFileSync(filePath, "utf-8").trim().split("\n");
+    expect(lines).toHaveLength(1);
+    const msg = JSON.parse(lines[0]!);
+    expect(msg.from).toBe("Alice");
+    expect(msg.text).toBe("hello");
+  });
+
+  it("appendGroupMessage deduplicates by message ID", () => {
+    const msg = { id: 42, from: "Alice", fromBot: false, text: "hello", ts: "2026-01-01T00:00:00Z" };
+    const first = appendGroupMessage("-100999", msg);
+    const second = appendGroupMessage("-100999", msg);
+    expect(first).toBe(true);
+    expect(second).toBe(false);
+    const filePath = path.join(tmpDir, "groups", "-100999", "messages.jsonl");
+    const lines = fs.readFileSync(filePath, "utf-8").trim().split("\n");
+    expect(lines).toHaveLength(1);
+  });
+
+  it("appendGroupReset writes reset sentinel", () => {
+    appendGroupReset("-100999");
+    const filePath = path.join(tmpDir, "groups", "-100999", "messages.jsonl");
+    const lines = fs.readFileSync(filePath, "utf-8").trim().split("\n");
+    expect(lines).toHaveLength(1);
+    const entry = JSON.parse(lines[0]!);
+    expect(entry.type).toBe("reset");
+  });
+});
+
+describe("buildGroupContext", () => {
+  it("returns empty string when no log file exists", () => {
+    const result = buildGroupContext("-100999", "agent-1", "Test Group");
+    expect(result).toBe("");
+  });
+
+  it("returns all messages for first interaction", () => {
+    appendGroupMessage("-100888", { id: 1, from: "Alice", fromBot: false, text: "hey", ts: "2026-01-01T00:00:00Z" });
+    appendGroupMessage("-100888", { id: 2, from: "Bob", fromBot: false, text: "yo", ts: "2026-01-01T00:00:01Z" });
+
+    const result = buildGroupContext("-100888", "agent-1", "My Group");
+    expect(result).toContain("<GroupChat");
+    expect(result).toContain("My Group");
+    expect(result).toContain("[Alice]: hey");
+    expect(result).toContain("[Bob]: yo");
+  });
+
+  it("stops at agent's own last message", () => {
+    appendGroupMessage("-100777", { id: 1, from: "Alice", fromBot: false, text: "old", ts: "2026-01-01T00:00:00Z" });
+    appendGroupMessage("-100777", { id: 2, from: "agent-1", fromBot: true, text: "agent reply", ts: "2026-01-01T00:00:01Z" });
+    appendGroupMessage("-100777", { id: 3, from: "Bob", fromBot: false, text: "new", ts: "2026-01-01T00:00:02Z" });
+
+    const result = buildGroupContext("-100777", "agent-1", "Group");
+    expect(result).toContain("[Bob]: new");
+    expect(result).not.toContain("old");
+    expect(result).not.toContain("agent reply");
+  });
+
+  it("stops at reset sentinel", () => {
+    appendGroupMessage("-100666", { id: 1, from: "Alice", fromBot: false, text: "before reset", ts: "2026-01-01T00:00:00Z" });
+    appendGroupReset("-100666");
+    appendGroupMessage("-100666", { id: 2, from: "Bob", fromBot: false, text: "after reset", ts: "2026-01-01T00:00:02Z" });
+
+    const result = buildGroupContext("-100666", "agent-1", "Group");
+    expect(result).toContain("[Bob]: after reset");
+    expect(result).not.toContain("before reset");
+  });
+
+  it("includes messages from other agents", () => {
+    appendGroupMessage("-100555", { id: 1, from: "agent-2", fromBot: true, text: "other agent", ts: "2026-01-01T00:00:00Z" });
+    appendGroupMessage("-100555", { id: 2, from: "Alice", fromBot: false, text: "reply", ts: "2026-01-01T00:00:01Z" });
+
+    const result = buildGroupContext("-100555", "agent-1", "Group");
+    expect(result).toContain("[agent-2]: other agent");
+    expect(result).toContain("[Alice]: reply");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// groupMessageMiddleware tests
+// ---------------------------------------------------------------------------
+
+const GROUP_MSG_CHAT_ID = -1001111111111;
+let msgUpdateId = 5000;
+
+function makeGroupTextUpdate(
+  chatId: number,
+  text: string,
+  opts?: {
+    fromBot?: boolean;
+    fromId?: number;
+    firstName?: string;
+    messageId?: number;
+    entities?: Array<{ type: string; offset: number; length: number }>;
+    replyToMessageFromId?: number;
+  },
+): Update {
+  return {
+    update_id: msgUpdateId++,
+    message: {
+      message_id: opts?.messageId ?? msgUpdateId,
+      date: Math.floor(Date.now() / 1000),
+      chat: { id: chatId, type: "supergroup", title: "Test Group" } as any,
+      from: {
+        id: opts?.fromId ?? 111,
+        is_bot: opts?.fromBot ?? false,
+        first_name: opts?.firstName ?? "TestUser",
+      },
+      text,
+      ...(opts?.entities ? { entities: opts.entities } : {}),
+      ...(opts?.replyToMessageFromId !== undefined ? {
+        reply_to_message: {
+          message_id: 1,
+          date: Math.floor(Date.now() / 1000),
+          chat: { id: chatId, type: "supergroup" } as any,
+          from: { id: opts.replyToMessageFromId, is_bot: true, first_name: "Bot" },
+          text: "previous",
+        },
+      } : {}),
+    },
+  };
+}
+
+interface GroupTestConfig {
+  token: string;
+  chatId: string;
+  activeAgentId: string;
+  groups?: Record<string, { name: string; threads: Record<string, string> }>;
+}
+
+function createGroupTestBot(config: GroupTestConfig) {
+  const apiCalls: ApiCall[] = [];
+  const saveConfig = vi.fn();
+  const resolveAgent = vi.fn().mockReturnValue({ agentId: "agent-1", agentDir: "/tmp/agents/agent-1" });
+
+  const bot = new Bot("dummy:token", { botInfo: BOT_INFO });
+
+  bot.api.config.use(async (_prev, method, payload) => {
+    apiCalls.push({ method, payload: payload as Record<string, unknown> });
+    if (method === "sendMessage") {
+      return { ok: true, result: { message_id: 1, date: 0, chat: { id: (payload as any).chat_id, type: "supergroup" } } };
+    }
+    if (method === "sendChatAction") {
+      return { ok: true, result: true };
+    }
+    return { ok: true, result: {} };
+  });
+
+  bot.use(groupMessageMiddleware({ bot, config: config as any, saveConfig, resolveAgent }));
+  bot.use(chatGuard(config.chatId));
+
+  // Catch-all handler to avoid grammY unhandled update errors
+  bot.on("message", () => {});
+
+  return { bot, config, saveConfig, apiCalls, resolveAgent };
+}
+
+describe("groupMessageMiddleware", () => {
+  it("unauthorized group message passes through to next (not intercepted)", async () => {
+    const { bot } = createGroupTestBot({
+      token: "t", chatId: PRIVATE_CHAT_ID, activeAgentId: "main",
+      // no groups configured → not authorized
+    });
+
+    await bot.init();
+
+    // Send a group message from an unauthorized group — middleware should call next()
+    const unauthorizedGroupId = -1009999999998;
+    await bot.handleUpdate(makeGroupTextUpdate(unauthorizedGroupId, "hello from unauthorized"));
+
+    // No JSONL written for unauthorized group
+    const filePath = path.join(tmpDir, "groups", String(unauthorizedGroupId), "messages.jsonl");
+    expect(fs.existsSync(filePath)).toBe(false);
+
+    // No agent invocation
+    expect(mockRunAgent).not.toHaveBeenCalled();
+  });
+
+  it("message in authorized group without mention → only logged, no agent invocation", async () => {
+    const { bot } = createGroupTestBot({
+      token: "t", chatId: PRIVATE_CHAT_ID, activeAgentId: "main",
+      groups: { [String(GROUP_MSG_CHAT_ID)]: { name: "Test Group", threads: {} } },
+    });
+
+    await bot.init();
+    await bot.handleUpdate(makeGroupTextUpdate(GROUP_MSG_CHAT_ID, "just chatting"));
+
+    // Message should be logged to JSONL
+    const filePath = path.join(tmpDir, "groups", String(GROUP_MSG_CHAT_ID), "messages.jsonl");
+    expect(fs.existsSync(filePath)).toBe(true);
+
+    // Agent should NOT be invoked
+    expect(mockRunAgent).not.toHaveBeenCalled();
+  });
+
+  it("@mention triggers agent invocation", async () => {
+    const { bot } = createGroupTestBot({
+      token: "t", chatId: PRIVATE_CHAT_ID, activeAgentId: "main",
+      groups: { [String(GROUP_MSG_CHAT_ID)]: { name: "Test Group", threads: {} } },
+    });
+
+    await bot.init();
+    await bot.handleUpdate(makeGroupTextUpdate(GROUP_MSG_CHAT_ID, "@test_bot what's up?", {
+      entities: [{ type: "mention", offset: 0, length: 9 }],
+    }));
+
+    expect(mockRunAgent).toHaveBeenCalledOnce();
+    // First arg is agentDir, second is threadId, third is the contextualized message
+    const callArgs = mockRunAgent.mock.calls[0]!;
+    expect(callArgs[0]).toBe("/tmp/agents/agent-1");
+    expect(callArgs[2]).toContain("@test_bot what's up?");
+  });
+
+  it("reply to bot message triggers agent invocation", async () => {
+    const { bot } = createGroupTestBot({
+      token: "t", chatId: PRIVATE_CHAT_ID, activeAgentId: "main",
+      groups: { [String(GROUP_MSG_CHAT_ID)]: { name: "Test Group", threads: {} } },
+    });
+
+    await bot.init();
+    await bot.handleUpdate(makeGroupTextUpdate(GROUP_MSG_CHAT_ID, "yes, exactly", {
+      replyToMessageFromId: BOT_INFO.id,
+    }));
+
+    expect(mockRunAgent).toHaveBeenCalledOnce();
+  });
+
+  it("reply to non-bot message does not trigger", async () => {
+    const { bot } = createGroupTestBot({
+      token: "t", chatId: PRIVATE_CHAT_ID, activeAgentId: "main",
+      groups: { [String(GROUP_MSG_CHAT_ID)]: { name: "Test Group", threads: {} } },
+    });
+
+    await bot.init();
+    await bot.handleUpdate(makeGroupTextUpdate(GROUP_MSG_CHAT_ID, "replying to human", {
+      replyToMessageFromId: 777, // some other user, not the bot
+    }));
+
+    expect(mockRunAgent).not.toHaveBeenCalled();
+  });
+
+  it("creates new thread when none exists for agent", async () => {
+    const { bot, config, saveConfig } = createGroupTestBot({
+      token: "t", chatId: PRIVATE_CHAT_ID, activeAgentId: "main",
+      groups: { [String(GROUP_MSG_CHAT_ID)]: { name: "Test Group", threads: {} } },
+    });
+
+    await bot.init();
+    await bot.handleUpdate(makeGroupTextUpdate(GROUP_MSG_CHAT_ID, "@test_bot hello", {
+      entities: [{ type: "mention", offset: 0, length: 9 }],
+    }));
+
+    expect(mockThreadStoreCreate).toHaveBeenCalledWith("agent-1");
+    expect(config.groups![String(GROUP_MSG_CHAT_ID)]!.threads["agent-1"]).toBe("new-thread-id");
+    expect(saveConfig).toHaveBeenCalled();
+  });
+
+  it("reuses existing thread for agent", async () => {
+    const { bot, saveConfig } = createGroupTestBot({
+      token: "t", chatId: PRIVATE_CHAT_ID, activeAgentId: "main",
+      groups: { [String(GROUP_MSG_CHAT_ID)]: { name: "Test Group", threads: { "agent-1": "existing-thread" } } },
+    });
+
+    await bot.init();
+    await bot.handleUpdate(makeGroupTextUpdate(GROUP_MSG_CHAT_ID, "@test_bot hello", {
+      entities: [{ type: "mention", offset: 0, length: 9 }],
+    }));
+
+    expect(mockThreadStoreCreate).not.toHaveBeenCalled();
+    // runAgent called with existing thread
+    const callArgs = mockRunAgent.mock.calls[0]!;
+    expect(callArgs[1]).toBe("existing-thread");
+  });
+
+  it("/new command resets context and rotates threads", async () => {
+    const { bot, config, saveConfig, apiCalls } = createGroupTestBot({
+      token: "t", chatId: PRIVATE_CHAT_ID, activeAgentId: "main",
+      groups: { [String(GROUP_MSG_CHAT_ID)]: { name: "Test Group", threads: { "agent-1": "old-thread" } } },
+    });
+
+    await bot.init();
+    await bot.handleUpdate(makeGroupTextUpdate(GROUP_MSG_CHAT_ID, "/new"));
+
+    // Thread rotated
+    expect(mockThreadStoreCreate).toHaveBeenCalledWith("agent-1");
+    expect(config.groups![String(GROUP_MSG_CHAT_ID)]!.threads["agent-1"]).toBe("new-thread-id");
+    expect(saveConfig).toHaveBeenCalled();
+
+    // Response sent to group
+    const sendCalls = apiCalls.filter(c => c.method === "sendMessage");
+    expect(sendCalls.length).toBeGreaterThan(0);
+    const text = sendCalls.find(c => (c.payload.text as string).includes("New conversation"))?.payload.text;
+    expect(text).toContain("TestAgent");
+
+    // Reset sentinel written to JSONL
+    const filePath = path.join(tmpDir, "groups", String(GROUP_MSG_CHAT_ID), "messages.jsonl");
+    const lines = fs.readFileSync(filePath, "utf-8").trim().split("\n");
+    const hasReset = lines.some(l => JSON.parse(l).type === "reset");
+    expect(hasReset).toBe(true);
+  });
+
+  it("/stop command responds 'Nothing running.' when idle", async () => {
+    const { bot, apiCalls } = createGroupTestBot({
+      token: "t", chatId: PRIVATE_CHAT_ID, activeAgentId: "main",
+      groups: { [String(GROUP_MSG_CHAT_ID)]: { name: "Test Group", threads: {} } },
+    });
+
+    await bot.init();
+    await bot.handleUpdate(makeGroupTextUpdate(GROUP_MSG_CHAT_ID, "/stop"));
+
+    const sendCalls = apiCalls.filter(c => c.method === "sendMessage");
+    const stopMsg = sendCalls.find(c => (c.payload.text as string).includes("Nothing running"));
+    expect(stopMsg).toBeDefined();
+  });
+
+  it("agent response is delivered to group chat, not DM", async () => {
+    // Make runAgent call onResponse synchronously
+    mockRunAgent.mockImplementation(async (_dir: string, _tid: string, _msg: string, callbacks: any) => {
+      await callbacks.onResponse("agent-1", "t1", "Hello from agent!");
+    });
+
+    const { bot, apiCalls } = createGroupTestBot({
+      token: "t", chatId: PRIVATE_CHAT_ID, activeAgentId: "main",
+      groups: { [String(GROUP_MSG_CHAT_ID)]: { name: "Test Group", threads: { "agent-1": "t1" } } },
+    });
+
+    await bot.init();
+    await bot.handleUpdate(makeGroupTextUpdate(GROUP_MSG_CHAT_ID, "@test_bot hi", {
+      entities: [{ type: "mention", offset: 0, length: 9 }],
+    }));
+
+    // Wait a tick for the async runAgent to complete
+    await new Promise(r => setTimeout(r, 50));
+
+    const sendCalls = apiCalls.filter(c => c.method === "sendMessage");
+    const responseMsgs = sendCalls.filter(c => (c.payload.text as string).includes("Hello from agent"));
+    expect(responseMsgs.length).toBeGreaterThan(0);
+    // Delivered to group chat, not DM
+    expect(responseMsgs[0]!.payload.chat_id).toBe(GROUP_MSG_CHAT_ID);
+  });
+
+  it("resolveAgent returning null → no agent invocation", async () => {
+    const { bot, resolveAgent } = createGroupTestBot({
+      token: "t", chatId: PRIVATE_CHAT_ID, activeAgentId: "main",
+      groups: { [String(GROUP_MSG_CHAT_ID)]: { name: "Test Group", threads: {} } },
+    });
+
+    resolveAgent.mockReturnValue(null);
+
+    await bot.init();
+    await bot.handleUpdate(makeGroupTextUpdate(GROUP_MSG_CHAT_ID, "@test_bot hello", {
+      entities: [{ type: "mention", offset: 0, length: 9 }],
+    }));
+
+    expect(mockRunAgent).not.toHaveBeenCalled();
   });
 });
