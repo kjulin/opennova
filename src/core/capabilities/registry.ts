@@ -13,8 +13,6 @@ export interface ResolverContext {
   manifest: ThreadManifest;
   callbacks: {
     onFileSend?: (filePath: string, caption: string | undefined, fileType: FileType) => void;
-    onShareNote?: (title: string, slug: string, message: string | undefined) => void;
-    onPinChange?: () => void;
     onNotifyUser?: (message: string) => void;
   };
   agent: AgentConfig;

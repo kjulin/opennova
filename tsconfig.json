@@ -7,7 +7,6 @@
       "#core/*": ["./src/core/*"],
       "#daemon/*": ["./src/daemon/*"],
       "#tasks/*": ["./src/tasks/*"],
-      "#notes/*": ["./src/notes/*"],
       "#api/*": ["./src/api/*"]
     },
 

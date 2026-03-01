@@ -53,7 +53,6 @@ Not every resolver uses every field. But all resolvers receive the same context 
 | memory | `createMemoryMcpServer()` |
 | history | `createHistoryMcpServer(agentDir, agentId, threadId)` — search past conversation threads |
 | tasks | `createTasksMcpServer(agentId, workspaceDir)` |
-| notes | `createNotesMcpServer(agentDir, callbacks)` |
 | self | `createSelfManagementMcpServer(agentDir)` — instructions + responsibilities CRUD |
 | media | `createMediaMcpServer(agentDir, directories, callbacks)` — file send, transcription, TTS |
 | secrets | `createSecretsMcpServer(workspaceDir)` |

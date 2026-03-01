@@ -15,15 +15,6 @@ import {
 import { TaskList } from "./components/TaskList";
 import { HistoryList } from "./components/HistoryList";
 import { NewTaskForm } from "./components/NewTaskForm";
-import { NoteEditor } from "./components/NoteEditor";
-
-function parseNoteRoute(): { agent: string; slug: string } | null {
-  const hash = window.location.hash;
-  const match = hash.match(/^#\/note\/([^/]+)\/([^/]+)$/);
-  if (!match) return null;
-  return { agent: match[1]!, slug: match[2]! };
-}
-
 declare global {
   interface Window {
     Telegram?: {
@@ -39,7 +30,6 @@ declare global {
 }
 
 export default function App() {
-  const [noteRoute, setNoteRoute] = useState(parseNoteRoute);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [history, setHistory] = useState<ArchivedTask[]>([]);
   const [agents, setAgents] = useState<Agent[]>([]);
@@ -49,16 +39,6 @@ export default function App() {
   const [showHistory, setShowHistory] = useState(false);
   const [showNewForm, setShowNewForm] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
-
-  useEffect(() => {
-    const onHashChange = () => setNoteRoute(parseNoteRoute());
-    window.addEventListener("hashchange", onHashChange);
-    return () => window.removeEventListener("hashchange", onHashChange);
-  }, []);
-
-  if (noteRoute) {
-    return <NoteEditor agent={noteRoute.agent} slug={noteRoute.slug} />;
-  }
 
   const loadTasks = useCallback(async () => {
     try {

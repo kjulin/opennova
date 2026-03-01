@@ -9,7 +9,6 @@ import {
   createTriggerMcpServer,
   type AgentBotConfig,
 } from "#core/index.js";
-import { listNotes, getPinnedNotes } from "#notes/index.js";
 import { relativeTime } from "./telegram.js";
 import { splitMessage, chatGuard } from "./telegram-utils.js";
 import { log } from "../logger.js";
@@ -87,7 +86,6 @@ export function startAgentTelegram(
 
   bot.api.setMyCommands([
     { command: "threads", description: "List conversation threads" },
-    { command: "notes", description: "Browse agent notes" },
     { command: "stop", description: "Stop the running agent" },
     { command: "new", description: "Start a fresh conversation thread" },
     { command: "admin", description: "Open admin console" },
@@ -101,9 +99,6 @@ export function startAgentTelegram(
     if (!publicUrl) return null;
     const keyboard = new Keyboard();
     keyboard.webApp("Tasks", `${publicUrl}/web/tasklist/`).row();
-    for (const note of getPinnedNotes(agentDir)) {
-      keyboard.webApp(note.title, `${publicUrl}/web/tasklist/#/note/${agentId}/${note.slug}`).row();
-    }
     return keyboard.resized().persistent();
   }
 
@@ -151,26 +146,6 @@ export function startAgentTelegram(
           log.error("telegram-agent", `agent ${agentId}: failed to send file ${filePath}:`, (err as Error).message);
           bot.api.sendMessage(chatId, `Failed to send file: ${(err as Error).message}`).catch(() => {});
         }
-      },
-      onShareNote(_agentId: string, _threadId: string, title: string, slug: string, message: string | undefined) {
-        const publicUrl = getPublicUrl();
-        if (!publicUrl) return;
-
-        const text = message ?? `\uD83D\uDCDD ${title}`;
-        const keyboard = new InlineKeyboard().webApp(
-          "Open note",
-          `${publicUrl}/web/tasklist/#/note/${agentId}/${slug}`,
-        );
-        bot.api.sendMessage(chatId, text, { reply_markup: keyboard }).catch((err) => {
-          log.error("telegram-agent", `agent ${agentId}: failed to deliver note:`, err);
-        });
-      },
-      onPinChange(_agentId: string) {
-        const kb = buildReplyKeyboard();
-        if (!kb) return;
-        bot.api.sendMessage(chatId, "\uD83D\uDCCC Pinned notes updated", { reply_markup: kb }).catch((err) => {
-          log.error("telegram-agent", `agent ${agentId}: failed to send pin update:`, err);
-        });
       },
       onNotifyUser(_agentId: string, _threadId: string, message: string) {
         const chunks = splitMessage(message);
@@ -243,28 +218,6 @@ export function startAgentTelegram(
         parse_mode: "Markdown",
         reply_markup: keyboard,
       });
-      return;
-    }
-
-    if (text === "/notes") {
-      const publicUrl = getPublicUrl();
-      if (!publicUrl) {
-        await ctx.reply("Set your Nova URL: `nova config set settings.url https://your-domain.com`");
-        return;
-      }
-      const notes = listNotes(agentDir);
-      if (notes.length === 0) {
-        await ctx.reply("No notes yet.");
-        return;
-      }
-      const keyboard = new InlineKeyboard();
-      for (const note of notes) {
-        keyboard.webApp(
-          note.title,
-          `${publicUrl}/web/tasklist/#/note/${agentId}/${note.slug}`,
-        ).row();
-      }
-      await ctx.reply("*Notes:*", { parse_mode: "Markdown", reply_markup: keyboard });
       return;
     }
 

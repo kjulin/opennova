@@ -163,7 +163,7 @@ Trust level cannot be set through agent-management tools or self-management. It 
 delete_agent(id) → removes {workspaceDir}/agents/{id}/ recursively
 ```
 
-Deletion removes the agent directory and everything in it: config, threads, embeddings, notes, triggers, Claude SDK config. There is no soft delete or archive.
+Deletion removes the agent directory and everything in it: config, threads, embeddings, triggers, Claude SDK config. There is no soft delete or archive.
 
 No cascade beyond the directory: tasks owned by a deleted agent become orphaned (task system handles this gracefully). Telegram bot configs referencing a deleted agent become inert.
 
@@ -191,7 +191,6 @@ The workspace template defines their initial config. After initialization, the w
   threads/
     {threadId}.jsonl    # thread data
   embeddings.jsonl      # episodic memory vectors
-  notes/                # markdown notes
   .claude/              # Claude SDK config, skills
 ```
 

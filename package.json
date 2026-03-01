@@ -15,7 +15,6 @@
     "#core/*": "./dist/core/*",
     "#daemon/*": "./dist/daemon/*",
     "#tasks/*": "./dist/tasks/*",
-    "#notes/*": "./dist/notes/*",
     "#api/*": "./dist/api/*"
   },
   "scripts": {

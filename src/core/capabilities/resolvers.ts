@@ -2,7 +2,6 @@ import { CapabilityRegistry } from "./registry.js";
 import { createMemoryMcpServer } from "../memory.js";
 import { createHistoryMcpServer } from "../episodic/index.js";
 import { createTasksMcpServer } from "#tasks/index.js";
-import { createNotesMcpServer } from "#notes/index.js";
 import { createSelfManagementMcpServer, createAgentManagementMcpServer } from "../agents/management.js";
 import { createFileSendMcpServer } from "../file-send.js";
 import { createAudioMcpServer } from "../audio/index.js";
@@ -49,23 +48,6 @@ export function createRegistry(): CapabilityRegistry {
       { name: "add_resource", description: "Add a resource to a task" },
       { name: "remove_resource", description: "Remove a resource from a task" },
       { name: "cancel_task", description: "Cancel a task" },
-    ],
-  );
-
-  registry.register(
-    "notes",
-    (ctx, config) =>
-      createNotesMcpServer(ctx.agentDir, ctx.callbacks.onShareNote, ctx.callbacks.onPinChange, config.tools),
-    [
-      { name: "save_note", description: "Create or overwrite a note" },
-      { name: "list_notes", description: "List all notes" },
-      { name: "read_note", description: "Read a note by title" },
-      { name: "update_note", description: "Update an existing note" },
-      { name: "delete_note", description: "Delete a note" },
-      { name: "share_note", description: "Share a note with the user" },
-      { name: "pin_note", description: "Pin a note" },
-      { name: "unpin_note", description: "Unpin a note" },
-      { name: "list_pinned_notes", description: "List pinned notes" },
     ],
   );
 
