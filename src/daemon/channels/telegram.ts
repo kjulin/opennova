@@ -108,9 +108,11 @@ export function startTelegram(config: TelegramConfig, saveConfig: () => void) {
     config,
     saveConfig,
     resolveAgent: () => {
-      const agent = agentStore.list().get(config.activeAgentId);
+      // Main bot always uses "nova" agent for group chats
+      const agentId = "nova";
+      const agent = agentStore.list().get(agentId);
       if (!agent) return null;
-      return { agentId: agent.id, agentDir: path.join(Config.workspaceDir, "agents", agent.id) };
+      return { agentId, agentDir: path.join(Config.workspaceDir, "agents", agentId) };
     },
   }));
 
