@@ -21,8 +21,6 @@ export function AgentList({ agents }: { agents: Agent[] }) {
                 {agent.triggers.length} trigger{agent.triggers.length !== 1 && "s"}
                 {" · "}
                 {agent.skills.length} skill{agent.skills.length !== 1 && "s"}
-                {" · "}
-                {agent.trust} access
               </p>
             </CardContent>
           </Card>

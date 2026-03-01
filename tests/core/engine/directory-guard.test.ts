@@ -52,8 +52,8 @@ function denyMessage(result: SyncHookJSONOutput): string | undefined {
 }
 
 describe("createDirectoryGuard", () => {
-  describe("controlled trust", () => {
-    const guard = createDirectoryGuard("controlled", CWD, ["/shared/data"]);
+  describe("directory enforcement", () => {
+    const guard = createDirectoryGuard(CWD, ["/shared/data"]);
 
     it("allows Read inside cwd", async () => {
       expect(isAllow(await call(guard, "Read", { file_path: "/home/user/project/src/index.ts" }))).toBe(true);
@@ -97,7 +97,7 @@ describe("createDirectoryGuard", () => {
   });
 
   describe("file tool variants", () => {
-    const guard = createDirectoryGuard("controlled", CWD, []);
+    const guard = createDirectoryGuard(CWD, []);
 
     it("checks Write via file_path", async () => {
       expect(isDeny(await call(guard, "Write", { file_path: "/etc/hosts" }))).toBe(true);
@@ -129,7 +129,7 @@ describe("createDirectoryGuard", () => {
   });
 
   describe("non-file tools", () => {
-    const guard = createDirectoryGuard("controlled", CWD, []);
+    const guard = createDirectoryGuard(CWD, []);
 
     it("allows Bash", async () => {
       expect(isAllow(await call(guard, "Bash", { command: "rm -rf /" }))).toBe(true);
@@ -145,31 +145,6 @@ describe("createDirectoryGuard", () => {
 
     it("allows MCP tools", async () => {
       expect(isAllow(await call(guard, "mcp__memory__store", { key: "val" }))).toBe(true);
-    });
-  });
-
-  describe("sandbox trust", () => {
-    const guard = createDirectoryGuard("sandbox", CWD, []);
-
-    it("enforces directory boundaries the same as controlled", async () => {
-      expect(isDeny(await call(guard, "Read", { file_path: "/etc/passwd" }))).toBe(true);
-      expect(isAllow(await call(guard, "Read", { file_path: `${CWD}/file.txt` }))).toBe(true);
-    });
-  });
-
-  describe("unrestricted trust", () => {
-    const guard = createDirectoryGuard("unrestricted", CWD, []);
-
-    it("allows file reads anywhere", async () => {
-      expect(isAllow(await call(guard, "Read", { file_path: "/etc/passwd" }))).toBe(true);
-    });
-
-    it("allows writes anywhere", async () => {
-      expect(isAllow(await call(guard, "Write", { file_path: "/tmp/anything" }))).toBe(true);
-    });
-
-    it("allows non-file tools", async () => {
-      expect(isAllow(await call(guard, "Bash", { command: "echo hi" }))).toBe(true);
     });
   });
 });

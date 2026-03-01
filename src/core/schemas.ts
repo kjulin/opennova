@@ -94,9 +94,6 @@ export const ThreadEventSchema = z.union([
   ThreadResultEventSchema,
 ]);
 
-export const TrustLevel = z.enum(["sandbox", "controlled", "unrestricted"]);
-export type TrustLevel = z.infer<typeof TrustLevel>;
-
 // Agent JSON schema and constants
 export const VALID_AGENT_ID = /^[a-z0-9][a-z0-9-]*$/;
 export const MAX_IDENTITY_LENGTH = 4000;
@@ -117,7 +114,6 @@ export const AgentJsonSchema = z.object({
   instructions: z.string().max(MAX_INSTRUCTIONS_LENGTH).optional(),
   responsibilities: z.array(ResponsibilitySchema).optional(),
   directories: z.array(z.string()).optional(),
-  trust: TrustLevel.default("sandbox"),
   subagents: z.record(z.string(), z.object({
     description: z.string(),
     prompt: z.string(),

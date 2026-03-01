@@ -1,6 +1,5 @@
 import type { McpServerConfig } from "@anthropic-ai/claude-agent-sdk";
 import type { Model } from "../models.js";
-import type { TrustLevel } from "../schemas.js";
 
 export type EngineEvent =
   | { type: "assistant_text"; text: string }
@@ -71,7 +70,6 @@ export interface Engine {
   run(
     message: string,
     options: EngineOptions,
-    trust: TrustLevel,
     sessionId?: string,
     callbacks?: EngineCallbacks,
     abortController?: AbortController,

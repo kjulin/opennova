@@ -49,7 +49,7 @@ describe("ClaudeEngine", () => {
       cwd: "/test",
       systemPrompt: "You are helpful",
       model: "sonnet",
-    }, "controlled");
+    });
 
     expect(mockQuery).toHaveBeenCalledWith({
       prompt: "Hello",
@@ -58,9 +58,8 @@ describe("ClaudeEngine", () => {
         systemPrompt: "You are helpful",
         model: "sonnet",
         settingSources: ["project"],
-        // Trust "controlled" adds permissionMode, allowedTools, disallowedTools
         permissionMode: "dontAsk",
-        disallowedTools: ["Bash", "Task", "TaskOutput"],
+        disallowedTools: ["Task", "TaskOutput"],
       }),
     });
 
@@ -95,7 +94,7 @@ describe("ClaudeEngine", () => {
     mockQuery.mockReturnValue(mockGenerator());
 
     const engine = createClaudeEngine();
-    await engine.run("Continue", { cwd: "/test", model: "sonnet" }, "controlled", "sess-123");
+    await engine.run("Continue", { cwd: "/test", model: "sonnet" }, "sess-123");
 
     expect(mockQuery).toHaveBeenCalledWith({
       prompt: "Continue",
@@ -130,7 +129,7 @@ describe("ClaudeEngine", () => {
     });
 
     const engine = createClaudeEngine();
-    const result = await engine.run("Hello", { cwd: "/test" }, "controlled", "old-session");
+    const result = await engine.run("Hello", { cwd: "/test" }, "old-session");
 
     expect(mockQuery).toHaveBeenCalledTimes(2);
     expect(result.text).toBe("Fresh start");
@@ -164,7 +163,7 @@ describe("ClaudeEngine", () => {
     };
 
     const engine = createClaudeEngine();
-    await engine.run("Read file", { cwd: "/test" }, "controlled", undefined, callbacks);
+    await engine.run("Read file", { cwd: "/test" }, undefined, callbacks);
 
     expect(callbacks.onToolUse).toHaveBeenCalledWith(
       "Read",
@@ -202,37 +201,9 @@ describe("ClaudeEngine", () => {
     };
 
     const engine = createClaudeEngine();
-    await engine.run("Read file", { cwd: "/test" }, "controlled", undefined, callbacks);
+    await engine.run("Read file", { cwd: "/test" }, undefined, callbacks);
 
     expect(callbacks.onAssistantMessage).toHaveBeenCalledWith("Let me check that file");
-  });
-
-  it("applies trust level to SDK options", async () => {
-    async function* mockGenerator() {
-      yield {
-        type: "result",
-        subtype: "success",
-        result: "OK",
-        session_id: "sess-123",
-        total_cost_usd: 0.01,
-        duration_ms: 50,
-        num_turns: 1,
-      };
-    }
-    mockQuery.mockReturnValue(mockGenerator());
-
-    const engine = createClaudeEngine();
-    await engine.run("Hello", { cwd: "/test", model: "sonnet" }, "unrestricted");
-
-    expect(mockQuery).toHaveBeenCalledWith({
-      prompt: "Hello",
-      options: expect.objectContaining({
-        model: "sonnet",
-        settingSources: ["project"],
-        permissionMode: "bypassPermissions",
-        allowDangerouslySkipPermissions: true,
-      }),
-    });
   });
 
   it("derives MCP tool patterns from mcpServers", async () => {
@@ -256,7 +227,7 @@ describe("ClaudeEngine", () => {
         memory: {} as any,
         "custom-cap": {} as any,
       },
-    }, "sandbox");
+    });
 
     const call = mockQuery.mock.calls[0]?.[0] as { options: { allowedTools?: string[] } };
     const allowedTools = call.options.allowedTools ?? [];
@@ -282,7 +253,7 @@ describe("ClaudeEngine", () => {
     mockQuery.mockReturnValue(mockGenerator());
 
     const engine = createClaudeEngine();
-    const result = await engine.run("Hello", { cwd: "/test" }, "controlled", undefined, undefined, abortController);
+    const result = await engine.run("Hello", { cwd: "/test" }, undefined, undefined, abortController);
 
     expect(result.text).toBe("");
   });

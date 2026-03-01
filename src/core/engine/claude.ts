@@ -2,8 +2,7 @@ import crypto from "node:crypto";
 import path from "path";
 import {query, type SettingSource} from "@anthropic-ai/claude-agent-sdk";
 import { log } from "../logger.js";
-import { trustOptions } from "../security.js";
-import type { TrustLevel } from "../schemas.js";
+import { permissionOptions } from "../security.js";
 import { createDirectoryGuard } from "./directory-guard.js";
 import type { Engine, EngineOptions, EngineResult, EngineCallbacks } from "./types.js";
 
@@ -55,27 +54,25 @@ function friendlyToolStatus(toolName: string, input: Record<string, unknown>): s
 async function execQuery(
   message: string,
   options: EngineOptions,
-  trust: TrustLevel,
   sessionId: string | undefined,
   callbacks: EngineCallbacks | undefined,
   abortController: AbortController | undefined,
 ): Promise<EngineResult> {
   const tag = `engine:${runId()}`;
-  log.info(tag, `running (trust=${trust})${sessionId ? ` (session: ${sessionId})` : ""}`);
+  log.info(tag, `running${sessionId ? ` (session: ${sessionId})` : ""}`);
 
-  // Derive MCP tool patterns from registered servers — ensures all MCP tools
-  // work at every trust level (trust only governs SDK-native tools).
+  // Derive MCP tool patterns from registered servers so they are whitelisted.
   const mcpToolPatterns = options.mcpServers
     ? Object.keys(options.mcpServers).map((name) => `mcp__${name}__*`)
     : [];
 
-  // Translate trust level into SDK permission options
-  const sdkTrustOptions = trustOptions(trust, mcpToolPatterns.length > 0 ? mcpToolPatterns : undefined);
+  // Fixed permission options for all agents
+  const sdkPermissionOpts = permissionOptions(mcpToolPatterns.length > 0 ? mcpToolPatterns : undefined);
 
   // Enforce directory boundaries via PreToolUse hook.
   // This must be a hook (not canUseTool) because the SDK auto-allows tools
   // in allowedTools before canUseTool is consulted.
-  const directoryGuard = createDirectoryGuard(trust, options.cwd, options.directories ?? []);
+  const directoryGuard = createDirectoryGuard(options.cwd, options.directories ?? []);
 
   const queryOptions = {
     cwd: options.cwd,
@@ -85,7 +82,7 @@ async function execQuery(
     ...(options.mcpServers ? { mcpServers: options.mcpServers } : {}),
     model: options.model,
     ...(options.maxTurns ? { maxTurns: options.maxTurns } : {}),
-    ...sdkTrustOptions,
+    ...sdkPermissionOpts,
     hooks: { PreToolUse: [directoryGuard] },
     ...(sessionId ? { resume: sessionId } : {}),
     settingSources: ["project"] as SettingSource[],
@@ -350,13 +347,13 @@ export async function generateThreadTitle(userMessage: string, assistantResponse
 
 export function createClaudeEngine(): Engine {
   return {
-    async run(message, options, trust, sessionId, callbacks, abortController) {
+    async run(message, options, sessionId, callbacks, abortController) {
       try {
-        return await execQuery(message, options, trust, sessionId, callbacks, abortController);
+        return await execQuery(message, options, sessionId, callbacks, abortController);
       } catch (err) {
         if (sessionId) {
           log.warn("engine", "session resume failed, retrying as new conversation");
-          return await execQuery(message, options, trust, undefined, callbacks, abortController);
+          return await execQuery(message, options, undefined, callbacks, abortController);
         }
         throw err;
       }

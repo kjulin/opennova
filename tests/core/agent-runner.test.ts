@@ -33,7 +33,7 @@ vi.mock("#core/threads/index.js", () => ({
   threadStore: mockThreadStore,
 }));
 
-const testAgent = { id: "test-agent", name: "Test Agent", role: "Test role", trust: "controlled", model: "sonnet", capabilities: { memory: {} } };
+const testAgent = { id: "test-agent", name: "Test Agent", role: "Test role", model: "sonnet", capabilities: { memory: {} } };
 
 vi.mock("#core/agents/index.js", () => ({
   agentStore: {
@@ -66,11 +66,11 @@ vi.mock("#core/engine/index.js", async (importOriginal) => {
 
 import { appendUsage } from "#core/usage.js";
 
-function createMockEngine(): Engine & { calls: Array<{ message: string; trust: string }> } {
-  const mock: Engine & { calls: Array<{ message: string; trust: string }> } = {
+function createMockEngine(): Engine & { calls: Array<{ message: string }> } {
+  const mock: Engine & { calls: Array<{ message: string }> } = {
     calls: [],
-    async run(message, options, trust, sessionId, callbacks, abortController): Promise<EngineResult> {
-      mock.calls.push({ message, trust });
+    async run(message, options, sessionId, callbacks, abortController): Promise<EngineResult> {
+      mock.calls.push({ message });
       return { text: "Response from engine", sessionId: "sess-456" };
     },
   };
@@ -101,7 +101,7 @@ describe("AgentRunner", () => {
     );
   });
 
-  it("calls engine with message and trust level", async () => {
+  it("calls engine with message", async () => {
     const mockEngine = createMockEngine();
     const runner = createAgentRunner(mockEngine);
 
@@ -109,7 +109,6 @@ describe("AgentRunner", () => {
 
     expect(mockEngine.calls).toHaveLength(1);
     expect(mockEngine.calls[0]?.message).toBe("Hello");
-    expect(mockEngine.calls[0]?.trust).toBe("controlled");
   });
 
   it("appends assistant message to thread", async () => {

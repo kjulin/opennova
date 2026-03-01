@@ -1,6 +1,5 @@
 import path from "node:path";
 import type { HookCallbackMatcher, PreToolUseHookInput, SyncHookJSONOutput } from "@anthropic-ai/claude-agent-sdk";
-import type { TrustLevel } from "../schemas.js";
 import { log } from "../logger.js";
 
 /** Tools that carry a file path we need to validate. */
@@ -20,16 +19,13 @@ const FILE_PATH_TOOLS: Record<string, string> = {
  * listed in `allowedTools` before `canUseTool` is ever called. PreToolUse
  * hooks run first and can deny regardless of `allowedTools`.
  *
- * - `unrestricted` trust → all tools allowed unconditionally.
- * - `sandbox` / `controlled` → file-bearing tools (Read, Write, Edit, Glob,
- *   Grep, NotebookEdit) are checked against the allowed directories list.
- *   All other tools pass through.
+ * File-bearing tools (Read, Write, Edit, Glob, Grep, NotebookEdit) are
+ * checked against the allowed directories list. All other tools pass through.
  *
- * @param trust - The agent trust level.
  * @param cwd - The agent working directory (already absolute).
  * @param directories - Additional allowed directories (already absolute).
  */
-export function createDirectoryGuard(trust: TrustLevel, cwd: string, directories: string[]): HookCallbackMatcher {
+export function createDirectoryGuard(cwd: string, directories: string[]): HookCallbackMatcher {
   const allowedDirs = [cwd, ...directories];
 
   return {
@@ -38,12 +34,6 @@ export function createDirectoryGuard(trust: TrustLevel, cwd: string, directories
         const hookInput = input as PreToolUseHookInput;
         const toolName = hookInput.tool_name;
         const toolInput = hookInput.tool_input as Record<string, unknown>;
-
-        // Unrestricted agents have no directory restrictions.
-        if (trust === "unrestricted") {
-          log.debug("directory-guard", `allow ${toolName} (unrestricted trust)`);
-          return { continue: true };
-        }
 
         const pathKey = FILE_PATH_TOOLS[toolName];
         if (!pathKey) {

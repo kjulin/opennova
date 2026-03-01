@@ -24,7 +24,6 @@ export function AgentDetailPage() {
   // Local state for editable fields
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
-  const [security, setSecurity] = useState("controlled");
   const [model, setModel] = useState("");
   const [identity, setIdentity] = useState("");
   const [instructions, setInstructions] = useState("");
@@ -39,7 +38,6 @@ export function AgentDetailPage() {
         setAgent(data);
         setName(data.name);
         setDescription(data.description ?? "");
-        setSecurity(data.trust ?? "controlled");
         setModel(data.model ?? "");
         setIdentity(data.identity ?? "");
         setInstructions(data.instructions ?? "");
@@ -123,11 +121,9 @@ export function AgentDetailPage() {
             agentId={id}
             name={name}
             description={description}
-            security={security}
             model={model}
             onNameChange={setName}
             onDescriptionChange={setDescription}
-            onSecurityChange={setSecurity}
             onModelChange={setModel}
           />
         </CardContent>

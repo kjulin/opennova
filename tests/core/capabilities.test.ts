@@ -53,7 +53,7 @@ function makeCtx(overrides?: Partial<ResolverContext>): ResolverContext {
     directories: [],
     manifest: { createdAt: "", updatedAt: "" },
     callbacks: {},
-    agent: { id: "test-agent", name: "Test", trust: "controlled", model: "sonnet" } as any,
+    agent: { id: "test-agent", name: "Test", model: "sonnet" } as any,
     ...overrides,
   };
 }
