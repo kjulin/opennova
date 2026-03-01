@@ -329,7 +329,8 @@ export function groupMessageMiddleware(opts: GroupMessageOptions) {
     const fromName = message.from?.first_name ?? "Unknown";
     const fromBot = message.from?.is_bot ?? false;
 
-    log.info("telegram-group", `[${chatIdStr}] [${fromName}] ${text.length > 100 ? text.slice(0, 100) + "…" : text}`);
+    const botUsername = bot.botInfo?.username ?? "unknown";
+    log.info("telegram-group", `[${botUsername}] [${chatIdStr}] [${fromName}] ${text.length > 100 ? text.slice(0, 100) + "…" : text}`);
     appendGroupMessage(chatIdStr, {
       id: message.message_id,
       from: fromBot ? (opts.resolveAgent()?.agentId ?? fromName) : fromName,
@@ -391,7 +392,7 @@ export function groupMessageMiddleware(opts: GroupMessageOptions) {
     }
 
     if (!triggered) {
-      log.debug("telegram-group", `[${chatIdStr}] not triggered (bot=${botInfo.username}, entities=${JSON.stringify(message.entities ?? [])})`);
+      log.info("telegram-group", `[${botUsername}] [${chatIdStr}] not triggered (entities=${JSON.stringify(message.entities ?? [])})`);
       return;
     }
 
