@@ -290,11 +290,13 @@ export function groupMessageMiddleware(opts: GroupMessageOptions) {
     if (!message) return next();
 
     const chat = message.chat;
+    log.info("telegram-group", `middleware hit: chat=${chat.id} type=${chat.type}`);
+
     if (chat.type !== "group" && chat.type !== "supergroup") return next();
 
     const chatIdStr = String(chat.id);
     if (!isAuthorizedGroup(config, chatIdStr)) {
-      log.debug("telegram-group", `[${chatIdStr}] not authorized, passing through`);
+      log.info("telegram-group", `[${chatIdStr}] not authorized (groups=${JSON.stringify(Object.keys(config.groups ?? {}))})`);
       return next();
     }
 
