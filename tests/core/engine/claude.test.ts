@@ -49,6 +49,7 @@ describe("ClaudeEngine", () => {
       cwd: "/test",
       systemPrompt: "You are helpful",
       model: "sonnet",
+      engineConfig: { allowedTools: ["Bash"] },
     });
 
     expect(mockQuery).toHaveBeenCalledWith({
@@ -62,6 +63,10 @@ describe("ClaudeEngine", () => {
         disallowedTools: ["Task", "TaskOutput"],
       }),
     });
+
+    // Verify Bash is in allowedTools when engineConfig provides it
+    const call = mockQuery.mock.calls[0]?.[0] as { options: { allowedTools?: string[] } };
+    expect(call.options.allowedTools).toContain("Bash");
 
     expect(result.text).toBe("Hello from Claude");
     expect(result.sessionId).toBe("sess-123");
