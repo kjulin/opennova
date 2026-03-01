@@ -12,7 +12,7 @@ import {
 } from "#core/index.js";
 import { relativeTime } from "./telegram.js";
 import { splitMessage, chatGuard } from "./telegram-utils.js";
-import { groupMessageMiddleware } from "./telegram-group.js";
+import { groupMessageMiddleware, registerGroupParticipant } from "./telegram-group.js";
 import { log } from "../logger.js";
 import { getPublicUrl } from "../workspace.js";
 
@@ -82,15 +82,6 @@ export function startAgentTelegram(
 
   const agentDir = path.join(Config.workspaceDir, "agents", agentId);
   const bot = new Bot(botConfig.token);
-
-  // DEBUG: trace all updates on agent bot
-  bot.use((ctx, next) => {
-    const chatId = ctx.chat?.id ?? "no-chat";
-    const chatType = ctx.chat?.type ?? "no-type";
-    const text = ctx.message?.text ?? "";
-    log.info("telegram-agent", `[${agentId}] update: chat=${chatId} type=${chatType} text=${text.slice(0, 50)}`);
-    return next();
-  });
 
   // Group message handling — must run BEFORE chatGuard
   bot.use(groupMessageMiddleware({
@@ -442,6 +433,11 @@ You can read, process, or move this file as needed.`;
   });
 
   bot.start();
+
+  // Register agent bot as group participant after init completes
+  bot.api.getMe().then((me) => {
+    registerGroupParticipant(agentId, agent.name, me.username ?? "");
+  }).catch(() => {});
 
   return {
     bot,

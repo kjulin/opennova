@@ -21,6 +21,33 @@ import { splitMessage, toTelegramMarkdown } from "./telegram-utils.js";
 import { log } from "../logger.js";
 
 // ---------------------------------------------------------------------------
+// Group participant registry
+// ---------------------------------------------------------------------------
+
+interface GroupParticipant {
+  name: string;
+  username: string;
+}
+
+/** Known bot participants, keyed by agentId. Populated on bot start. */
+const participants = new Map<string, GroupParticipant>();
+
+export function registerGroupParticipant(agentId: string, name: string, username: string): void {
+  participants.set(agentId, { name, username });
+  log.info("telegram-group", `registered participant: ${name} (@${username})`);
+}
+
+function formatParticipants(currentAgentId: string): string {
+  if (participants.size === 0) return "";
+  const lines: string[] = [];
+  for (const [agentId, p] of participants) {
+    if (agentId === currentAgentId) continue;
+    lines.push(`- ${p.name} (@${p.username})`);
+  }
+  return lines.length > 0 ? `\nOther agents in this group:\n${lines.join("\n")}` : "";
+}
+
+// ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
@@ -391,7 +418,8 @@ export function groupMessageMiddleware(opts: GroupMessageOptions) {
 
     // Build context
     const context = buildGroupContext(chatIdStr, agentId, groupConfig.name);
-    const groupPrompt = `<GroupChat>\nYou are participating in a Telegram group chat "${groupConfig.name}".\nMessages from other participants are provided as context above your prompt.\nWhen responding, you are speaking to the group — keep responses conversational and concise.\nYou can reference what other participants (including other agents) have said.\n</GroupChat>`;
+    const participantInfo = formatParticipants(agentId);
+    const groupPrompt = `<GroupChat>\nYou are participating in a Telegram group chat "${groupConfig.name}".\nMessages from other participants are provided as context above your prompt.\nWhen responding, you are speaking to the group — keep responses conversational and concise.\nYou can reference what other participants (including other agents) have said.\nTo mention another agent, use their @username.${participantInfo}\n</GroupChat>`;
 
     const contextualizedMessage = [context, groupPrompt, text].filter(Boolean).join("\n\n");
 

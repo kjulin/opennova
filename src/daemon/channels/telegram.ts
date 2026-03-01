@@ -16,7 +16,7 @@ import { getTask, loadTasks } from "#tasks/index.js";
 import { TELEGRAM_HELP_MESSAGE } from "./telegram-help.js";
 import { splitMessage, chatGuard, toTelegramMarkdown } from "./telegram-utils.js";
 import { taskgroupMiddleware } from "./telegram-taskgroup.js";
-import { groupPairingMiddleware, groupMessageMiddleware } from "./telegram-group.js";
+import { groupPairingMiddleware, groupMessageMiddleware, registerGroupParticipant } from "./telegram-group.js";
 import { log } from "../logger.js";
 import { getPublicUrl } from "../workspace.js";
 
@@ -814,6 +814,11 @@ You can read, process, or move this file as needed.`;
   });
 
   bot.start();
+
+  // Register main bot as group participant after init completes
+  bot.api.getMe().then((me) => {
+    registerGroupParticipant("nova", "Nova", me.username ?? "");
+  }).catch(() => {});
 
   return {
     bot,
