@@ -67,19 +67,23 @@ describe("CapabilityRegistry", () => {
       [{ name: "tool_a", description: "Tool A" }],
     );
 
-    const servers = registry.resolve({ "test-cap": {} }, makeCtx());
-    expect(servers["test-cap"]).toBeDefined();
-    expect((servers["test-cap"] as any).name).toBe("test-cap");
+    const resolved = registry.resolve({ "test-cap": {} }, makeCtx());
+    expect(resolved.mcpServers["test-cap"]).toBeDefined();
+    expect((resolved.mcpServers["test-cap"] as any).name).toBe("test-cap");
   });
 
-  it("returns empty for undefined capabilities", () => {
+  it("returns empty result for undefined capabilities", () => {
     const registry = new CapabilityRegistry();
-    expect(registry.resolve(undefined, makeCtx())).toEqual({});
+    const resolved = registry.resolve(undefined, makeCtx());
+    expect(resolved.mcpServers).toEqual({});
+    expect(resolved.engineConfig).toEqual({ allowedTools: [], disallowedTools: [] });
   });
 
-  it("returns empty for empty capabilities object", () => {
+  it("returns empty result for empty capabilities object", () => {
     const registry = new CapabilityRegistry();
-    expect(registry.resolve({}, makeCtx())).toEqual({});
+    const resolved = registry.resolve({}, makeCtx());
+    expect(resolved.mcpServers).toEqual({});
+    expect(resolved.engineConfig).toEqual({ allowedTools: [], disallowedTools: [] });
   });
 
   it("throws for unknown capability", () => {
@@ -115,22 +119,56 @@ describe("CapabilityRegistry", () => {
     registry.register("b", () => null, []);
     expect(registry.knownKeys()).toEqual(["a", "b"]);
   });
+
+  it("registerEngineConfig and resolve returns engine config", () => {
+    const registry = new CapabilityRegistry();
+    registry.registerEngineConfig(
+      "shell",
+      () => ({ allowedTools: ["Bash"] }),
+      [{ name: "Bash", description: "Execute shell commands" }],
+    );
+
+    const resolved = registry.resolve({ shell: {} }, makeCtx());
+    expect(resolved.mcpServers).toEqual({});
+    expect(resolved.engineConfig.allowedTools).toEqual(["Bash"]);
+    expect(resolved.engineConfig.disallowedTools).toEqual([]);
+  });
+
+  it("knownKeys includes engine config keys", () => {
+    const registry = new CapabilityRegistry();
+    registry.register("a", () => null, []);
+    registry.registerEngineConfig("shell", () => ({ allowedTools: ["Bash"] }), []);
+    expect(registry.knownKeys()).toEqual(["a", "shell"]);
+  });
+
+  it("knownCapabilities includes engine config capabilities", () => {
+    const registry = new CapabilityRegistry();
+    registry.registerEngineConfig(
+      "shell",
+      () => ({ allowedTools: ["Bash"] }),
+      [{ name: "Bash", description: "Execute shell commands" }],
+    );
+    const descriptors = registry.knownCapabilities();
+    expect(descriptors).toHaveLength(1);
+    expect(descriptors[0]!.key).toBe("shell");
+    expect(descriptors[0]!.tools).toEqual([{ name: "Bash", description: "Execute shell commands" }]);
+  });
 });
 
 describe("capabilityRegistry singleton", () => {
   it("resolves known capabilities to servers", () => {
-    const servers = capabilityRegistry.resolve(
+    const resolved = capabilityRegistry.resolve(
       { memory: {}, tasks: {} },
       makeCtx(),
     );
-    expect(Object.keys(servers)).toEqual(["memory", "tasks"]);
-    expect(servers.memory).toBeDefined();
-    expect(servers.tasks).toBeDefined();
+    expect(Object.keys(resolved.mcpServers)).toEqual(["memory", "tasks"]);
+    expect(resolved.mcpServers.memory).toBeDefined();
+    expect(resolved.mcpServers.tasks).toBeDefined();
   });
 
   it("resolves browser capability as stdio config", () => {
-    const servers = capabilityRegistry.resolve({ browser: {} }, makeCtx());
-    expect(servers.browser).toEqual({
+    const resolved = capabilityRegistry.resolve({ browser: {} }, makeCtx());
+    expect(resolved.mcpServers.browser).toEqual({
       type: "stdio",
       command: "npx",
       args: ["@playwright/mcp@latest"],
@@ -138,29 +176,30 @@ describe("capabilityRegistry singleton", () => {
   });
 
   it("skips agents capability when runAgentFn is not set", () => {
-    const servers = capabilityRegistry.resolve({ agents: {} }, makeCtx());
-    expect(servers.agents).toBeUndefined();
+    const resolved = capabilityRegistry.resolve({ agents: {} }, makeCtx());
+    expect(resolved.mcpServers.agents).toBeUndefined();
   });
 
   it("includes agents capability when runAgentFn is set", () => {
-    const servers = capabilityRegistry.resolve(
+    const resolved = capabilityRegistry.resolve(
       { agents: {} },
       makeCtx({ runAgentFn: vi.fn() }),
     );
-    expect(servers.agents).toBeDefined();
+    expect(resolved.mcpServers.agents).toBeDefined();
   });
 
-  it("knownCapabilities includes all 11 capabilities", () => {
+  it("knownCapabilities includes all 12 capabilities", () => {
     const descriptors = capabilityRegistry.knownCapabilities();
     const keys = descriptors.map((d) => d.key);
     const expected = [
       "memory", "history", "tasks", "self", "media",
       "audio", "secrets", "agents", "agent-management", "triggers", "browser",
+      "shell",
     ];
     for (const cap of expected) {
       expect(keys).toContain(cap);
     }
-    expect(descriptors).toHaveLength(11);
+    expect(descriptors).toHaveLength(12);
   });
 
   it("passes config.tools as allowedTools to factory", () => {
@@ -176,6 +215,17 @@ describe("capabilityRegistry singleton", () => {
       [],
       ["transcribe"],
     );
+  });
+
+  it("resolves shell capability to engine config", () => {
+    const resolved = capabilityRegistry.resolve({ shell: {} }, makeCtx());
+    expect(resolved.engineConfig.allowedTools).toContain("Bash");
+    expect(Object.keys(resolved.mcpServers)).toEqual([]);
+  });
+
+  it("agent without shell does not get Bash in engine config", () => {
+    const resolved = capabilityRegistry.resolve({ memory: {} }, makeCtx());
+    expect(resolved.engineConfig.allowedTools).not.toContain("Bash");
   });
 });
 

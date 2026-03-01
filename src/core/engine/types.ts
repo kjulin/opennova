@@ -64,6 +64,12 @@ export interface EngineOptions {
     maxTurns?: number;
   }> | undefined;
   mcpServers?: Record<string, McpServerConfig> | undefined;
+
+  // Engine config from capability resolution (e.g. bash → allowedTools: ["Bash"])
+  engineConfig?: {
+    allowedTools?: string[];
+    disallowedTools?: string[];
+  };
 }
 
 export interface Engine {

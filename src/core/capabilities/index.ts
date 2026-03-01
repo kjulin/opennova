@@ -10,6 +10,7 @@ export type {
   ResolvedCapability,
   ResolvedCapabilities,
   CapabilityResolver,
+  EngineConfigResolver,
 } from "./registry.js";
 
 export { CapabilityRegistry } from "./registry.js";

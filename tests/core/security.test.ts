@@ -35,10 +35,10 @@ describe("permissionOptions", () => {
     expect(allowed).toContain("NotebookEdit");
   });
 
-  it("allows Bash", () => {
+  it("does NOT allow Bash by default", () => {
     const opts = permissionOptions();
     const allowed = opts.allowedTools as string[];
-    expect(allowed).toContain("Bash");
+    expect(allowed).not.toContain("Bash");
   });
 
   it("allows web tools", () => {
@@ -58,10 +58,18 @@ describe("permissionOptions", () => {
   });
 
   it("appends extra allowed tools", () => {
-    const opts = permissionOptions(["mcp__custom__*"]);
+    const opts = permissionOptions({ allowedTools: ["mcp__custom__*", "Bash"] });
     const allowed = opts.allowedTools as string[];
     expect(allowed).toContain("mcp__custom__*");
     expect(allowed).toContain("Bash");
+  });
+
+  it("appends extra disallowed tools", () => {
+    const opts = permissionOptions({ disallowedTools: ["WebSearch"] });
+    const disallowed = opts.disallowedTools as string[];
+    expect(disallowed).toContain("Task");
+    expect(disallowed).toContain("TaskOutput");
+    expect(disallowed).toContain("WebSearch");
   });
 
   it("does not bypass permissions", () => {

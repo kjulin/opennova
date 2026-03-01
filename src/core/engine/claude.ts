@@ -67,7 +67,15 @@ async function execQuery(
     : [];
 
   // Fixed permission options for all agents
-  const sdkPermissionOpts = permissionOptions(mcpToolPatterns.length > 0 ? mcpToolPatterns : undefined);
+  const extraAllowed = [
+    ...(mcpToolPatterns.length > 0 ? mcpToolPatterns : []),
+    ...(options.engineConfig?.allowedTools ?? []),
+  ];
+  const extraDisallowed = options.engineConfig?.disallowedTools ?? [];
+  const sdkPermissionOpts = permissionOptions({
+    ...(extraAllowed.length > 0 ? { allowedTools: extraAllowed } : {}),
+    ...(extraDisallowed.length > 0 ? { disallowedTools: extraDisallowed } : {}),
+  });
 
   // Enforce directory boundaries via PreToolUse hook.
   // This must be a hook (not canUseTool) because the SDK auto-allows tools

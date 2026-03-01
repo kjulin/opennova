@@ -130,8 +130,9 @@ export function createAgentRunner(engine: Engine = claudeEngine): AgentRunner {
         // Reconcile .claude/skills/ to match agent.json skills
         materializeSkills(Config.workspaceDir, agentId, agent.skills ?? []);
 
+        const resolved = capabilityRegistry.resolve(agent.capabilities, resolverContext);
         const mcpServers = {
-          ...capabilityRegistry.resolve(agent.capabilities, resolverContext),
+          ...resolved.mcpServers,
           ...extraMcpServers,
           ...resolveInjections(resolverContext, { background: overrides?.background }),
         };
@@ -147,6 +148,7 @@ export function createAgentRunner(engine: Engine = claudeEngine): AgentRunner {
             ...(overrides?.maxTurns ? { maxTurns: overrides.maxTurns } : {}),
             ...(agent.subagents ? { agents: agent.subagents as EngineOptions["agents"] } : {}),
             mcpServers,
+            engineConfig: resolved.engineConfig,
           },
           manifest.sessionId,
           engineCallbacks,
