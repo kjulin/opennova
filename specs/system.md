@@ -76,7 +76,7 @@ Thread storage internals (file paths, JSONL format, locking) are never exposed o
 - Thread model (manifest, messages, events, locking)
 - Capability resolution (registry, resolvers)
 - System prompt assembly
-- MCP server factories (memory, episodic, tasks, notes, etc.)
+- MCP server factories (memory, episodic, tasks, etc.)
 - Post-run side effects (usage tracking, embeddings, title generation)
 - Shared data stores (memories, secrets, usage records)
 
@@ -116,7 +116,7 @@ Thread storage internals (file paths, JSONL format, locking) are never exposed o
 
 *Current channels:*
 - Telegram (global bot + per-agent bots)
-- HTTPS/API (task management, agent management, notes, console)
+- HTTPS/API (task management, agent management, console)
 - CLI (nova commands for configuration and management)
 
 *Contract:* Channels are adapters. They translate between their protocol (Telegram Bot API, HTTP, CLI args) and Core's `runAgent` interface. Each channel constructs its own callbacks for delivery — it does not subscribe to a shared event bus.
@@ -184,10 +184,6 @@ Task {
 
 Tasks can have subtasks linked to specific steps. Tasks have their own scheduler that executes active tasks with pending steps.
 
-### Note
-
-A markdown document owned by an agent, shareable with the user. Notes can be pinned for quick access.
-
 ## Trust and Capabilities
 
 Agents have two independent axes of access control:
@@ -225,7 +221,6 @@ All state lives under a single workspace directory (`~/.nova` by default).
       threads/
         {thread-id}.jsonl # messages + events
       embeddings.jsonl    # episodic memory vectors
-      notes/              # markdown notes
       .claude/            # Claude SDK config, skills
   tasks/
     active.json           # active tasks

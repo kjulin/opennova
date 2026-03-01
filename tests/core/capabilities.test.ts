@@ -13,10 +13,6 @@ vi.mock("#tasks/index.js", () => ({
   createTasksMcpServer: vi.fn(() => ({ type: "sdk", name: "tasks" })),
 }));
 
-vi.mock("#notes/index.js", () => ({
-  createNotesMcpServer: vi.fn(() => ({ type: "sdk", name: "notes" })),
-}));
-
 vi.mock("#core/agents/management.js", () => ({
   createSelfManagementMcpServer: vi.fn(() => ({ type: "sdk", name: "self" })),
   createAgentManagementMcpServer: vi.fn(() => ({ type: "sdk", name: "agent-management" })),
@@ -154,17 +150,17 @@ describe("capabilityRegistry singleton", () => {
     expect(servers.agents).toBeDefined();
   });
 
-  it("knownCapabilities includes all 12 capabilities", () => {
+  it("knownCapabilities includes all 11 capabilities", () => {
     const descriptors = capabilityRegistry.knownCapabilities();
     const keys = descriptors.map((d) => d.key);
     const expected = [
-      "memory", "history", "tasks", "notes", "self", "media",
+      "memory", "history", "tasks", "self", "media",
       "audio", "secrets", "agents", "agent-management", "triggers", "browser",
     ];
     for (const cap of expected) {
       expect(keys).toContain(cap);
     }
-    expect(descriptors).toHaveLength(12);
+    expect(descriptors).toHaveLength(11);
   });
 
   it("passes config.tools as allowedTools to factory", () => {

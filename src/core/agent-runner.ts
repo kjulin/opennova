@@ -26,8 +26,6 @@ export interface AgentRunnerCallbacks extends EngineCallbacks {
   onResponse?: (agentId: string, threadId: string, text: string) => void;
   onError?: (agentId: string, threadId: string, error: string) => void;
   onFileSend?: (agentId: string, threadId: string, filePath: string, caption: string | undefined, fileType: FileType) => void;
-  onShareNote?: (agentId: string, threadId: string, title: string, slug: string, message: string | undefined) => void;
-  onPinChange?: (agentId: string) => void;
   onNotifyUser?: (agentId: string, threadId: string, message: string) => void;
 }
 
@@ -124,8 +122,6 @@ export function createAgentRunner(engine: Engine = claudeEngine): AgentRunner {
           manifest,
           callbacks: {
             onFileSend: (fp, caption, fileType) => callbacks?.onFileSend?.(agentId, threadId, fp, caption, fileType),
-            onShareNote: (title, slug, message) => callbacks?.onShareNote?.(agentId, threadId, title, slug, message),
-            onPinChange: () => callbacks?.onPinChange?.(agentId),
             onNotifyUser: (message) => callbacks?.onNotifyUser?.(agentId, threadId, message),
           },
           agent,

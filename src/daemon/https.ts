@@ -19,7 +19,6 @@ import {
   runTaskNow,
 } from "#tasks/index.js";
 import { threadStore } from "#core/threads/index.js";
-import { createNotesRouter } from "#notes/index.js";
 import { createConsoleAgentsRouter } from "#api/console-agents.js";
 import { createConsoleTriggersRouter } from "#api/console-triggers.js";
 import { createConsoleSkillsRouter } from "#api/console-skills.js";
@@ -215,9 +214,6 @@ function createApp(workspaceDir: string): Hono {
     }));
     return c.json({ agents: agentList });
   });
-
-  // Notes API
-  app.route("/api/notes", createNotesRouter(workspaceDir));
 
   // Console API
   app.route("/api/console/agents", createConsoleAgentsRouter(workspaceDir));

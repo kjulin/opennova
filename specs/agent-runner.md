@@ -72,8 +72,6 @@ AgentRunnerCallbacks {
 
   // Capability callbacks (forwarded through ResolverContext)
   onFileSend?: (agentId: string, threadId: string, filePath: string, caption?: string, fileType: FileType) => void
-  onShareNote?: (agentId: string, threadId: string, title: string, slug: string, message?: string) => void
-  onPinChange?: (agentId: string) => void
   onNotifyUser?: (agentId: string, threadId: string, message: string) => void
 }
 ```
@@ -82,7 +80,7 @@ Callbacks are the AgentRunner's upward interface — how it communicates with th
 
 Engine callbacks (`onThinking`, `onAssistantMessage`, etc.) pass through the runner transparently. The runner adds `onEvent` interception to persist events to the thread file.
 
-Capability callbacks (`onFileSend`, `onShareNote`, `onPinChange`, `onNotifyUser`) originate from MCP server implementations during engine execution. The runner receives them through capability resolution context and enriches them with `agentId` and `threadId` before forwarding to the caller.
+Capability callbacks (`onFileSend`, `onNotifyUser`) originate from MCP server implementations during engine execution. The runner receives them through capability resolution context and enriches them with `agentId` and `threadId` before forwarding to the caller.
 
 No callback carries a `channel` parameter. The runner does not know what delivery channel the caller represents. The caller already knows — it closes over its own delivery infrastructure when constructing the callbacks.
 
@@ -135,7 +133,7 @@ const injectionServers = resolveInjections(overrides, context)
 const mcpServers = { ...capabilityServers, ...injectionServers }
 ```
 
-The runner does not construct MCP server configs. It does not know what "memory" or "notes" resolve to. It calls the registry and forwards the result.
+The runner does not construct MCP server configs. It does not know what "memory" or "tasks" resolve to. It calls the registry and forwards the result.
 
 ### Step 8: Engine Call
 
@@ -216,11 +214,11 @@ Each caller of `runAgent` provides its own callbacks. The runner does not wrap, 
 
 ### Interactive (Telegram channel)
 
-The channel constructs callbacks that deliver to the active Telegram chat. Engine callbacks (`onThinking`, `onToolUse`) drive typing indicators and status messages. `onResponse` sends the final message. `onFileSend`, `onShareNote`, `onNotifyUser` deliver through the same bot instance.
+The channel constructs callbacks that deliver to the active Telegram chat. Engine callbacks (`onThinking`, `onToolUse`) drive typing indicators and status messages. `onResponse` sends the final message. `onFileSend`, `onNotifyUser` deliver through the same bot instance.
 
 ### Background (triggers, task scheduler)
 
-The daemon constructs callbacks via a delivery factory (see Scheduling spec). `onResponse` and `onError` are suppressed (no live session). `onNotifyUser` always delivers — that's its purpose. `onFileSend` and `onShareNote` deliver through the resolved bot for that agent.
+The daemon constructs callbacks via a delivery factory (see Scheduling spec). `onResponse` and `onError` are suppressed (no live session). `onNotifyUser` always delivers — that's its purpose. `onFileSend` delivers through the resolved bot for that agent.
 
 ### Ask-Agent
 

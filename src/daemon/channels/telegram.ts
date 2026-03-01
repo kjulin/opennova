@@ -15,7 +15,6 @@ import {
   type TelegramConfig,
 } from "#core/index.js";
 import { getTask, loadTasks } from "#tasks/index.js";
-import { listNotes, getPinnedNotes } from "#notes/index.js";
 import { TELEGRAM_HELP_MESSAGE } from "./telegram-help.js";
 import { splitMessage, chatGuard, toTelegramMarkdown } from "./telegram-utils.js";
 import { taskgroupMiddleware } from "./telegram-taskgroup.js";
@@ -141,7 +140,6 @@ export function startTelegram() {
     { command: "agent", description: "Select an agent" },
     { command: "threads", description: "List conversation threads" },
     { command: "tasks", description: "List tasks" },
-    { command: "notes", description: "Browse agent notes" },
     { command: "stop", description: "Stop the running agent" },
     { command: "new", description: "Start a fresh conversation" },
     { command: "admin", description: "Open admin console" },
@@ -163,10 +161,6 @@ export function startTelegram() {
     if (!publicUrl || !config) return null;
     const keyboard = new Keyboard();
     keyboard.webApp("Tasks", `${publicUrl}/web/tasklist/`).row();
-    const agentDir = path.join(Config.workspaceDir, "agents", config.activeAgentId);
-    for (const note of getPinnedNotes(agentDir)) {
-      keyboard.webApp(note.title, `${publicUrl}/web/tasklist/#/note/${config.activeAgentId}/${note.slug}`).row();
-    }
     return keyboard.resized().persistent();
   }
 
@@ -224,31 +218,6 @@ export function startTelegram() {
     }
   }
 
-  async function deliverNote(noteAgentId: string, title: string, slug: string, message: string | undefined) {
-    const chatId = Number(config.chatId);
-    const publicUrl = getPublicUrl();
-    if (!publicUrl) return;
-
-    const text = message ?? `\uD83D\uDCDD ${title}`;
-    const keyboard = new InlineKeyboard().webApp(
-      "Open note",
-      `${publicUrl}/web/tasklist/#/note/${noteAgentId}/${slug}`,
-    );
-    bot.api.sendMessage(chatId, text, { reply_markup: keyboard }).catch((err) => {
-      log.error("telegram", "failed to deliver note:", err);
-    });
-  }
-
-  function deliverPinChange(pinAgentId: string) {
-    if (pinAgentId !== config.activeAgentId) return;
-    const chatId = Number(config.chatId);
-    const kb = buildReplyKeyboard();
-    if (!kb) return;
-    bot.api.sendMessage(chatId, "\uD83D\uDCCC Pinned notes updated", { reply_markup: kb }).catch((err) => {
-      log.error("telegram", "failed to send pin update:", err);
-    });
-  }
-
   function deliveryCallbacks() {
     return {
       onResponse(_agentId: string, _threadId: string, text: string) {
@@ -256,12 +225,6 @@ export function startTelegram() {
       },
       onFileSend(_agentId: string, _threadId: string, filePath: string, caption: string | undefined, fileType: string) {
         deliverFile(filePath, caption, fileType);
-      },
-      onShareNote(agentId: string, _threadId: string, title: string, slug: string, message: string | undefined) {
-        deliverNote(agentId, title, slug, message);
-      },
-      onPinChange(agentId: string) {
-        deliverPinChange(agentId);
       },
       onNotifyUser(_agentId: string, _threadId: string, message: string) {
         deliverResponse(message);
@@ -381,30 +344,6 @@ export function startTelegram() {
         parse_mode: "Markdown",
         reply_markup: keyboard,
       });
-      return;
-    }
-
-    // Handle /notes command
-    if (text === "/notes") {
-      const publicUrl = getPublicUrl();
-      if (!publicUrl) {
-        await ctx.reply("Set your Nova URL: `nova config set settings.url https://your-domain.com`");
-        return;
-      }
-      const agentDir = path.join(Config.workspaceDir, "agents", config.activeAgentId);
-      const notes = listNotes(agentDir);
-      if (notes.length === 0) {
-        await ctx.reply("No notes yet.");
-        return;
-      }
-      const keyboard = new InlineKeyboard();
-      for (const note of notes) {
-        keyboard.webApp(
-          note.title,
-          `${publicUrl}/web/tasklist/#/note/${config.activeAgentId}/${note.slug}`,
-        ).row();
-      }
-      await ctx.reply("*Notes:*", { parse_mode: "Markdown", reply_markup: keyboard });
       return;
     }
 
