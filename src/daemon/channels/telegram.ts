@@ -96,6 +96,15 @@ export function startTelegram(config: TelegramConfig, saveConfig: () => void) {
 
   const bot = new Bot(config.token);
 
+  // DEBUG: catch absolutely everything
+  bot.use((ctx, next) => {
+    const chatId = ctx.chat?.id ?? "no-chat";
+    const chatType = ctx.chat?.type ?? "no-type";
+    const updateType = Object.keys(ctx.update).filter(k => k !== "update_id").join(",");
+    log.info("telegram", `RAW UPDATE: chat=${chatId} type=${chatType} update=${updateType}`);
+    return next();
+  });
+
   // Taskgroup pairing — must run BEFORE chatGuard
   bot.use(taskgroupMiddleware(bot, config, saveConfig));
 
