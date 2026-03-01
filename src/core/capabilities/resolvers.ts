@@ -145,7 +145,7 @@ export function createRegistry(): CapabilityRegistry {
   );
 
   registry.registerEngineConfig(
-    "bash",
+    "shell",
     () => ({ allowedTools: ["Bash"] }),
     [{ name: "Bash", description: "Execute shell commands" }],
   );
