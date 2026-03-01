@@ -91,6 +91,8 @@ export function createAgentManagementMcpServer(allowedTools?: string[]): McpSdkS
           identity: z.string().optional().describe("New identity — who the agent is"),
           instructions: z.string().optional().describe("New instructions — how the agent operates"),
           directories: z.array(z.string()).optional().describe("New list of directories (replaces existing list)"),
+          capabilities: z.record(z.string(), z.object({ tools: z.array(z.string()).optional() }).passthrough()).optional().describe("System capabilities to enable, e.g. { \"memory\": {}, \"audio\": { \"tools\": [\"transcribe\"] } }"),
+          model: z.enum(MODELS).optional().describe("Model to use (e.g. 'sonnet', 'haiku', 'opus')"),
         },
         async (args) => {
           const partial: Partial<AgentJsonInput> = {};
@@ -99,6 +101,8 @@ export function createAgentManagementMcpServer(allowedTools?: string[]): McpSdkS
           if (args.identity !== undefined) partial.identity = args.identity;
           if (args.instructions !== undefined) partial.instructions = args.instructions;
           if (args.directories !== undefined) partial.directories = args.directories;
+          if (args.capabilities !== undefined) partial.capabilities = args.capabilities;
+          if (args.model !== undefined) partial.model = args.model;
 
           try {
             agentStore.update(args.id, partial);
