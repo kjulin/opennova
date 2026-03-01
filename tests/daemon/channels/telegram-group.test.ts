@@ -521,7 +521,7 @@ interface GroupTestConfig {
 function createGroupTestBot(config: GroupTestConfig) {
   const apiCalls: ApiCall[] = [];
   const saveConfig = vi.fn();
-  const resolveAgent = vi.fn().mockReturnValue({ agentId: "agent-1", agentDir: "/tmp/agents/agent-1" });
+  const resolveAgent = vi.fn().mockReturnValue({ agentId: "agent-1" });
 
   const bot = new Bot("dummy:token", { botInfo: BOT_INFO });
 
@@ -597,7 +597,7 @@ describe("groupMessageMiddleware", () => {
     expect(mockRunAgent).toHaveBeenCalledOnce();
     // First arg is agentDir, second is threadId, third is the contextualized message
     const callArgs = mockRunAgent.mock.calls[0]!;
-    expect(callArgs[0]).toBe("/tmp/agents/agent-1");
+    expect(callArgs[0]).toBe(path.join(tmpDir, "agents", "agent-1"));
     expect(callArgs[2]).toContain("@test_bot what's up?");
   });
 

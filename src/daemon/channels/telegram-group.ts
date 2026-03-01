@@ -5,6 +5,7 @@
  * the middleware exported from this module.
  */
 
+import { EventEmitter } from "events";
 import fs from "fs";
 import path from "path";
 import { Bot, InlineKeyboard } from "grammy";
@@ -17,8 +18,43 @@ import {
   createTriggerMcpServer,
   type TelegramConfig,
 } from "#core/index.js";
-import { splitMessage, toTelegramMarkdown } from "./telegram-utils.js";
+import { splitMessage } from "./telegram-utils.js";
 import { log } from "../logger.js";
+
+// ---------------------------------------------------------------------------
+// Group event bus — cross-bot mention routing
+// ---------------------------------------------------------------------------
+
+/** Maximum depth for cross-bot mention chains (0 = user-triggered, 1 = first hop, etc.) */
+export const MAX_MENTION_DEPTH = 10;
+
+export interface GroupMentionPayload {
+  chatId: string;
+  groupName: string;
+  fromAgentId: string;
+  targetAgentId: string;
+  responseText: string;
+  /** How many agent-to-agent hops have occurred so far. */
+  depth: number;
+}
+
+interface GroupEvents {
+  "group:mention": [payload: GroupMentionPayload];
+}
+
+class GroupEventBus extends EventEmitter {
+  emit<K extends keyof GroupEvents>(event: K, ...args: GroupEvents[K]): boolean {
+    return super.emit(event, ...args);
+  }
+  on<K extends keyof GroupEvents>(event: K, listener: (...args: GroupEvents[K]) => void): this {
+    return super.on(event, listener as (...args: unknown[]) => void);
+  }
+  off<K extends keyof GroupEvents>(event: K, listener: (...args: GroupEvents[K]) => void): this {
+    return super.off(event, listener as (...args: unknown[]) => void);
+  }
+}
+
+const groupBus = new GroupEventBus();
 
 // ---------------------------------------------------------------------------
 // Group participant registry
@@ -35,6 +71,19 @@ const participants = new Map<string, GroupParticipant>();
 export function registerGroupParticipant(agentId: string, name: string, username: string): void {
   participants.set(agentId, { name, username });
   log.info("telegram-group", `registered participant: ${name} (@${username})`);
+}
+
+/** Find agent IDs mentioned in text by their @username. */
+function findMentionedAgents(text: string, excludeAgentId: string): string[] {
+  const mentioned: string[] = [];
+  const lowerText = text.toLowerCase();
+  for (const [agentId, p] of participants) {
+    if (agentId === excludeAgentId) continue;
+    if (p.username && lowerText.includes(`@${p.username.toLowerCase()}`)) {
+      mentioned.push(agentId);
+    }
+  }
+  return mentioned;
 }
 
 function formatParticipants(currentAgentId: string): string {
@@ -295,12 +344,167 @@ async function handleGroupCallback(
 /** Active abort controllers keyed by "chatId:agentId". */
 const activeAbortControllers = new Map<string, AbortController>();
 
+// ---------------------------------------------------------------------------
+// Shared group agent invocation
+// ---------------------------------------------------------------------------
+
+export interface InvokeGroupAgentOptions {
+  bot: Bot;
+  chatId: string;
+  groupName: string;
+  agentId: string;
+  config: TelegramConfig;
+  saveConfig: () => void;
+  triggerText: string;
+  /** Current mention chain depth. Defaults to 0 (user-triggered). */
+  mentionDepth?: number;
+}
+
+/**
+ * Invoke an agent in a group chat context. Handles thread resolution,
+ * context building, typing indicator, runAgent, response delivery,
+ * JSONL logging, and recursive mention detection.
+ */
+export function invokeGroupAgent(opts: InvokeGroupAgentOptions): void {
+  const { bot, chatId, groupName, agentId, config, saveConfig, triggerText, mentionDepth = 0 } = opts;
+  const agentDir = path.join(Config.workspaceDir, "agents", agentId);
+
+  const groupConfig = config.groups![chatId]!;
+
+  // Resolve thread
+  let threadId = groupConfig.threads[agentId];
+  if (threadId && !threadStore.get(threadId)) {
+    threadId = undefined;
+  }
+  if (!threadId) {
+    threadId = threadStore.create(agentId);
+    groupConfig.threads[agentId] = threadId;
+    saveConfig();
+  }
+
+  // Build context
+  const context = buildGroupContext(chatId, agentId, groupName);
+  const participantInfo = formatParticipants(agentId);
+  const groupPrompt = `<GroupChat>\nYou are participating in a Telegram group chat "${groupName}".\nMessages from other participants are provided as context above your prompt.\nWhen responding, you are speaking to the group — keep responses conversational and concise.\nYou can reference what other participants (including other agents) have said.\nTo mention another agent, use their @username.${participantInfo}\n</GroupChat>`;
+
+  const contextualizedMessage = [context, groupPrompt, triggerText].filter(Boolean).join("\n\n");
+
+  // Run agent
+  const abortKey = `${chatId}:${agentId}`;
+  const abortController = new AbortController();
+  activeAbortControllers.set(abortKey, abortController);
+
+  const numericChatId = Number(chatId);
+
+  const typingInterval = setInterval(() => {
+    bot.api.sendChatAction(numericChatId, "typing").catch(() => {});
+  }, 4000);
+  bot.api.sendChatAction(numericChatId, "typing").catch(() => {});
+
+  runAgent(
+    agentDir, threadId, contextualizedMessage,
+    {
+      onThinking() {},
+      onAssistantMessage() {
+        bot.api.sendChatAction(numericChatId, "typing").catch(() => {});
+      },
+      onToolUse() {
+        bot.api.sendChatAction(numericChatId, "typing").catch(() => {});
+      },
+      onToolUseSummary() {},
+      async onResponse(_agentId: string, _threadId: string, responseText: string) {
+        // Deliver to group — no parse_mode so @mentions with underscores work
+        const chunks = splitMessage(responseText);
+        for (const chunk of chunks) {
+          await bot.api.sendMessage(numericChatId, chunk).catch((err) => {
+            log.error("telegram", `failed to deliver group response:`, err);
+          });
+        }
+        // Append agent response to JSONL
+        appendGroupMessage(chatId, {
+          id: Date.now(),
+          from: agentId,
+          fromBot: true,
+          text: responseText,
+          ts: new Date().toISOString(),
+        });
+        // Detect cross-bot mentions and emit events (with depth limit)
+        const nextDepth = mentionDepth + 1;
+        const mentioned = findMentionedAgents(responseText, agentId);
+        if (mentioned.length > 0 && nextDepth <= MAX_MENTION_DEPTH) {
+          for (const targetAgentId of mentioned) {
+            groupBus.emit("group:mention", {
+              chatId,
+              groupName,
+              fromAgentId: agentId,
+              targetAgentId,
+              responseText,
+              depth: nextDepth,
+            });
+          }
+        } else if (mentioned.length > 0) {
+          log.warn("telegram-group", `[${chatId}] mention chain depth limit reached (${MAX_MENTION_DEPTH}), ignoring further mentions`);
+        }
+      },
+      onNotifyUser(_agentId: string, _threadId: string, notifyMessage: string) {
+        bot.api.sendMessage(numericChatId, notifyMessage).catch(() => {});
+      },
+    },
+    { triggers: createTriggerMcpServer(agentId) },
+    undefined,
+    abortController,
+    { source: "chat" },
+  ).catch((err) => {
+    if (!abortController.signal.aborted) {
+      log.error("telegram", `group agent ${agentId} error:`, (err as Error).message);
+    }
+  }).finally(() => {
+    clearInterval(typingInterval);
+    if (activeAbortControllers.get(abortKey) === abortController) {
+      activeAbortControllers.delete(abortKey);
+    }
+  });
+}
+
+/**
+ * Subscribe a bot to group:mention events for a specific agent.
+ * Returns an unsubscribe function for clean shutdown.
+ */
+export function subscribeGroupMentions(opts: {
+  bot: Bot;
+  agentId: string;
+  config: TelegramConfig;
+  saveConfig: () => void;
+}): () => void {
+  const { bot, agentId, config, saveConfig } = opts;
+
+  const handler = (payload: GroupMentionPayload) => {
+    if (payload.targetAgentId !== agentId) return;
+    if (!config.groups?.[payload.chatId]) return;
+
+    log.info("telegram-group", `[${agentId}] handling mention from ${payload.fromAgentId} in ${payload.chatId} (depth ${payload.depth})`);
+    invokeGroupAgent({
+      bot,
+      chatId: payload.chatId,
+      groupName: payload.groupName,
+      agentId,
+      config,
+      saveConfig,
+      triggerText: payload.responseText,
+      mentionDepth: payload.depth,
+    });
+  };
+
+  groupBus.on("group:mention", handler);
+  return () => groupBus.off("group:mention", handler);
+}
+
 export interface GroupMessageOptions {
   bot: Bot;
   config: TelegramConfig;
   saveConfig: () => void;
   /** Return the agent to invoke. Null means no agent available. */
-  resolveAgent: () => { agentId: string; agentDir: string } | null;
+  resolveAgent: () => { agentId: string } | null;
 }
 
 /**
@@ -403,87 +607,17 @@ export function groupMessageMiddleware(opts: GroupMessageOptions) {
       return;
     }
 
-    const { agentId, agentDir } = resolved;
+    const { agentId } = resolved;
     log.info("telegram-group", `[${chatIdStr}] triggered → invoking agent ${agentId}`);
 
-    // Resolve thread
-    let threadId = groupConfig.threads[agentId];
-    if (threadId && !threadStore.get(threadId)) {
-      threadId = undefined;
-    }
-    if (!threadId) {
-      threadId = threadStore.create(agentId);
-      groupConfig.threads[agentId] = threadId;
-      saveConfig();
-    }
-
-    // Build context
-    const context = buildGroupContext(chatIdStr, agentId, groupConfig.name);
-    const participantInfo = formatParticipants(agentId);
-    const groupPrompt = `<GroupChat>\nYou are participating in a Telegram group chat "${groupConfig.name}".\nMessages from other participants are provided as context above your prompt.\nWhen responding, you are speaking to the group — keep responses conversational and concise.\nYou can reference what other participants (including other agents) have said.\nTo mention another agent, use their @username.${participantInfo}\n</GroupChat>`;
-
-    const contextualizedMessage = [context, groupPrompt, text].filter(Boolean).join("\n\n");
-
-    // Run agent
-    const abortKey = `${chatIdStr}:${agentId}`;
-    const abortController = new AbortController();
-    activeAbortControllers.set(abortKey, abortController);
-
-    const groupChatId = chat.id;
-
-    const typingInterval = setInterval(() => {
-      bot.api.sendChatAction(groupChatId, "typing").catch(() => {});
-    }, 4000);
-    bot.api.sendChatAction(groupChatId, "typing").catch(() => {});
-
-    runAgent(
-      agentDir, threadId, contextualizedMessage,
-      {
-        onThinking() {},
-        onAssistantMessage() {
-          bot.api.sendChatAction(groupChatId, "typing").catch(() => {});
-        },
-        onToolUse() {
-          bot.api.sendChatAction(groupChatId, "typing").catch(() => {});
-        },
-        onToolUseSummary() {},
-        async onResponse(_agentId: string, _threadId: string, responseText: string) {
-          // Deliver to group
-          const formatted = toTelegramMarkdown(responseText);
-          const chunks = splitMessage(formatted);
-          for (const chunk of chunks) {
-            await bot.api.sendMessage(groupChatId, chunk, { parse_mode: "Markdown" }).catch(() => {
-              return bot.api.sendMessage(groupChatId, chunk).catch((err) => {
-                log.error("telegram", `failed to deliver group response:`, err);
-              });
-            });
-          }
-          // Append agent response to JSONL
-          appendGroupMessage(chatIdStr, {
-            id: Date.now(), // No Telegram message ID for agent responses
-            from: agentId,
-            fromBot: true,
-            text: responseText,
-            ts: new Date().toISOString(),
-          });
-        },
-        onNotifyUser(_agentId: string, _threadId: string, notifyMessage: string) {
-          bot.api.sendMessage(groupChatId, notifyMessage).catch(() => {});
-        },
-      },
-      { triggers: createTriggerMcpServer(agentId) },
-      undefined,
-      abortController,
-      { source: "chat" },
-    ).catch((err) => {
-      if (!abortController.signal.aborted) {
-        log.error("telegram", `group agent ${agentId} error:`, (err as Error).message);
-      }
-    }).finally(() => {
-      clearInterval(typingInterval);
-      if (activeAbortControllers.get(abortKey) === abortController) {
-        activeAbortControllers.delete(abortKey);
-      }
+    invokeGroupAgent({
+      bot,
+      chatId: chatIdStr,
+      groupName: groupConfig.name,
+      agentId,
+      config,
+      saveConfig,
+      triggerText: text,
     });
   };
 }

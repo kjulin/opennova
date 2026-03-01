@@ -12,7 +12,7 @@ import {
 } from "#core/index.js";
 import { relativeTime } from "./telegram.js";
 import { splitMessage, chatGuard } from "./telegram-utils.js";
-import { groupMessageMiddleware, registerGroupParticipant } from "./telegram-group.js";
+import { groupMessageMiddleware, registerGroupParticipant, subscribeGroupMentions } from "./telegram-group.js";
 import { log } from "../logger.js";
 import { getPublicUrl } from "../workspace.js";
 
@@ -88,7 +88,7 @@ export function startAgentTelegram(
     bot,
     config: telegramConfig,
     saveConfig,
-    resolveAgent: () => ({ agentId, agentDir }),
+    resolveAgent: () => ({ agentId }),
   }));
 
   bot.use(chatGuard(botConfig.chatId));
@@ -439,10 +439,15 @@ You can read, process, or move this file as needed.`;
     registerGroupParticipant(agentId, agent.name, me.username ?? "");
   }).catch(() => {});
 
+  const unsubscribeMentions = subscribeGroupMentions({
+    bot, agentId, config: telegramConfig, saveConfig,
+  });
+
   return {
     bot,
     deliveryCallbacks,
     shutdown() {
+      unsubscribeMentions();
       bot.stop();
     },
   };

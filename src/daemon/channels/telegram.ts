@@ -16,7 +16,7 @@ import { getTask, loadTasks } from "#tasks/index.js";
 import { TELEGRAM_HELP_MESSAGE } from "./telegram-help.js";
 import { splitMessage, chatGuard, toTelegramMarkdown } from "./telegram-utils.js";
 import { taskgroupMiddleware } from "./telegram-taskgroup.js";
-import { groupPairingMiddleware, groupMessageMiddleware, registerGroupParticipant } from "./telegram-group.js";
+import { groupPairingMiddleware, groupMessageMiddleware, registerGroupParticipant, subscribeGroupMentions } from "./telegram-group.js";
 import { log } from "../logger.js";
 import { getPublicUrl } from "../workspace.js";
 
@@ -112,7 +112,7 @@ export function startTelegram(config: TelegramConfig, saveConfig: () => void) {
       const agentId = "nova";
       const agent = agentStore.list().get(agentId);
       if (!agent) return null;
-      return { agentId, agentDir: path.join(Config.workspaceDir, "agents", agentId) };
+      return { agentId };
     },
   }));
 
@@ -820,9 +820,17 @@ You can read, process, or move this file as needed.`;
     registerGroupParticipant("nova", "Nova", me.username ?? "");
   }).catch(() => {});
 
+  const unsubscribeMentions = subscribeGroupMentions({
+    bot,
+    agentId: "nova",
+    config,
+    saveConfig,
+  });
+
   return {
     bot,
     shutdown() {
+      unsubscribeMentions();
       bot.stop();
     },
   };
