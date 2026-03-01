@@ -6,11 +6,10 @@ import { capabilityRegistry } from "#core/capabilities/index.js"
 import {
   AgentJsonSchema,
   VALID_AGENT_ID,
-  TrustLevel,
   type AgentJsonInput,
 } from "#core/schemas.js"
 
-function loadAgentDetail(id: string, agent: { name: string; description?: string | undefined; identity?: string | undefined; instructions?: string | undefined; responsibilities?: { title: string; content: string }[] | undefined; trust?: string | undefined; capabilities?: Record<string, { tools?: string[] | undefined }> | undefined; directories?: string[] | undefined; model?: string | undefined }) {
+function loadAgentDetail(id: string, agent: { name: string; description?: string | undefined; identity?: string | undefined; instructions?: string | undefined; responsibilities?: { title: string; content: string }[] | undefined; capabilities?: Record<string, { tools?: string[] | undefined }> | undefined; directories?: string[] | undefined; model?: string | undefined }) {
   const triggers = triggerStore.list(id)
 
   // Load skills from agent.json (source of truth)
@@ -24,7 +23,6 @@ function loadAgentDetail(id: string, agent: { name: string; description?: string
     identity: agent.identity,
     instructions: agent.instructions,
     responsibilities: agent.responsibilities,
-    trust: agent.trust,
     capabilities: agent.capabilities,
     directories: agent.directories,
     model: agent.model,
@@ -33,11 +31,10 @@ function loadAgentDetail(id: string, agent: { name: string; description?: string
   }
 }
 
-// Schema for POST — requires id, identity, trust
+// Schema for POST — requires id, identity
 const CreateAgentSchema = AgentJsonSchema.extend({
   id: z.string().min(1, "id is required"),
   identity: z.string().min(1, "identity is required"),
-  trust: TrustLevel,
 })
 
 export function createConsoleAgentsRouter(workspaceDir: string): Hono {
@@ -52,10 +49,7 @@ export function createConsoleAgentsRouter(workspaceDir: string): Hono {
   app.get("/", (c) => {
     const agentsMap = agentStore.list()
     const agents = Array.from(agentsMap.values()).map((agent) =>
-      loadAgentDetail(agent.id, {
-        ...agent,
-        trust: agent.trust,
-      }),
+      loadAgentDetail(agent.id, agent),
     )
     return c.json({ agents })
   })
@@ -68,10 +62,7 @@ export function createConsoleAgentsRouter(workspaceDir: string): Hono {
     if (!agent) {
       return c.json({ error: "Agent not found" }, 404)
     }
-    return c.json(loadAgentDetail(agent.id, {
-      ...agent,
-      trust: agent.trust,
-    }))
+    return c.json(loadAgentDetail(agent.id, agent))
   })
 
   // Create agent
@@ -98,7 +89,7 @@ export function createConsoleAgentsRouter(workspaceDir: string): Hono {
       }
     }
 
-    const agentJson: AgentJsonInput = { name: agentData.name, identity: agentData.identity, trust: agentData.trust, model: "sonnet" }
+    const agentJson: AgentJsonInput = { name: agentData.name, identity: agentData.identity, model: "sonnet" }
     if (agentData.description) agentJson.description = agentData.description
     if (agentData.instructions) agentJson.instructions = agentData.instructions
     if (agentData.directories && agentData.directories.length > 0) agentJson.directories = agentData.directories
@@ -114,10 +105,7 @@ export function createConsoleAgentsRouter(workspaceDir: string): Hono {
     if (!created) {
       return c.json({ error: "Failed to create agent" }, 500)
     }
-    return c.json(loadAgentDetail(id, {
-      ...created,
-      trust: created.trust,
-    }), 201)
+    return c.json(loadAgentDetail(id, created), 201)
   })
 
   // Update agent
@@ -129,7 +117,7 @@ export function createConsoleAgentsRouter(workspaceDir: string): Hono {
     }
 
     const body = await c.req.json()
-    const allowedFields = ["name", "description", "identity", "instructions", "responsibilities", "directories", "trust", "capabilities", "model"] as const
+    const allowedFields = ["name", "description", "identity", "instructions", "responsibilities", "directories", "capabilities", "model"] as const
 
     const parsed = AgentJsonSchema.partial().safeParse(body)
     if (!parsed.success) {
@@ -158,10 +146,7 @@ export function createConsoleAgentsRouter(workspaceDir: string): Hono {
     if (!updated) {
       return c.json({ error: "Agent not found" }, 404)
     }
-    return c.json(loadAgentDetail(id, {
-      ...updated,
-      trust: updated.trust,
-    }))
+    return c.json(loadAgentDetail(id, updated))
   })
 
   // Delete agent

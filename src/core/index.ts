@@ -19,7 +19,6 @@ export {
   ThreadAssistantTextEventSchema,
   ThreadResultEventSchema,
   ThreadEventSchema,
-  TrustLevel,
   safeParseJsonFile,
   type AgentBotConfig,
   type TelegramConfig,
@@ -27,7 +26,7 @@ export {
 } from "./schemas.js";
 
 // Security
-export { trustOptions, type TrustLevel as TrustLevelType } from "./security.js";
+export { permissionOptions } from "./security.js";
 
 // Threads
 export {

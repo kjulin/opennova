@@ -20,8 +20,6 @@ export interface Agent {
   identity?: string;
   instructions?: string;
   responsibilities?: Responsibility[];
-  trust: string;
-  security?: string; // deprecated, use trust
   model?: string;
   capabilities?: Record<string, { tools?: string[] }>;
   directories?: string[];

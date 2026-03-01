@@ -69,8 +69,6 @@ export function createAgentRunner(engine: Engine = claudeEngine): AgentRunner {
         timestamp: new Date().toISOString(),
       });
 
-      const trust = agent.trust;
-
       // Create a runAgent wrapper for ask-agent that maintains the callback chain
       const runAgentForAskAgent = async (
         targetAgentDir: string,
@@ -150,7 +148,6 @@ export function createAgentRunner(engine: Engine = claudeEngine): AgentRunner {
             ...(agent.subagents ? { agents: agent.subagents as EngineOptions["agents"] } : {}),
             mcpServers,
           },
-          trust,
           manifest.sessionId,
           engineCallbacks,
           abortController,

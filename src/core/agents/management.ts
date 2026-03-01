@@ -52,7 +52,7 @@ export function createAgentManagementMcpServer(allowedTools?: string[]): McpSdkS
 
       tool(
         "create_agent",
-        "Create a new agent. Use identity for who the agent is, and instructions for how they operate. Cannot set the security field — security levels are managed by the user via CLI only.",
+        "Create a new agent. Use identity for who the agent is, and instructions for how they operate.",
         {
           id: z.string().describe("Agent identifier (lowercase alphanumeric with hyphens)"),
           name: z.string().describe("Display name"),
@@ -83,7 +83,7 @@ export function createAgentManagementMcpServer(allowedTools?: string[]): McpSdkS
 
       tool(
         "update_agent",
-        "Update an existing agent's configuration. Cannot set the trust field — trust levels are managed by the user via CLI only.",
+        "Update an existing agent's configuration.",
         {
           id: z.string().describe("Agent identifier"),
           name: z.string().optional().describe("New display name"),

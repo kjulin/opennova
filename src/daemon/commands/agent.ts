@@ -2,11 +2,9 @@ import fs from "fs";
 import path from "path";
 import readline from "readline/promises";
 import { resolveWorkspace } from "../workspace.js";
-import { TrustLevel, TelegramConfigSchema, safeParseJsonFile } from "#core/index.js";
+import { TelegramConfigSchema, safeParseJsonFile } from "#core/index.js";
 import { agentStore } from "#core/agents/index.js";
 import { askRequired, pairTelegramChat } from "../telegram-pairing.js";
-
-const VALID_LEVELS = TrustLevel.options;
 
 export async function run() {
   const workspaceDir = resolveWorkspace();
@@ -26,7 +24,7 @@ export async function run() {
       return;
     }
     for (const [id, agent] of agents) {
-      console.log(`${id}  ${agent.name} [${agent.trust}]`);
+      console.log(`${id}  ${agent.name}`);
     }
     return;
   }
@@ -45,7 +43,6 @@ export async function run() {
     console.log(`Name:       ${agent.name}`);
     console.log(`ID:         ${agentId}`);
     if (agent.description) console.log(`Desc:       ${agent.description}`);
-    console.log(`Trust:      ${agent.trust}`);
     if ((agent as Record<string, unknown>).cwd) console.log(`Directory:  ${(agent as Record<string, unknown>).cwd}`);
     if (agent.directories && agent.directories.length > 0) {
       console.log(`Extra dirs: ${agent.directories.join(", ")}`);
@@ -70,26 +67,6 @@ export async function run() {
       const count = fs.readdirSync(threadsDir).filter((f) => f.endsWith(".jsonl")).length;
       console.log(`Threads:    ${count}`);
     }
-    return;
-  }
-
-  // nova agent <id> trust <level>
-  if (subcommand === "trust") {
-    const level = process.argv[5];
-    if (!level) {
-      console.error("Usage: nova agent <id> trust <level>");
-      console.error(`Levels: ${VALID_LEVELS.join(", ")}`);
-      process.exit(1);
-    }
-
-    if (!VALID_LEVELS.includes(level as typeof VALID_LEVELS[number])) {
-      console.error(`Invalid trust level: ${level}`);
-      console.error(`Valid levels: ${VALID_LEVELS.join(", ")}`);
-      process.exit(1);
-    }
-
-    agentStore.update(agentId, { trust: level as typeof VALID_LEVELS[number] });
-    console.log(`Set ${agentId} trust to ${level}`);
     return;
   }
 
@@ -163,6 +140,6 @@ export async function run() {
   }
 
   console.error(`Unknown subcommand: ${subcommand}`);
-  console.error("Usage: nova agent [<id>] [trust <level>] [telegram [remove]]");
+  console.error("Usage: nova agent [<id>] [telegram [remove]]");
   process.exit(1);
 }
