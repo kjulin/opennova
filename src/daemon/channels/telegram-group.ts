@@ -293,16 +293,19 @@ export function groupMessageMiddleware(opts: GroupMessageOptions) {
     if (chat.type !== "group" && chat.type !== "supergroup") return next();
 
     const chatIdStr = String(chat.id);
-    if (!isAuthorizedGroup(config, chatIdStr)) return next();
+    if (!isAuthorizedGroup(config, chatIdStr)) {
+      log.debug("telegram-group", `[${chatIdStr}] not authorized, passing through`);
+      return next();
+    }
 
     const text = message.text;
     if (!text) return; // only handle text messages in groups for v1
 
     const groupConfig = config.groups![chatIdStr]!;
-
-    // Log message to JSONL
     const fromName = message.from?.first_name ?? "Unknown";
     const fromBot = message.from?.is_bot ?? false;
+
+    log.info("telegram-group", `[${chatIdStr}] [${fromName}] ${text.length > 100 ? text.slice(0, 100) + "…" : text}`);
     appendGroupMessage(chatIdStr, {
       id: message.message_id,
       from: fromBot ? (opts.resolveAgent()?.agentId ?? fromName) : fromName,
@@ -363,13 +366,20 @@ export function groupMessageMiddleware(opts: GroupMessageOptions) {
       triggered = true;
     }
 
-    if (!triggered) return; // Message logged but not acted on
+    if (!triggered) {
+      log.debug("telegram-group", `[${chatIdStr}] not triggered (bot=${botInfo.username}, entities=${JSON.stringify(message.entities ?? [])})`);
+      return;
+    }
 
     // Resolve agent
     const resolved = opts.resolveAgent();
-    if (!resolved) return;
+    if (!resolved) {
+      log.warn("telegram-group", `[${chatIdStr}] triggered but no agent available`);
+      return;
+    }
 
     const { agentId, agentDir } = resolved;
+    log.info("telegram-group", `[${chatIdStr}] triggered → invoking agent ${agentId}`);
 
     // Resolve thread
     let threadId = groupConfig.threads[agentId];
