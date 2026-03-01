@@ -18,6 +18,7 @@ import { getTask, loadTasks } from "#tasks/index.js";
 import { TELEGRAM_HELP_MESSAGE } from "./telegram-help.js";
 import { splitMessage, chatGuard, toTelegramMarkdown } from "./telegram-utils.js";
 import { taskgroupMiddleware } from "./telegram-taskgroup.js";
+import { groupPairingMiddleware } from "./telegram-group.js";
 import { log } from "../logger.js";
 import { getPublicUrl } from "../workspace.js";
 
@@ -129,6 +130,9 @@ export function startTelegram() {
 
   // Taskgroup pairing — must run BEFORE chatGuard
   bot.use(taskgroupMiddleware(bot, config, () => saveTelegramConfig(config)));
+
+  // Group chat pairing — must run BEFORE chatGuard
+  bot.use(groupPairingMiddleware(bot, config, () => saveTelegramConfig(config)));
 
   bot.use(chatGuard(config.chatId));
   log.info("telegram", "channel started");

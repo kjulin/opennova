@@ -11,6 +11,13 @@ export const AgentBotConfigSchema = z.object({
 
 export type AgentBotConfig = z.infer<typeof AgentBotConfigSchema>;
 
+export const GroupConfigSchema = z.object({
+  name: z.string(),
+  threads: z.record(z.string(), z.string()), // agentId → threadId
+});
+
+export type GroupConfig = z.infer<typeof GroupConfigSchema>;
+
 export const TelegramConfigSchema = z.object({
   token: z.string(),
   chatId: z.string(),
@@ -25,6 +32,7 @@ export const TelegramConfigSchema = z.object({
       topicId: z.number(),
     })),
   }).optional(),
+  groups: z.record(z.string(), GroupConfigSchema).optional(),
   ignoredGroups: z.array(z.string()).optional(),
 }).passthrough();
 

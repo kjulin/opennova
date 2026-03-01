@@ -10,6 +10,7 @@ export { log, setLogger, type Logger } from "./logger.js";
 // Schemas
 export {
   AgentBotConfigSchema,
+  GroupConfigSchema,
   TelegramConfigSchema,
   TriggerSchema,
   ThreadManifestSchema,
@@ -21,6 +22,7 @@ export {
   ThreadEventSchema,
   safeParseJsonFile,
   type AgentBotConfig,
+  type GroupConfig,
   type TelegramConfig,
   type Trigger,
 } from "./schemas.js";
