@@ -53,21 +53,22 @@ export function taskgroupMiddleware(
     // Only handle actual messages (not other update types)
     if (!ctx.message) return next();
 
-    await handleTaskgroupMessage(ctx, bot, config, saveConfig);
-    // Don't call next() — don't let chatGuard see these
+    const handled = await handleTaskgroupMessage(ctx, bot, config, saveConfig);
+    if (!handled) return next();
   };
 }
 
+/** Returns true if the message was handled, false if it should pass through. */
 async function handleTaskgroupMessage(
   ctx: Context,
   bot: Bot,
   config: TelegramConfig,
   saveConfig: () => void,
-) {
+): Promise<boolean> {
   const chat = ctx.chat!;
   const chatIdStr = String(chat.id);
 
-  // Already paired to this group
+  // Already paired to this group — handle all messages
   if (config.taskgroup?.chatId === chatIdStr) {
     const topicId = ctx.message?.message_thread_id;
 
@@ -77,51 +78,40 @@ async function handleTaskgroupMessage(
       saveConfig();
       await ctx.reply("Disconnected. Task topics will stay visible but I'll stop updating them.");
       log.info("telegram", `taskgroup disconnected: ${chatIdStr}`);
-      return;
+      return true;
     }
 
     // Handle user replies in task topics
     if (topicId && ctx.message?.text) {
       await handleTopicReply(ctx, bot, config, topicId);
-      return;
+      return true;
     }
 
     // General topic text → main agent
     if (!topicId && ctx.message?.text) {
       await handleGeneralTopicMessage(ctx, bot, config, saveConfig);
     }
-    return;
+    return true;
   }
 
-  // In ignored list → ignore
-  if (config.ignoredGroups?.includes(chatIdStr)) return;
+  // Not a taskgroup candidate — pass through to other middleware
+  if (config.ignoredGroups?.includes(chatIdStr)) return false;
+  if (config.taskgroup?.chatId) return false; // already paired to a different group
+  if (chat.type !== "supergroup") return false;
+  if (!(chat as any).is_forum) return false;
 
-  // Already paired to a different group → silently ignore
-  if (config.taskgroup?.chatId) return;
-
-  // Pre-validation checks
-  if (chat.type !== "supergroup") {
-    await ctx.reply("Task board requires a supergroup.");
-    return;
-  }
-
-  if (!(chat as any).is_forum) {
-    await ctx.reply("Enable Topics in this group's settings to use it as a task board.");
-    return;
-  }
-
-  // Check bot permissions
+  // Check bot permissions for taskgroup pairing
   try {
     const me = await bot.api.getMe();
     const member = await bot.api.getChatMember(chat.id, me.id);
     if (member.status !== "administrator" || !(member as any).can_manage_topics) {
       await ctx.reply("I need the 'Manage Topics' admin permission to create task topics.");
-      return;
+      return true;
     }
   } catch (err) {
     log.warn("telegram", `failed to check bot permissions in ${chatIdStr}:`, (err as Error).message);
     await ctx.reply("I need the 'Manage Topics' admin permission to create task topics.");
-    return;
+    return true;
   }
 
   // All checks pass — show pairing prompt
@@ -133,6 +123,7 @@ async function handleTaskgroupMessage(
     "Use this group as your task board?\nTask topics will be created here automatically.",
     { reply_markup: keyboard },
   );
+  return true;
 }
 
 async function handleGeneralTopicMessage(

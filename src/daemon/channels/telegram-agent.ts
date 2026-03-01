@@ -83,15 +83,6 @@ export function startAgentTelegram(
   const agentDir = path.join(Config.workspaceDir, "agents", agentId);
   const bot = new Bot(botConfig.token);
 
-  // DEBUG: catch absolutely everything
-  bot.use((ctx, next) => {
-    const chatId = ctx.chat?.id ?? "no-chat";
-    const chatType = ctx.chat?.type ?? "no-type";
-    const updateType = Object.keys(ctx.update).filter(k => k !== "update_id").join(",");
-    log.info("telegram-agent", `RAW UPDATE [${agentId}]: chat=${chatId} type=${chatType} update=${updateType}`);
-    return next();
-  });
-
   // Group message handling — must run BEFORE chatGuard
   bot.use(groupMessageMiddleware({
     bot,
