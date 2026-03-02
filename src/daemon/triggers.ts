@@ -44,7 +44,9 @@ export function startTriggerScheduler() {
 
           log.info("trigger", `firing for agent ${agentId} thread ${threadId}: "${trigger.prompt}"`);
 
-          const callbacks = getDeliveryCallbacks(agentId);
+          // Trigger runs are background — only deliver via notify_user, not onResponse
+          const allCallbacks = getDeliveryCallbacks(agentId);
+          const callbacks = allCallbacks?.onNotifyUser ? { onNotifyUser: allCallbacks.onNotifyUser } : undefined;
 
           runAgent(agentDir(agentId), threadId, trigger.prompt, callbacks, {
             triggers: createTriggerMcpServer(agentId),
