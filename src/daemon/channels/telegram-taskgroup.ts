@@ -19,6 +19,8 @@ import {
   type TelegramConfig,
 } from "#core/index.js";
 import { getTask } from "#tasks/index.js";
+import { taskBus, type TaskEventPayload } from "#tasks/events.js";
+import { registerTaskDeliveryCallbacks, unregisterTaskDeliveryCallbacks } from "../channels.js";
 import { splitMessage, toTelegramMarkdown } from "./telegram-utils.js";
 import { log } from "../logger.js";
 import path from "path";
@@ -396,4 +398,181 @@ async function handleTaskgroupCallback(
     log.info("telegram", `taskgroup ignored: ${groupChatId}`);
     return;
   }
+}
+
+/**
+ * Subscribe to task lifecycle events and auto-create/close forum topics.
+ * Returns a cleanup function that removes the event listeners.
+ */
+export function initTaskgroupTopics(
+  bot: Bot,
+  config: TelegramConfig,
+  saveConfig: () => void,
+): () => void {
+  function onTaskCreated({ taskId }: TaskEventPayload) {
+    if (!config.taskgroup?.chatId) return;
+
+    const task = getTask(Config.workspaceDir, taskId);
+    if (!task) return;
+
+    const chatId = Number(config.taskgroup.chatId);
+
+    // Check if topic already exists for this task
+    if (config.taskgroup.topicMappings.some((m) => m.taskId === taskId)) return;
+
+    // Register callbacks synchronously with a promise so that task:started
+    // (which fires right after task:created) can already resolve them.
+    let resolveTopicId!: (topicId: number) => void;
+    const topicIdPromise = new Promise<number>((resolve) => { resolveTopicId = resolve; });
+
+    registerTaskDeliveryCallbacks(taskId, () => buildTopicCallbacks(bot, chatId, topicIdPromise));
+
+    (async () => {
+      try {
+        const topic = await bot.api.createForumTopic(chatId, task.title);
+        const topicId = topic.message_thread_id;
+
+        resolveTopicId(topicId);
+
+        config.taskgroup!.topicMappings.push({ taskId, topicId });
+        saveConfig();
+
+        log.info("telegram", `created taskgroup topic ${topicId} for task #${taskId}`);
+
+        // Send initial message with task description
+        const desc = task.description
+          ? `*Task #${taskId}*: ${task.title}\n\n${toTelegramMarkdown(task.description)}`
+          : `*Task #${taskId}*: ${task.title}`;
+        await bot.api.sendMessage(chatId, desc, {
+          message_thread_id: topicId,
+          parse_mode: "Markdown",
+          disable_notification: true,
+        }).catch(() => {
+          bot.api.sendMessage(chatId, `Task #${taskId}: ${task.title}\n\n${task.description || ""}`, {
+            message_thread_id: topicId,
+            disable_notification: true,
+          }).catch(() => {});
+        });
+      } catch (err) {
+        log.error("telegram", `failed to create topic for task #${taskId}:`, (err as Error).message);
+        unregisterTaskDeliveryCallbacks(taskId);
+      }
+    })();
+  }
+
+  function onTaskEnded(status: "completed" | "canceled") {
+    return ({ taskId }: TaskEventPayload) => {
+      if (!config.taskgroup?.chatId) return;
+
+      const mapping = config.taskgroup.topicMappings.find((m) => m.taskId === taskId);
+      if (!mapping) return;
+
+      const chatId = Number(config.taskgroup.chatId);
+      const label = status === "completed" ? "Task completed" : "Task canceled";
+
+      (async () => {
+        try {
+          await bot.api.sendMessage(chatId, `_${label}._`, {
+            message_thread_id: mapping.topicId,
+            parse_mode: "Markdown",
+          }).catch(() => {});
+
+          await bot.api.closeForumTopic(chatId, mapping.topicId).catch((err) => {
+            log.warn("telegram", `failed to close topic ${mapping.topicId}:`, (err as Error).message);
+          });
+
+          log.info("telegram", `closed taskgroup topic ${mapping.topicId} for task #${taskId} (${status})`);
+        } catch (err) {
+          log.error("telegram", `failed to close topic for task #${taskId}:`, (err as Error).message);
+        }
+
+        unregisterTaskDeliveryCallbacks(taskId);
+      })();
+    };
+  }
+
+  const onCompleted = onTaskEnded("completed");
+  const onCanceled = onTaskEnded("canceled");
+
+  taskBus.on("task:created", onTaskCreated);
+  taskBus.on("task:completed", onCompleted);
+  taskBus.on("task:canceled", onCanceled);
+
+  // Re-register callbacks for existing topic mappings (e.g. after reload)
+  if (config.taskgroup?.chatId) {
+    const chatId = Number(config.taskgroup.chatId);
+    for (const mapping of config.taskgroup.topicMappings) {
+      const task = getTask(Config.workspaceDir, mapping.taskId);
+      if (task && (task.status === "active" || task.status === "draft")) {
+        const readyTopicId = Promise.resolve(mapping.topicId);
+        registerTaskDeliveryCallbacks(mapping.taskId, () => buildTopicCallbacks(bot, chatId, readyTopicId));
+      }
+    }
+  }
+
+  return () => {
+    taskBus.removeListener("task:created", onTaskCreated);
+    taskBus.removeListener("task:completed", onCompleted);
+    taskBus.removeListener("task:canceled", onCanceled);
+  };
+}
+
+/**
+ * Build delivery callbacks that route messages to a taskgroup forum topic.
+ * - onResponse / onFileSend → muted (disable_notification: true)
+ * - onNotifyUser → with notification
+ *
+ * topicId is a promise so callbacks registered before the topic is created
+ * will wait for it to resolve (fixes task:created → task:started race).
+ */
+function buildTopicCallbacks(bot: Bot, chatId: number, topicIdPromise: Promise<number>) {
+  return {
+    async onResponse(_agentId: string, _threadId: string, text: string) {
+      const topicId = await topicIdPromise;
+      const formatted = toTelegramMarkdown(text);
+      const chunks = splitMessage(formatted);
+      for (const chunk of chunks) {
+        await bot.api.sendMessage(chatId, chunk, {
+          message_thread_id: topicId,
+          parse_mode: "Markdown",
+          disable_notification: true,
+        }).catch(() => {
+          bot.api.sendMessage(chatId, chunk, {
+            message_thread_id: topicId,
+            disable_notification: true,
+          }).catch((err) => {
+            log.error("telegram", "failed to deliver topic response:", err);
+          });
+        });
+      }
+    },
+    async onFileSend(_agentId: string, _threadId: string, filePath: string, caption: string | undefined, fileType: string) {
+      const topicId = await topicIdPromise;
+      const file = new InputFile(filePath);
+      const opts: Record<string, unknown> = {
+        message_thread_id: topicId,
+        disable_notification: true,
+      };
+      if (caption) opts.caption = caption;
+
+      const sendFn = fileType === "photo" ? bot.api.sendPhoto.bind(bot.api)
+        : fileType === "audio" ? bot.api.sendAudio.bind(bot.api)
+        : fileType === "video" ? bot.api.sendVideo.bind(bot.api)
+        : bot.api.sendDocument.bind(bot.api);
+
+      sendFn(chatId, file, opts).catch((err: Error) => {
+        log.error("telegram", `failed to send file to topic:`, err.message);
+      });
+    },
+    async onNotifyUser(_agentId: string, _threadId: string, message: string) {
+      const topicId = await topicIdPromise;
+      const formatted = toTelegramMarkdown(message);
+      bot.api.sendMessage(chatId, formatted, {
+        message_thread_id: topicId,
+        parse_mode: "Markdown",
+      }).catch(() => {
+        bot.api.sendMessage(chatId, message, { message_thread_id: topicId }).catch(() => {});
+      });
+    },
+  };
 }
