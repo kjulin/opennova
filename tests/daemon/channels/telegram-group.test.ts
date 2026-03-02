@@ -536,7 +536,7 @@ function createGroupTestBot(config: GroupTestConfig) {
     return { ok: true, result: {} };
   });
 
-  bot.use(groupMessageMiddleware({ bot, config: config as any, saveConfig, resolveAgent }));
+  bot.use(groupMessageMiddleware({ bot, config: config as any, saveConfig, resolveAgent, handleCommands: true }));
   bot.use(chatGuard(config.chatId));
 
   // Catch-all handler to avoid grammY unhandled update errors
@@ -678,9 +678,8 @@ describe("groupMessageMiddleware", () => {
 
     // Response sent to group
     const sendCalls = apiCalls.filter(c => c.method === "sendMessage");
-    expect(sendCalls.length).toBeGreaterThan(0);
-    const text = sendCalls.find(c => (c.payload.text as string).includes("New conversation"))?.payload.text;
-    expect(text).toContain("TestAgent");
+    const text = sendCalls.find(c => (c.payload.text as string).includes("New thread"))?.payload.text;
+    expect(text).toBe("New thread started.");
 
     // Reset sentinel written to JSONL
     const filePath = path.join(tmpDir, "groups", String(GROUP_MSG_CHAT_ID), "messages.jsonl");
