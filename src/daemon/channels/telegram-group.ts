@@ -385,7 +385,7 @@ export function invokeGroupAgent(opts: InvokeGroupAgentOptions): void {
   // Build context
   const context = buildGroupContext(chatId, agentId, groupName);
   const participantInfo = formatParticipants(agentId);
-  const groupPrompt = `<GroupChat>\nYou are participating in a Telegram group chat "${groupName}".\nMessages from other participants are provided as context above your prompt.\nWhen responding, you are speaking to the group — keep responses conversational and concise.\nYou can reference what other participants (including other agents) have said.\nTo mention another agent, use their @username.${participantInfo}\n</GroupChat>`;
+  const groupPrompt = `<GroupChat>\nYou are participating in a Telegram group chat "${groupName}".\nMessages from other participants are provided as context above your prompt.\nWhen responding, you are speaking to the group — keep it short and conversational so the chat is easy to follow. For detailed output, write to a file and reference the path instead.\nOnly use @username when you want that agent to respond to your message. To simply refer to another agent, use their display name.${participantInfo}\n</GroupChat>`;
 
   const contextualizedMessage = [context, groupPrompt, triggerText].filter(Boolean).join("\n\n");
 
@@ -505,6 +505,8 @@ export interface GroupMessageOptions {
   saveConfig: () => void;
   /** Return the agent to invoke. Null means no agent available. */
   resolveAgent: () => { agentId: string } | null;
+  /** Whether this bot handles /new and /stop commands. Only one bot should set this. */
+  handleCommands?: boolean;
 }
 
 /**
@@ -543,34 +545,32 @@ export function groupMessageMiddleware(opts: GroupMessageOptions) {
       ts: new Date().toISOString(),
     });
 
-    // Handle /new — reset context and rotate threads
-    if (text === "/new") {
-      appendGroupReset(chatIdStr);
-      const agentNames: string[] = [];
-      for (const agentId of Object.keys(groupConfig.threads)) {
-        const agent = agentStore.list().get(agentId);
-        const newThreadId = threadStore.create(agentId);
-        groupConfig.threads[agentId] = newThreadId;
-        agentNames.push(agent?.name ?? agentId);
-      }
-      saveConfig();
-      const names = agentNames.length > 0 ? agentNames.join(", ") : "all agents";
-      await bot.api.sendMessage(chat.id, `New conversation started for ${names}.`).catch(() => {});
-      return;
-    }
-
-    // Handle /stop — abort all running agents in this group
-    if (text === "/stop") {
-      let stopped = 0;
-      for (const [key, ac] of activeAbortControllers) {
-        if (key.startsWith(`${chatIdStr}:`)) {
-          ac.abort();
-          activeAbortControllers.delete(key);
-          stopped++;
+    // Commands — only handled by one bot to avoid duplicate messages
+    if (opts.handleCommands) {
+      if (text === "/new") {
+        appendGroupReset(chatIdStr);
+        for (const agentId of Object.keys(groupConfig.threads)) {
+          groupConfig.threads[agentId] = threadStore.create(agentId);
         }
+        saveConfig();
+        await bot.api.sendMessage(chat.id, "New thread started.").catch(() => {});
+        return;
       }
-      await bot.api.sendMessage(chat.id, stopped > 0 ? "Stopped." : "Nothing running.").catch(() => {});
-      return;
+
+      if (text === "/stop") {
+        let stopped = 0;
+        for (const [key, ac] of activeAbortControllers) {
+          if (key.startsWith(`${chatIdStr}:`)) {
+            ac.abort();
+            activeAbortControllers.delete(key);
+            stopped++;
+          }
+        }
+        await bot.api.sendMessage(chat.id, stopped > 0 ? "Stopped." : "Nothing running.").catch(() => {});
+        return;
+      }
+    } else if (text === "/new" || text === "/stop") {
+      return; // Let the primary bot handle it
     }
 
     // Check trigger conditions

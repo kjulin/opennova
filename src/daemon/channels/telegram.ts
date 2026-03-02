@@ -107,6 +107,7 @@ export function startTelegram(config: TelegramConfig, saveConfig: () => void) {
     bot,
     config,
     saveConfig,
+    handleCommands: true,
     resolveAgent: () => {
       // Main bot always uses "nova" agent for group chats
       const agentId = "nova";
