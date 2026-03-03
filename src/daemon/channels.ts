@@ -18,11 +18,28 @@ export interface LoadChannelsResult {
 
 let currentShutdown: (() => void) | null = null;
 const deliveryCallbackMap = new Map<string, () => Partial<AgentRunnerCallbacks>>();
+const taskDeliveryCallbackMap = new Map<string, () => Partial<AgentRunnerCallbacks>>();
 
 /** Get delivery callbacks for an agent (e.g. Telegram message sending). */
 export function getDeliveryCallbacks(agentId: string): Partial<AgentRunnerCallbacks> | undefined {
   const factory = deliveryCallbackMap.get(agentId);
   return factory?.();
+}
+
+/** Register task-specific delivery callbacks (e.g. taskgroup topic routing). */
+export function registerTaskDeliveryCallbacks(taskId: string, factory: () => Partial<AgentRunnerCallbacks>): void {
+  taskDeliveryCallbackMap.set(taskId, factory);
+}
+
+/** Get task-specific delivery callbacks. */
+export function getTaskDeliveryCallbacks(taskId: string): Partial<AgentRunnerCallbacks> | undefined {
+  const factory = taskDeliveryCallbackMap.get(taskId);
+  return factory?.();
+}
+
+/** Unregister task-specific delivery callbacks. */
+export function unregisterTaskDeliveryCallbacks(taskId: string): void {
+  taskDeliveryCallbackMap.delete(taskId);
 }
 
 function loadTelegramConfig(): TelegramConfig | null {
@@ -72,6 +89,7 @@ export function loadChannels(): LoadChannelsResult {
 
   // Clear previous delivery callbacks on reload
   deliveryCallbackMap.clear();
+  taskDeliveryCallbackMap.clear();
 
   // Load config once — shared across main bot and agent bots
   const config = loadTelegramConfig();

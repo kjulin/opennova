@@ -15,7 +15,7 @@ import {
 import { getTask, loadTasks } from "#tasks/index.js";
 import { TELEGRAM_HELP_MESSAGE } from "./telegram-help.js";
 import { splitMessage, chatGuard, toTelegramMarkdown } from "./telegram-utils.js";
-import { taskgroupMiddleware } from "./telegram-taskgroup.js";
+import { taskgroupMiddleware, initTaskgroupTopics } from "./telegram-taskgroup.js";
 import { groupPairingMiddleware, groupMessageMiddleware, registerGroupParticipant, subscribeGroupMentions } from "./telegram-group.js";
 import { log } from "../logger.js";
 import { getPublicUrl } from "../workspace.js";
@@ -814,6 +814,9 @@ You can read, process, or move this file as needed.`;
     });
   });
 
+  // Auto-create forum topics for tasks in the taskgroup
+  const cleanupTopics = initTaskgroupTopics(bot, config, saveConfig);
+
   bot.start();
 
   // Register main bot as group participant after init completes
@@ -831,6 +834,7 @@ You can read, process, or move this file as needed.`;
   return {
     bot,
     shutdown() {
+      cleanupTopics();
       unsubscribeMentions();
       bot.stop();
     },

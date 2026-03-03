@@ -7,7 +7,7 @@ import { TASK_WORK_PROMPT } from "./prompts.js";
 import { runAgent } from "#core/index.js";
 import { log } from "#daemon/logger.js";
 import { taskBus } from "./events.js";
-import { getDeliveryCallbacks } from "#daemon/channels.js";
+import { getDeliveryCallbacks, getTaskDeliveryCallbacks } from "#daemon/channels.js";
 
 // Track in-flight task invocations to avoid double-invoking
 const inFlightTasks = new Set<string>();
@@ -18,7 +18,7 @@ async function invokeTask(workspaceDir: string, taskId: string, owner: string, t
 
   try {
     const agentDir = path.join(workspaceDir, "agents", owner);
-    const callbacks = getDeliveryCallbacks(owner);
+    const callbacks = getTaskDeliveryCallbacks(taskId) ?? getDeliveryCallbacks(owner);
     await runAgent(agentDir, threadId, TASK_WORK_PROMPT, callbacks, undefined, undefined, undefined, { background: true, source: "task" });
     log.info("tasks", `task ${taskId} invocation completed`);
   } catch (err) {
