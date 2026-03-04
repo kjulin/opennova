@@ -1,6 +1,9 @@
+import fs from "fs"
+import path from "path"
 import { Hono } from "hono"
 import { z } from "zod/v4"
 import { agentStore } from "#core/agents/index.js"
+import { agentDir } from "#core/agents/io.js"
 import { triggerStore } from "#core/triggers/index.js"
 import { capabilityRegistry } from "#core/capabilities/index.js"
 import {
@@ -16,6 +19,15 @@ function loadAgentDetail(id: string, agent: { name: string; description?: string
   const agentJson = agentStore.get(id)
   const skills: string[] = agentJson?.skills ?? []
 
+  // Load agent memory if it exists
+  let memory: string | null = null
+  const memoryPath = path.join(agentDir(id), "memory.md")
+  try {
+    memory = fs.readFileSync(memoryPath, "utf-8")
+  } catch {
+    // no memory file
+  }
+
   return {
     id,
     name: agent.name,
@@ -28,6 +40,7 @@ function loadAgentDetail(id: string, agent: { name: string; description?: string
     model: agent.model,
     skills,
     triggers,
+    memory,
   }
 }
 

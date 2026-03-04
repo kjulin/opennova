@@ -106,6 +106,7 @@ export const ThreadEventSchema = z.union([
 export const VALID_AGENT_ID = /^[a-z0-9][a-z0-9-]*$/;
 export const MAX_IDENTITY_LENGTH = 4000;
 export const MAX_INSTRUCTIONS_LENGTH = 8000;
+export const MAX_MEMORY_LENGTH = 16000;
 export const MAX_DESCRIPTION_LENGTH = 500;
 
 export const ResponsibilitySchema = z.object({

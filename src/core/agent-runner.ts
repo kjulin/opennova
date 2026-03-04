@@ -101,6 +101,7 @@ export function createAgentRunner(engine: Engine = claudeEngine): AgentRunner {
         systemPrompt = buildSystemPrompt(agent, cwd, directories, {
           task,
           background: overrides?.background,
+          agentDir,
         });
 
         const engineCallbacks: EngineCallbacks = {
