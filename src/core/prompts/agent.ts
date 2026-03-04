@@ -1,3 +1,5 @@
+import fs from "fs";
+import path from "path";
 import type { AgentConfig } from "../agents/index.js";
 import type { Responsibility } from "../schemas.js";
 import type { Task } from "#tasks/types.js";
@@ -6,6 +8,25 @@ import { STORAGE_INSTRUCTIONS, buildMemoryPrompt } from "./memory.js";
 import { getFormattingInstructions } from "./formatting.js";
 import { buildContextBlock } from "./context.js";
 import { buildDirectoriesBlock } from "./directories.js";
+
+export function buildMemoryIndexBlock(agentDir?: string): string {
+  if (!agentDir) return "";
+  const memoryPath = path.join(agentDir, "memory.md");
+  let content: string;
+  try {
+    content = fs.readFileSync(memoryPath, "utf-8");
+  } catch {
+    return "";
+  }
+  if (!content.trim()) return "";
+  const lines = content.split("\n");
+  const truncated = lines.length > 200;
+  const displayed = truncated ? lines.slice(0, 200).join("\n") : content;
+  const comment = truncated
+    ? `\n<!-- Truncated: showing 200 of ${lines.length} lines. Use read_my_memory for full content. -->`
+    : "";
+  return `\n\n<AgentMemory>\n${displayed}${comment}\n</AgentMemory>`;
+}
 
 function buildIdentityBlock(agent: AgentConfig): string {
   const parts: string[] = [];
@@ -29,6 +50,7 @@ function buildResponsibilitiesBlock(responsibilities: Responsibility[] | undefin
 export interface BuildSystemPromptOptions {
   task?: Task | undefined;
   background?: boolean | undefined;
+  agentDir?: string | undefined;
 }
 
 export function buildSystemPrompt(
@@ -41,7 +63,8 @@ export function buildSystemPrompt(
   const dirBlock = buildDirectoriesBlock(cwd, directories);
   const formatting = getFormattingInstructions();
 
-  let prompt = `${buildIdentityBlock(agent)}${buildResponsibilitiesBlock(agent.responsibilities)}${dirBlock}${STORAGE_INSTRUCTIONS}\n${formatting}${buildContextBlock()}${memories}`;
+  const agentMemory = buildMemoryIndexBlock(options?.agentDir);
+  let prompt = `${buildIdentityBlock(agent)}${agentMemory}${buildResponsibilitiesBlock(agent.responsibilities)}${dirBlock}${STORAGE_INSTRUCTIONS}\n${formatting}${buildContextBlock()}${memories}`;
 
   if (options?.task) {
     prompt += `\n\n${buildTaskContext(options.task)}`;

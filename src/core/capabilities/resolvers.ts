@@ -61,6 +61,8 @@ export function createRegistry(): CapabilityRegistry {
       { name: "add_responsibility", description: "Add a responsibility" },
       { name: "update_responsibility", description: "Update a responsibility" },
       { name: "remove_responsibility", description: "Remove a responsibility" },
+      { name: "read_my_memory", description: "Read your memory index" },
+      { name: "update_my_memory", description: "Update your memory index" },
     ],
   );
 

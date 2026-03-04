@@ -7,8 +7,12 @@ import {
 } from "@anthropic-ai/claude-agent-sdk";
 import {
   MAX_INSTRUCTIONS_LENGTH,
+  MAX_MEMORY_LENGTH,
   ResponsibilitySchema,
 } from "../schemas.js";
+import fs from "fs";
+import path from "path";
+import { agentDir } from "./io.js";
 import { MODELS } from "../models.js";
 import { agentStore } from "./singleton.js";
 import { triggerStore } from "../triggers/singleton.js";
@@ -303,6 +307,43 @@ export function createSelfManagementMcpServer(
           } catch (e) {
             return err(`Failed to remove: ${(e as Error).message}`);
           }
+        },
+      ),
+
+      tool(
+        "read_my_memory",
+        "Read your memory index (memory.md). Use before updating to see current state.",
+        {},
+        async () => {
+          const memoryPath = path.join(agentDir(agentId), "memory.md");
+          try {
+            const content = fs.readFileSync(memoryPath, "utf-8");
+            return ok(content);
+          } catch {
+            return ok("(no memory index yet — use update_my_memory to create one)");
+          }
+        },
+      ),
+
+      tool(
+        "update_my_memory",
+        "Update your memory index (memory.md). This should serve as a concise index — store summaries, pointers, and key facts here, and put detailed content in separate files. First 200 lines are loaded into your system prompt each conversation.",
+        {
+          content: z.string()
+            .min(1, "Memory content cannot be empty")
+            .max(MAX_MEMORY_LENGTH, `Memory content cannot exceed ${MAX_MEMORY_LENGTH} characters`)
+            .describe("Full replacement content for your memory.md"),
+        },
+        async (args) => {
+          const dir = agentDir(agentId);
+          if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+          const memoryPath = path.join(dir, "memory.md");
+          fs.writeFileSync(memoryPath, args.content);
+          const lineCount = args.content.split("\n").length;
+          const warning = lineCount > 200
+            ? ` Warning: ${lineCount} lines — only first 200 are loaded into your system prompt.`
+            : "";
+          return ok(`Updated memory.md (${lineCount} lines, ${args.content.length} chars).${warning}`);
         },
       ),
   ];
