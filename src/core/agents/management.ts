@@ -327,7 +327,7 @@ export function createSelfManagementMcpServer(
 
       tool(
         "update_my_memory",
-        "Update your memory index (memory.md). Use for knowledge you want to persist across conversations: key facts, patterns, domain knowledge, user context. First 200 lines are loaded into your system prompt each conversation.",
+        "Update your memory index (memory.md). This should serve as a concise index — store summaries, pointers, and key facts here, and put detailed content in separate files. First 200 lines are loaded into your system prompt each conversation.",
         {
           content: z.string()
             .min(1, "Memory content cannot be empty")
