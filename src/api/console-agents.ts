@@ -153,6 +153,18 @@ export function createConsoleAgentsRouter(workspaceDir: string): Hono {
       }
     }
 
+    // Handle memory separately — it's stored as a file, not in agent.json
+    if ("memory" in body) {
+      const memoryPath = path.join(agentDir(id), "memory.md")
+      const memoryValue = body.memory
+      if (memoryValue && typeof memoryValue === "string" && memoryValue.trim()) {
+        fs.mkdirSync(path.dirname(memoryPath), { recursive: true })
+        fs.writeFileSync(memoryPath, memoryValue, "utf-8")
+      } else {
+        try { fs.unlinkSync(memoryPath) } catch { /* already gone */ }
+      }
+    }
+
     agentStore.update(id, partial as Partial<AgentJsonInput>)
 
     const updated = agentStore.get(id)
