@@ -25,6 +25,7 @@ export interface Agent {
   directories?: string[];
   skills: string[];
   triggers: Trigger[];
+  memory?: string | null;
 }
 
 export interface AgentsResponse {

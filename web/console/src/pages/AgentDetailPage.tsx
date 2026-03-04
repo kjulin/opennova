@@ -8,6 +8,7 @@ import { CollapsibleCard } from "@/components/ui/collapsible-card";
 import { AgentHeader } from "@/components/AgentHeader";
 import { AgentIdentity } from "@/components/AgentIdentity";
 import { AgentResponsibilities } from "@/components/AgentResponsibilities";
+import { AgentMemory } from "@/components/AgentMemory";
 import { AgentCapabilities } from "@/components/AgentCapabilities";
 import { AgentDirectories } from "@/components/AgentDirectories";
 import { AgentSkills } from "@/components/AgentSkills";
@@ -30,6 +31,7 @@ export function AgentDetailPage() {
   const [responsibilities, setResponsibilities] = useState<Responsibility[]>([]);
   const [capabilities, setCapabilities] = useState<Record<string, { tools?: string[] }>>({});
   const [directories, setDirectories] = useState<string[]>([]);
+  const [memory, setMemory] = useState("");
 
   useEffect(() => {
     if (!id) return;
@@ -44,6 +46,7 @@ export function AgentDetailPage() {
         setResponsibilities(data.responsibilities ?? []);
         setCapabilities(data.capabilities ?? {});
         setDirectories(data.directories ?? []);
+        setMemory(data.memory ?? "");
       })
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
@@ -152,6 +155,18 @@ export function AgentDetailPage() {
           agentId={id}
           responsibilities={responsibilities}
           onResponsibilitiesChange={setResponsibilities}
+        />
+      </CollapsibleCard>
+
+      {/* Agent Memory */}
+      <CollapsibleCard
+        title="Agent Memory"
+        description={memory.trim() ? memory.trim().slice(0, 80) + (memory.trim().length > 80 ? "…" : "") : "No memory content"}
+      >
+        <AgentMemory
+          agentId={id}
+          memory={memory}
+          onMemoryChange={setMemory}
         />
       </CollapsibleCard>
 
